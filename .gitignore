@@ -1,0 +1,13 @@
+# IDEs
+.idea/
+.vscode/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# RPM build output
+rpmbuild/
+*.rpm
+
