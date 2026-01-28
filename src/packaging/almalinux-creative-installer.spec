@@ -2,7 +2,7 @@
 
 Name:           almalinux-creative-installer
 Version:        1.0.1
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        One-button creative app installer UI for AlmaLinux
 License:        MIT
 URL:            https://github.com/KernelChief/almalinux-creative-installer
