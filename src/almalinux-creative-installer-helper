@@ -1,625 +1,203 @@
-#!/usr/bin/env python3
+#!/usr/bin/env bash
 # SPDX-License-Identifier: MIT
-
-import gi
-gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, GLib, Gdk
-
-import subprocess
-import threading
-import shutil
-from pathlib import Path
-from collections import deque
-
-HELPER = "/usr/libexec/almalinux-creative-installer-helper"
-RESOLVE_URL = "https://www.blackmagicdesign.com/products/davinciresolve/"
-
-APPS = [
-    {"id": "gimp", "name": "GIMP", "type": "dnf", "pkg": "gimp", "emoji": "🖌️"},
-    {"id": "krita", "name": "Krita", "type": "flatpak", "appid": "org.kde.krita", "emoji": "🎨"},
-    {"id": "blender", "name": "Blender", "type": "dnf", "pkg": "blender", "emoji": "🧊"},
-    {"id": "resolve", "name": "DaVinci Resolve", "type": "resolve", "emoji": "🎞️"},
-]
-
-
-class AlmaCreativeInstaller(Gtk.Window):
-    def __init__(self):
-        super().__init__(title="Alma Creative Installer")
-        self.set_default_size(980, 640)
-
-        self.repo_widgets = {}
-        self.app_widgets = {}
-
-        self._apply_css()
-
-        hb = Gtk.HeaderBar()
-        hb.set_show_close_button(True)
-        hb.props.title = "Alma Creative Installer"
-        hb.props.subtitle = "Creative & M&E workstation installs"
-        self.set_titlebar(hb)
-
-        btn_refresh = Gtk.Button.new_from_icon_name("view-refresh", Gtk.IconSize.BUTTON)
-        btn_refresh.set_tooltip_text("Refresh checks")
-        btn_refresh.connect("clicked", lambda *_: self.refresh_all_states())
-        hb.pack_end(btn_refresh)
-
-        outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
-        outer.set_border_width(12)
-        self.add(outer)
-
-        self.notebook = Gtk.Notebook()
-        outer.pack_start(self.notebook, True, True, 0)
-
-        # ---------------- Apps tab ----------------
-        apps_page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
-        apps_page.set_border_width(6)
-        self.notebook.append_page(apps_page, Gtk.Label(label="Apps"))
-
-        # System Requirements
-        req_frame = Gtk.Frame(label="System Requirements")
-        req_frame.set_shadow_type(Gtk.ShadowType.IN)
-        apps_page.pack_start(req_frame, False, False, 0)
-
-        req_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-        req_box.set_border_width(10)
-        req_frame.add(req_box)
-
-        req_box.pack_start(
-            self._make_requirement_row(
-                key="CRB",
-                title="CodeReady Builder (CRB) / PowerTools",
-                subtitle="Extra dependencies used by many workstation apps.",
-                enable_action=["enable_crb"],
-            ),
-            False, False, 0
-        )
-        req_box.pack_start(
-            self._make_requirement_row(
-                key="EPEL",
-                title="Extra Packages for Enterprise Linux (EPEL)",
-                subtitle="Community packages used by many creative tools.",
-                enable_action=["enable_epel"],
-            ),
-            False, False, 0
-        )
-
-        # Applications
-        app_frame = Gtk.Frame(label="Applications")
-        app_frame.set_shadow_type(Gtk.ShadowType.IN)
-        apps_page.pack_start(app_frame, True, True, 0)
-
-        app_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-        app_box.set_border_width(10)
-        app_frame.add(app_box)
-
-        self.listbox = Gtk.ListBox()
-        self.listbox.set_selection_mode(Gtk.SelectionMode.NONE)
-        self.listbox.get_style_context().add_class("boxed-list")
-        app_box.pack_start(self.listbox, True, True, 0)
-
-        for app in APPS:
-            self.listbox.add(self._make_app_row(app))
-
-        actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
-        apps_page.pack_start(actions, False, False, 0)
-
-        btn_repo_status = Gtk.Button(label="Show enabled repos (debug)")
-        btn_repo_status.connect("clicked", lambda *_: self.show_enabled_repos_debug())
-        actions.pack_start(btn_repo_status, False, False, 0)
-
-        btn_clear_logs = Gtk.Button(label="Clear logs")
-        btn_clear_logs.connect("clicked", lambda *_: self.set_log(""))
-        actions.pack_start(btn_clear_logs, False, False, 0)
-
-        btn_quit = Gtk.Button(label="Quit")
-        btn_quit.connect("clicked", lambda *_: self.close())
-        actions.pack_end(btn_quit, False, False, 0)
-
-        # ---------------- Logs tab ----------------
-        logs_page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-        logs_page.set_border_width(6)
-        self.notebook.append_page(logs_page, Gtk.Label(label="Logs"))
-
-        self.textview = Gtk.TextView()
-        self.textview.set_editable(False)
-        self.textview.set_monospace(True)
-        self.textbuf = self.textview.get_buffer()
-
-        scroller = Gtk.ScrolledWindow()
-        scroller.set_hexpand(True)
-        scroller.set_vexpand(True)
-        scroller.add(self.textview)
-        logs_page.pack_start(scroller, True, True, 0)
-
-        self.append_log("Ready.\n")
-
-        if not Path(HELPER).exists():
-            self.append_log("\nWARNING: Helper not found at {}\n".format(HELPER))
-
-        # IMPORTANT: no pkexec at launch anymore
-        self.refresh_all_states()
-
-    # ---------------- CSS ----------------
-    def _apply_css(self):
-        css = b"""
-        .boxed-list row { padding: 10px; }
-        .subtle { opacity: 0.75; }
-        """
-        provider = Gtk.CssProvider()
-        provider.load_from_data(css)
-        Gtk.StyleContext.add_provider_for_screen(
-            Gdk.Screen.get_default(),
-            provider,
-            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
-        )
-
-    # ---------------- UI builders ----------------
-    def _make_requirement_row(self, key, title, subtitle, enable_action):
-        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
-
-        icon = Gtk.Label(label="…")
-        icon.set_width_chars(2)
-        row.pack_start(icon, False, False, 0)
-
-        text_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
-        row.pack_start(text_box, True, True, 0)
-
-        title_lbl = Gtk.Label(label=title)
-        title_lbl.set_xalign(0)
-        title_lbl.set_hexpand(True)
-        text_box.pack_start(title_lbl, False, False, 0)
-
-        subtitle_lbl = Gtk.Label(label=subtitle)
-        subtitle_lbl.set_xalign(0)
-        subtitle_lbl.set_hexpand(True)
-        subtitle_lbl.get_style_context().add_class("subtle")
-        text_box.pack_start(subtitle_lbl, False, False, 0)
-
-        status_lbl = Gtk.Label(label="Checking…")
-        row.pack_start(status_lbl, False, False, 0)
-
-        btn = Gtk.Button(label="Enable")
-        btn.connect("clicked", lambda *_: self.run_helper_with_callback(enable_action, on_success=self.refresh_repo_state))
-        row.pack_start(btn, False, False, 0)
-
-        self.repo_widgets[key] = {"icon": icon, "status": status_lbl, "button": btn}
-        self._set_requirement_state(key, None)
-        return row
-
-    def _make_app_row(self, app):
-        lbrow = Gtk.ListBoxRow()
-        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
-        row.set_border_width(10)
-        lbrow.add(row)
-
-        left = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
-        row.pack_start(left, True, True, 0)
-
-        title = Gtk.Label(label="{}  {}".format(app.get("emoji", ""), app["name"]).strip())
-        title.set_xalign(0)
-        title.set_hexpand(True)
-        left.pack_start(title, False, False, 0)
-
-        subtitle = Gtk.Label(label=self._subtitle_for_app(app))
-        subtitle.set_xalign(0)
-        subtitle.set_hexpand(True)
-        subtitle.get_style_context().add_class("subtle")
-        left.pack_start(subtitle, False, False, 0)
-
-        status_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
-        spinner = Gtk.Spinner()
-        spinner.set_no_show_all(True)
-        spinner.hide()
-        status_box.pack_start(spinner, False, False, 0)
-
-        status = Gtk.Label(label="…")
-        status_box.pack_start(status, False, False, 0)
-        row.pack_start(status_box, False, False, 0)
-
-        btn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-        row.pack_start(btn_box, False, False, 0)
-
-        install_btn = Gtk.Button(label="Install")
-        btn_box.pack_start(install_btn, False, False, 0)
-
-        remove_btn = Gtk.Button(label="Remove")
-        btn_box.pack_start(remove_btn, False, False, 0)
-
-        if app["type"] == "dnf":
-            install_btn.connect("clicked", lambda *_: self.install_app(app["id"]))
-            remove_btn.connect("clicked", lambda *_: self.remove_app(app["id"]))
-        elif app["type"] == "flatpak":
-            install_btn.connect("clicked", lambda *_: self.install_app(app["id"]))
-            remove_btn.connect("clicked", lambda *_: self.confirm_remove_krita())
-        elif app["type"] == "resolve":
-            install_btn.connect("clicked", lambda *_: self.install_resolve_flow())
-            remove_btn.set_sensitive(False)
-
-        self.app_widgets[app["id"]] = {
-            "app": app,
-            "status": status,
-            "spinner": spinner,
-            "install": install_btn,
-            "remove": remove_btn,
-            "busy": False,
-        }
-        return lbrow
-
-    def _subtitle_for_app(self, app):
-        if app["type"] == "dnf":
-            return "Installed via DNF repositories"
-        if app["type"] == "flatpak":
-            return "Installed via Flatpak (recommended upstream for EL)"
-        if app["type"] == "resolve":
-            return "Guided install: deps → open download page → pick .run/.rpm"
-        return ""
-
-    # ---------------- Busy UI helpers ----------------
-    def set_app_busy(self, app_id, busy, msg=None):
-        w = self.app_widgets.get(app_id)
-        if not w:
-            return
-        w["busy"] = busy
-
-        if busy:
-            w["spinner"].show()
-            w["spinner"].start()
-            if msg:
-                w["status"].set_text(msg)
-            w["install"].set_sensitive(False)
-            w["remove"].set_sensitive(False)
-        else:
-            w["spinner"].stop()
-            w["spinner"].hide()
-
-    # ---------------- Log helpers ----------------
-    def set_log(self, text):
-        self.textbuf.set_text(text)
-
-    def append_log(self, text):
-        end = self.textbuf.get_end_iter()
-        self.textbuf.insert(end, text)
-        mark = self.textbuf.create_mark(None, self.textbuf.get_end_iter(), True)
-        self.textview.scroll_mark_onscreen(mark)
-
-    # ---------------- State refresh ----------------
-    def refresh_all_states(self):
-        self.refresh_repo_state()
-        for app in APPS:
-            self.refresh_app_state(app["id"])
-
-    # ---------------- Repo probing (UNPRIVILEGED) ----------------
-    def _dnf_enabled_repo_ids(self):
-        """
-        Returns a set of enabled repo IDs by parsing:
-          dnf -q repolist --enabled
-        No root needed.
-        """
-        try:
-            proc = subprocess.run(
-                ["dnf", "-q", "repolist", "--enabled"],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
-                text=True,
-                check=False,
-            )
-            out = proc.stdout.splitlines()
-        except Exception:
-            return set()
-
-        repos = set()
-        for ln in out:
-            ln = ln.strip()
-            if not ln:
-                continue
-            low = ln.lower()
-            if low.startswith("repo id") or low.startswith("repolist:"):
-                continue
-            # First column is repo id
-            parts = ln.split()
-            if parts:
-                repos.add(parts[0].strip())
-        return repos
-
-    def _detect_crb(self, repos):
-        # Alma 9/10: crb; older naming: powertools
-        for r in repos:
-            if r == "crb" or r.startswith("crb"):
-                return True
-        for r in repos:
-            if r == "powertools" or r.startswith("powertools"):
-                return True
-        return False
-
-    def _detect_epel(self, repos):
-        for r in repos:
-            if r == "epel" or r.startswith("epel"):
-                return True
-        return False
-
-    def _set_requirement_state(self, key, state):
-        w = self.repo_widgets.get(key)
-        if not w:
-            return
-        if state is None:
-            w["icon"].set_text("…")
-            w["status"].set_text("Checking…")
-            w["button"].set_sensitive(False)
-        elif state is True:
-            w["icon"].set_text("✅")
-            w["status"].set_text("Enabled")
-            w["button"].set_sensitive(False)
-        else:
-            w["icon"].set_text("❌")
-            w["status"].set_text("Not enabled")
-            w["button"].set_sensitive(True)
-
-    def refresh_repo_state(self):
-        self._set_requirement_state("CRB", None)
-        self._set_requirement_state("EPEL", None)
-
-        def worker():
-            repos = self._dnf_enabled_repo_ids()
-            crb = self._detect_crb(repos)
-            epel = self._detect_epel(repos)
-
-            GLib.idle_add(self._set_requirement_state, "CRB", crb)
-            GLib.idle_add(self._set_requirement_state, "EPEL", epel)
-            GLib.idle_add(self.append_log, "✅ Requirements refreshed\n")
-
-        threading.Thread(target=worker, daemon=True).start()
-
-    def show_enabled_repos_debug(self):
-        def worker():
-            try:
-                proc = subprocess.run(
-                    ["dnf", "repolist", "--enabled"],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                    text=True,
-                    check=False,
-                )
-                GLib.idle_add(self.append_log, "\n$ dnf repolist --enabled\n")
-                GLib.idle_add(self.append_log, proc.stdout + "\n")
-            except Exception as e:
-                GLib.idle_add(self.append_log, "❌ ERROR: {}\n".format(e))
-
-        threading.Thread(target=worker, daemon=True).start()
-
-    # ---------------- App status (no pkexec) ----------------
-    def refresh_app_state(self, app_id):
-        w = self.app_widgets.get(app_id)
-        if not w:
-            return
-        app = w["app"]
-
-        if app["type"] == "resolve":
-            w["status"].set_text("ℹ️ Guided install")
-            w["install"].set_sensitive(True)
-            w["remove"].set_sensitive(False)
-            return
-
-        if app["type"] == "dnf":
-            installed = subprocess.run(
-                ["rpm", "-q", app["pkg"]],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL
-            ).returncode == 0
-
-        elif app["type"] == "flatpak":
-            if not shutil.which("flatpak"):
-                w["status"].set_text("ℹ️ Flatpak not installed")
-                w["install"].set_sensitive(True)
-                w["remove"].set_sensitive(False)
-                return
-
-            installed = subprocess.run(
-                ["flatpak", "info", "--system", app["appid"]],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL
-            ).returncode == 0
-        else:
-            installed = False
-
-        if installed:
-            w["status"].set_text("✅ Installed")
-            w["install"].set_sensitive(False)
-            w["remove"].set_sensitive(True)
-        else:
-            w["status"].set_text("❌ Not installed")
-            w["install"].set_sensitive(True)
-            w["remove"].set_sensitive(False)
-
-    # ---------------- Install/remove actions with spinner ----------------
-    def install_app(self, app_id):
-        w = self.app_widgets.get(app_id)
-        if not w or w.get("busy"):
-            return
-
-        app = w["app"]
-        if app["type"] == "dnf":
-            args = ["install_pkg", app["pkg"]]
-        elif app["type"] == "flatpak":
-            args = ["install_flatpak_app", app["appid"]]
-        else:
-            return
-
-        self.set_app_busy(app_id, True, "Installing…")
-        self.run_helper_with_callback(args, on_success=lambda: self._finish_app_action(app_id))
-
-    def remove_app(self, app_id):
-        w = self.app_widgets.get(app_id)
-        if not w or w.get("busy"):
-            return
-
-        app = w["app"]
-        if app["type"] == "dnf":
-            args = ["remove_pkg", app["pkg"]]
-        else:
-            return
-
-        self.set_app_busy(app_id, True, "Removing…")
-        self.run_helper_with_callback(args, on_success=lambda: self._finish_app_action(app_id))
-
-    def _finish_app_action(self, app_id):
-        self.set_app_busy(app_id, False)
-        self.refresh_app_state(app_id)
-
-    # ---------------- Krita removal prompt (with spinner) ----------------
-    def confirm_remove_krita(self):
-        w = self.app_widgets.get("krita")
-        if w and w.get("busy"):
-            return
-
-        dialog = Gtk.MessageDialog(
-            parent=self,
-            flags=0,
-            message_type=Gtk.MessageType.WARNING,
-            buttons=Gtk.ButtonsType.NONE,
-            text="Remove Krita?",
-        )
-        dialog.format_secondary_text(
-            "This will remove Krita.\n\n"
-            "Optionally, you can also remove Flatpak + Flathub (system-wide). "
-            "Only do that if you’re sure you don’t need Flatpak for anything else."
-        )
-        dialog.add_button("Cancel", Gtk.ResponseType.CANCEL)
-        dialog.add_button("Remove Krita", Gtk.ResponseType.OK)
-
-        box = dialog.get_message_area()
-        checkbox = Gtk.CheckButton(label="Also remove Flatpak + Flathub (system-wide)")
-        checkbox.set_active(False)
-        box.pack_start(checkbox, False, False, 0)
-        box.show_all()
-
-        resp = dialog.run()
-        remove_flatpak_too = checkbox.get_active()
-        dialog.destroy()
-
-        if resp == Gtk.ResponseType.OK:
-            self.set_app_busy("krita", True, "Removing…")
-
-            def after_krita():
-                self.set_app_busy("krita", False)
-                self.refresh_app_state("krita")
-
-            self.run_helper_with_callback(["remove_flatpak_app", "org.kde.krita"], on_success=after_krita)
-
-            if remove_flatpak_too:
-                self.run_helper_with_callback(["remove_flatpak_and_flathub"], on_success=self.refresh_all_states)
-
-    # ---------------- Helper runner (PRIVILEGED) ----------------
-    def run_helper_with_callback(self, args, on_success=None):
-        if not Path(HELPER).exists():
-            self.append_log("❌ ERROR: Helper not found: " + HELPER + "\n")
-            return
-
-        cmd = ["pkexec", HELPER] + args
-        self.append_log("\n$ " + " ".join(cmd) + "\n")
-
-        def worker():
-            last_lines = deque(maxlen=40)
-
-            def summarize_failure(rc):
-                for line in reversed(last_lines):
-                    s = line.strip()
-                    if s:
-                        return s
-                return "Exit code {}".format(rc)
-
-            try:
-                proc = subprocess.Popen(
-                    cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                    text=True,
-                    bufsize=1,
-                )
-                assert proc.stdout is not None
-
-                for line in proc.stdout:
-                    last_lines.append(line)
-                    GLib.idle_add(self.append_log, line)
-
-                rc = proc.wait()
-
-                if rc == 0:
-                    GLib.idle_add(self.append_log, "✅ Successful\n")
-                    GLib.idle_add(self.append_log, "[exit code: {}]\n".format(rc))
-                    if on_success:
-                        GLib.idle_add(on_success)
-                else:
-                    reason = summarize_failure(rc)
-                    GLib.idle_add(self.append_log, "❌ Failed: {}\n".format(reason))
-                    GLib.idle_add(self.append_log, "[exit code: {}]\n".format(rc))
-                    GLib.idle_add(self._stop_all_busy)
-
-            except Exception as e:
-                GLib.idle_add(self.append_log, "❌ ERROR: {}\n".format(e))
-                GLib.idle_add(self._stop_all_busy)
-
-        threading.Thread(target=worker, daemon=True).start()
-
-    def _stop_all_busy(self):
-        for app_id in list(self.app_widgets.keys()):
-            w = self.app_widgets[app_id]
-            if w.get("busy"):
-                self.set_app_busy(app_id, False)
-                self.refresh_app_state(app_id)
-
-    # ---------------- DaVinci Resolve flow ----------------
-    def install_resolve_flow(self):
-        self.run_helper_with_callback(["prepare_resolve_deps"], on_success=self._resolve_open_and_pick)
-
-    def _resolve_open_and_pick(self):
-        if shutil.which("xdg-open"):
-            subprocess.Popen(["xdg-open", RESOLVE_URL])
-            self.append_log("Opened download page: {}\n".format(RESOLVE_URL))
-        else:
-            self.append_log("Please open this URL manually: {}\n".format(RESOLVE_URL))
-
-        self.pick_resolve_installer()
-
-    def pick_resolve_installer(self):
-        dialog = Gtk.FileChooserDialog(
-            title="Select DaVinci Resolve installer (.run preferred)",
-            parent=self,
-            action=Gtk.FileChooserAction.OPEN,
-        )
-        dialog.add_buttons(
-            Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
-            Gtk.STOCK_OPEN, Gtk.ResponseType.OK,
-        )
-
-        f = Gtk.FileFilter()
-        f.set_name("Installers (*.run, *.rpm)")
-        f.add_pattern("DaVinci_Resolve*.run")
-        f.add_pattern("DaVinci_Resolve*.rpm")
-        f.add_pattern("*.run")
-        f.add_pattern("*.rpm")
-        dialog.add_filter(f)
-
-        resp = dialog.run()
-        if resp == Gtk.ResponseType.OK:
-            path = dialog.get_filename()
-            if path:
-                self.run_helper_with_callback(["install_local_file", path])
-        dialog.destroy()
-
-
-def main():
-    ok, _argv = Gtk.init_check()
-    if not ok:
-        print("ERROR: GTK could not be initialized.")
-        print("Run inside a GNOME/KDE graphical session as a normal user (not root over SSH).")
-        return 1
-
-    win = AlmaCreativeInstaller()
-    win.connect("destroy", Gtk.main_quit)
-    win.show_all()
-    Gtk.main()
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
+set -euo pipefail
+
+action="${1:-}"
+
+log() { echo "[alma-creative-installer-helper] $*"; }
+
+# -------------------------------------------------
+# Repo enable actions (privileged)
+# -------------------------------------------------
+enable_epel() {
+  log "Enabling EPEL..."
+  dnf -y install epel-release
+  log "Done."
+}
+
+enable_crb() {
+  log "Enabling CRB / PowerTools..."
+  if dnf -y config-manager --set-enabled crb >/dev/null 2>&1; then
+    log "Enabled: crb"
+  elif dnf -y config-manager --set-enabled powertools >/dev/null 2>&1; then
+    log "Enabled: powertools"
+  else
+    echo "ERROR: Could not enable CRB/powertools automatically." >&2
+    exit 4
+  fi
+  log "Done."
+}
+
+repo_status() {
+  log "Enabled repos:"
+  dnf repolist --enabled
+}
+
+# -------------------------------------------------
+# DNF packages
+# -------------------------------------------------
+install_pkg() {
+  local pkg="${1:-}"
+  [[ -n "${pkg}" ]] || { echo "ERROR: missing package name" >&2; exit 2; }
+  log "Installing: ${pkg}"
+  dnf -y install "${pkg}"
+  log "Done."
+}
+
+remove_pkg() {
+  local pkg="${1:-}"
+  [[ -n "${pkg}" ]] || { echo "ERROR: missing package name" >&2; exit 2; }
+  log "Removing: ${pkg}"
+  dnf -y remove "${pkg}"
+  log "Done."
+}
+
+pkg_status() {
+  local pkg="${1:-}"
+  [[ -n "${pkg}" ]] || { echo "ERROR: missing package name" >&2; exit 2; }
+  if rpm -q "${pkg}" >/dev/null 2>&1; then
+    log "Installed: ${pkg}"
+    rpm -q "${pkg}"
+  else
+    log "Not installed: ${pkg}"
+    exit 3
+  fi
+}
+
+# -------------------------------------------------
+# Flatpak / Krita support (system-wide)
+# -------------------------------------------------
+ensure_flatpak_flathub() {
+  log "Ensuring Flatpak is installed..."
+  dnf -y install flatpak
+
+  log "Ensuring Flathub remote exists (system)..."
+  flatpak remote-add --if-not-exists --system flathub https://flathub.org/repo/flathub.flatpakrepo
+
+  log "Flatpak + Flathub ready."
+}
+
+install_flatpak_app() {
+  local appid="${1:-}"
+  [[ -n "${appid}" ]] || { echo "ERROR: missing flatpak app id" >&2; exit 2; }
+  ensure_flatpak_flathub
+  log "Installing Flatpak app: ${appid}"
+  flatpak install -y --system flathub "${appid}"
+  log "Done."
+}
+
+remove_flatpak_app() {
+  local appid="${1:-}"
+  [[ -n "${appid}" ]] || { echo "ERROR: missing flatpak app id" >&2; exit 2; }
+  log "Removing Flatpak app: ${appid}"
+  flatpak uninstall -y --system "${appid}"
+  log "Done."
+}
+
+remove_flatpak_and_flathub() {
+  log "Removing all system Flatpaks..."
+  flatpak uninstall -y --system --all || true
+
+  log "Removing Flathub remote (system)..."
+  flatpak remote-delete --system flathub || true
+
+  log "Removing Flatpak package..."
+  dnf -y remove flatpak || true
+
+  log "Done."
+}
+
+# -------------------------------------------------
+# DaVinci Resolve
+# -------------------------------------------------
+prepare_resolve_deps() {
+  log "Installing DaVinci Resolve dependencies (baseline set)..."
+  dnf -y install \
+    alsa-lib pulseaudio-libs \
+    libxcrypt-compat \
+    libX11 libXcursor libXext libXfixes libXi libXinerama libXrandr libXrender libXtst \
+    libxcb xcb-util xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm \
+    libxkbcommon libxkbcommon-x11 \
+    mesa-libGLU fontconfig freetype \
+    libcurl --allowerasing \
+    || exit 1
+  log "Dependencies installed."
+}
+
+install_local_file() {
+  local path="${1:-}"
+  if [[ -z "${path}" || ! -f "${path}" ]]; then
+    echo "ERROR: installer path missing or not found." >&2
+    exit 2
+  fi
+
+  case "${path}" in
+    *.rpm)
+      log "Installing local RPM via dnf: ${path}"
+      dnf -y install "${path}"
+      log "Done."
+      ;;
+    *.run)
+      log "Running local .run installer: ${path}"
+      chmod +x "${path}"
+      SKIP_PACKAGE_CHECK=1 "${path}"
+      log "Installer finished (check output above)."
+      ;;
+    *)
+      echo "ERROR: unsupported file type. Use .rpm or .run" >&2
+      exit 5
+      ;;
+  esac
+}
+
+# -------------------------------------------------
+# Dispatcher
+# -------------------------------------------------
+case "${action}" in
+  # Repo
+  enable_crb)          enable_crb;;
+  enable_epel)         enable_epel;;
+  repo_status)         repo_status;;
+
+  # DNF apps
+  install_pkg)         install_pkg "${2:-}";;
+  remove_pkg)          remove_pkg "${2:-}";;
+  pkg_status)          pkg_status "${2:-}";;
+
+  # Flatpak
+  ensure_flatpak_flathub) ensure_flatpak_flathub;;
+  install_flatpak_app)    install_flatpak_app "${2:-}";;
+  remove_flatpak_app)     remove_flatpak_app "${2:-}";;
+  remove_flatpak_and_flathub) remove_flatpak_and_flathub;;
+
+  # Resolve
+  prepare_resolve_deps)  prepare_resolve_deps;;
+  install_local_file)    install_local_file "${2:-}";;
+
+  *)
+    cat >&2 <<'EOF'
+Usage: almalinux-creative-installer-helper <action>
+
+Repo actions:
+  enable_crb
+  enable_epel
+  repo_status
+
+DNF apps:
+  install_pkg <name>
+  remove_pkg <name>
+  pkg_status <name>
+
+Flatpak:
+  ensure_flatpak_flathub
+  install_flatpak_app <appid>
+  remove_flatpak_app <appid>
+  remove_flatpak_and_flathub
+
+Local installers:
+  prepare_resolve_deps
+  install_local_file <path_to_.rpm_or_.run>
+EOF
+    exit 1
+    ;;
+esac
