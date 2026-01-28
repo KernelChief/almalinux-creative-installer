@@ -2,7 +2,7 @@
 
 Name:           almalinux-creative-installer
 Version:        1.0
-Release:        %{?dist}
+Release:        1%{?dist}
 Summary:        One-button creative app installer UI for AlmaLinux
 License:        MIT
 URL:            https://github.com/KernelChief/almalinux-creative-installer
@@ -14,7 +14,7 @@ Requires:       gtk3
 Requires:       polkit
 Requires:       xdg-utils
 
-Source0:        almalinux-creative-installer-=%{version}.tar.gz
+Source0:        almalinux-creative-installer-%{version}.tar.gz
 
 %description
 A small GTK UI to install creative applications via DNF or local installers,
@@ -43,5 +43,5 @@ install -D -m 0644 LICENSE \
 %{_datadir}/licenses/%{name}/LICENSE
 
 %changelog
-* Wed Jan 28 2026 KernelChief - V1.0
-- Initial release
+* Wed Jan 28 2026 KernelChief
+- Initial public release
