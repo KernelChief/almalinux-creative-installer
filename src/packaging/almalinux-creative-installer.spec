@@ -14,7 +14,7 @@ Requires:       gtk3
 Requires:       polkit
 Requires:       xdg-utils
 
-Source0:        almalinux-creative-installer-%{version}.tar.gz
+Source0:        almalinux-creative-installer%{version}.tar.gz
 
 %description
 A small GTK UI to install creative applications via DNF or local installers,
