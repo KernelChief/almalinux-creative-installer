@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 
 Name:           almalinux-creative-installer
-Version:        0.1
+Version:        1.0
 Release:        1%{?dist}
 Summary:        One-button creative app installer UI for AlmaLinux
 License:        MIT
