@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 set -euo pipefail
 
-NAME="alma-creative-installer"
+NAME="almalinux-creative-installer"
 VERSION="${1:-1.0}"
 
 command -v rpmdev-setuptree >/dev/null 2>&1 || {
