@@ -53,7 +53,7 @@ Run the command below, **replacing X.X.X-X with your version number**:
 
 From the directory where you downloaded the file:
 
-sudo dnf install ./almalinux-creative-installer-X.X.X-X.rpm
+`sudo dnf install ./almalinux-creative-installer-X.X.X-X.rpm`
 
 
 Example for AlmaLinux 9: sudo dnf install ./almalinux-creative-installer-1.0.1-1.el9.noarch.rpm
@@ -81,9 +81,9 @@ Once the application is closed, the authorization is discarded.
 You can launch the application:
 
 - From your desktop environment’s application menu:
-  AlmaLinux Creative Installer
+  `AlmaLinux Creative Installer`
 - Or from a terminal: 
-  almalinux-creative-installer
+  `almalinux-creative-installer`
 
 ---
 
@@ -163,7 +163,7 @@ These tools are advisory and do not imply certification or formal auditing.
 
 To remove the application, run:
 
-sudo dnf remove almalinux-creative-installer
+`sudo dnf remove almalinux-creative-installer`
 
 ---
 
@@ -171,12 +171,11 @@ sudo dnf remove almalinux-creative-installer
 
 To build the RPM locally:
 
-sudo dnf install -y rpmdevtools rpm-build
-./src/packaging/build-rpm.sh 1.0.1
-
+`sudo dnf install -y rpmdevtools rpm-build`
+`./src/packaging/build-rpm.sh 1.0.1`
 
 The resulting RPMs will be located in:
-~/rpmbuild/RPMS/
+`~/rpmbuild/RPMS/`
 
 ---
 
