@@ -3,7 +3,7 @@
 set -euo pipefail
 
 NAME="almalinux-creative-installer"
-VERSION="${1:-1.0}"
+VERSION="${1:-1.0.1}"
 
 command -v rpmdev-setuptree >/dev/null 2>&1 || {
   echo "ERROR: rpmdevtools not installed. Install: sudo dnf install rpmdevtools" >&2

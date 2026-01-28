@@ -14,12 +14,12 @@ All software is installed using **supported system methods** only.
 
 Go to the GitHub Releases page and download the RPM matching your AlmaLinux version:
 
-https://github.com/KernelChief/almalinux-creative-installer/releases/tag/v1.0.0
+https://github.com/KernelChief/almalinux-creative-installer/releases
 
 Choose **one**:
 
-- almalinux-creative-installer-1.0.0-*.el9.noarch.rpm  → AlmaLinux 9
-- almalinux-creative-installer-1.0.0-*.el10.noarch.rpm → AlmaLinux 10 (experimental)
+- almalinux-creative-installer-X.X.X-X.el9.noarch.rpm  → AlmaLinux 9
+- almalinux-creative-installer-X.X.X-X.el10.noarch.rpm → AlmaLinux 10 (experimental)
 
 ---
 
@@ -27,7 +27,7 @@ Choose **one**:
 
 From the directory where you downloaded the file:
 
-sudo dnf install ./almalinux-creative-installer-1.0.0-*.rpm
+sudo dnf install ./almalinux-creative-installer-X.X.X-X.rpm
 
 This will:
 - install the application
@@ -37,6 +37,8 @@ This will:
 ---
 
 ### 3️⃣ Launch the application
+
+PLEASE note that the app will ask for your root password at launch in order to execute all commands without asking multiple time, once the app is closed, the login is discarded and will need to be re-entered at the next open of the app.
 
 You can launch it in either way:
 
