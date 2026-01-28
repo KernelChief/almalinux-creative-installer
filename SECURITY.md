@@ -1,20 +1,22 @@
-Security Policy
+# Security Policy
 
-This project is currently in early development and intended for internal or
-controlled use.
+This project is intended for community use. Please report security issues responsibly.
 
-Reporting a Vulnerability
+## Reporting a Vulnerability
 
-If you believe you have found a security issue in this repository, please do
-not open a public issue.
+Please **do not** open a public GitHub issue for security reports.
 
-Instead, report it privately by contacting the repository owner via GitHub.
+Instead, use one of the following private channels:
 
-Scope
+- **GitHub Security Advisories** (preferred):  
+  Go to the repository → **Security** → **Report a vulnerability**
+- If Security Advisories are not available for your repo, contact the repository owner via GitHub.
+
+## Scope / Notes
 
 This project:
-- does not bundle third-party proprietary software
-- does not expose network services
-- executes privileged operations only via polkit-protected helpers
+- does **not** bundle third-party proprietary software
+- does **not** expose network services
+- executes privileged operations only via **polkit-protected helpers**
 
-Security reports will be reviewed on a best-effort basis.
+Reports are reviewed on a best-effort basis.

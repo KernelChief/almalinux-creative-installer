@@ -152,8 +152,8 @@ This keeps the UI safe, auditable, and aligned with system security best practic
 
 This repository follows basic security and code-quality best practices:
 
-- SonarQube analyzes code quality and potential issues
-- Dependabot monitors dependencies and surfaces known vulnerabilities
+- **Dependabot** monitors dependencies and surfaces known vulnerabilities
+- Code quality is reviewed during development using SonarQube-compatible static analysis tools (SonarLint)
 
 These tools are advisory and do not imply certification or formal auditing.
 
