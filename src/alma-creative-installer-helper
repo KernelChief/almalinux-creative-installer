@@ -1,0 +1,255 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
+set -euo pipefail
+
+action="${1:-}"
+
+log() { echo "[alma-creative-installer-helper] $*"; }
+
+# -------------------------------------------------
+# Repo detection helpers
+# -------------------------------------------------
+enabled_repo_ids() {
+  dnf -q repolist --enabled 2>/dev/null | awk 'NF>=1 && $1 !~ /repo|id|repolist:/ {print $1}'
+}
+
+repo_is_enabled() {
+  local needle="$1"
+  enabled_repo_ids | grep -qx "${needle}"
+}
+
+repo_is_enabled_prefix() {
+  local prefix="$1"
+  enabled_repo_ids | grep -q "^${prefix}"
+}
+
+detect_crb() {
+  if repo_is_enabled "crb" || repo_is_enabled_prefix "crb"; then
+    echo "enabled"; return 0
+  fi
+  if repo_is_enabled "powertools" || repo_is_enabled_prefix "powertools"; then
+    echo "enabled"; return 0
+  fi
+  echo "disabled"
+}
+
+detect_epel() {
+  if repo_is_enabled "epel" || repo_is_enabled_prefix "epel"; then
+    echo "enabled"; return 0
+  fi
+  echo "disabled"
+}
+
+repo_probe() {
+  echo "CRB=$(detect_crb)"
+  echo "EPEL=$(detect_epel)"
+}
+
+enable_epel() {
+  log "Enabling EPEL..."
+  dnf -y install epel-release
+  log "Done."
+}
+
+enable_crb() {
+  log "Enabling CRB / PowerTools..."
+  if dnf -y config-manager --set-enabled crb >/dev/null 2>&1; then
+    log "Enabled: crb"
+  elif dnf -y config-manager --set-enabled powertools >/dev/null 2>&1; then
+    log "Enabled: powertools"
+  else
+    echo "ERROR: Could not enable CRB/powertools automatically." >&2
+    exit 4
+  fi
+  log "Done."
+}
+
+repo_status() {
+  log "Enabled repos:"
+  dnf repolist --enabled
+}
+
+# -------------------------------------------------
+# DNF packages
+# -------------------------------------------------
+install_pkg() {
+  local pkg="${1:-}"
+  [[ -n "${pkg}" ]] || { echo "ERROR: missing package name" >&2; exit 2; }
+  log "Installing: ${pkg}"
+  dnf -y install "${pkg}"
+  log "Done."
+}
+
+remove_pkg() {
+  local pkg="${1:-}"
+  [[ -n "${pkg}" ]] || { echo "ERROR: missing package name" >&2; exit 2; }
+  log "Removing: ${pkg}"
+  dnf -y remove "${pkg}"
+  log "Done."
+}
+
+pkg_status() {
+  local pkg="${1:-}"
+  [[ -n "${pkg}" ]] || { echo "ERROR: missing package name" >&2; exit 2; }
+  if rpm -q "${pkg}" >/dev/null 2>&1; then
+    log "Installed: ${pkg}"
+    rpm -q "${pkg}"
+  else
+    log "Not installed: ${pkg}"
+    exit 3
+  fi
+}
+
+# -------------------------------------------------
+# Flatpak / Krita support (system-wide)
+# -------------------------------------------------
+ensure_flatpak_flathub() {
+  log "Ensuring Flatpak is installed..."
+  dnf -y install flatpak
+
+  log "Ensuring Flathub remote exists (system)..."
+  flatpak remote-add --if-not-exists --system flathub https://flathub.org/repo/flathub.flatpakrepo
+
+  log "Flatpak + Flathub ready."
+}
+
+install_flatpak_app() {
+  local appid="${1:-}"
+  [[ -n "${appid}" ]] || { echo "ERROR: missing flatpak app id" >&2; exit 2; }
+  ensure_flatpak_flathub
+  log "Installing Flatpak app: ${appid}"
+  flatpak install -y --system flathub "${appid}"
+  log "Done."
+}
+
+remove_flatpak_app() {
+  local appid="${1:-}"
+  [[ -n "${appid}" ]] || { echo "ERROR: missing flatpak app id" >&2; exit 2; }
+  log "Removing Flatpak app: ${appid}"
+  flatpak uninstall -y --system "${appid}"
+  log "Done."
+}
+
+flatpak_app_status() {
+  local appid="${1:-}"
+  [[ -n "${appid}" ]] || { echo "ERROR: missing flatpak app id" >&2; exit 2; }
+  if flatpak info --system "${appid}" >/dev/null 2>&1; then
+    log "Installed (flatpak): ${appid}"
+    exit 0
+  else
+    log "Not installed (flatpak): ${appid}"
+    exit 3
+  fi
+}
+
+remove_flatpak_and_flathub() {
+  log "Removing all system Flatpaks..."
+  flatpak uninstall -y --system --all || true
+
+  log "Removing Flathub remote (system)..."
+  flatpak remote-delete --system flathub || true
+
+  log "Removing Flatpak package..."
+  dnf -y remove flatpak || true
+
+  log "Done."
+}
+
+# -------------------------------------------------
+# DaVinci Resolve
+# -------------------------------------------------
+prepare_resolve_deps() {
+  log "Installing DaVinci Resolve dependencies (baseline set)..."
+  dnf -y install \
+    alsa-lib pulseaudio-libs \
+    libxcrypt-compat \
+    libX11 libXcursor libXext libXfixes libXi libXinerama libXrandr libXrender libXtst \
+    libxcb xcb-util xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm \
+    libxkbcommon libxkbcommon-x11 \
+    mesa-libGLU fontconfig freetype \
+    libcurl --allowerasing \
+    || exit 1
+  log "Dependencies installed."
+}
+
+install_local_file() {
+  local path="${1:-}"
+  if [[ -z "${path}" || ! -f "${path}" ]]; then
+    echo "ERROR: installer path missing or not found." >&2
+    exit 2
+  fi
+
+  case "${path}" in
+    *.rpm)
+      log "Installing local RPM via dnf: ${path}"
+      dnf -y install "${path}"
+      log "Done."
+      ;;
+    *.run)
+      log "Running local .run installer: ${path}"
+      chmod +x "${path}"
+      SKIP_PACKAGE_CHECK=1 "${path}"
+      log "Installer finished (check output above)."
+      ;;
+    *)
+      echo "ERROR: unsupported file type. Use .rpm or .run" >&2
+      exit 5
+      ;;
+  esac
+}
+
+# -------------------------------------------------
+# Dispatcher
+# -------------------------------------------------
+case "${action}" in
+  # Repo
+  repo_probe)          repo_probe;;
+  enable_crb)          enable_crb;;
+  enable_epel)         enable_epel;;
+  repo_status)         repo_status;;
+
+  # DNF apps
+  install_pkg)         install_pkg "${2:-}";;
+  remove_pkg)          remove_pkg "${2:-}";;
+  pkg_status)          pkg_status "${2:-}";;
+
+  # Flatpak
+  ensure_flatpak_flathub) ensure_flatpak_flathub;;
+  install_flatpak_app)    install_flatpak_app "${2:-}";;
+  remove_flatpak_app)     remove_flatpak_app "${2:-}";;
+  flatpak_app_status)     flatpak_app_status "${2:-}";;
+  remove_flatpak_and_flathub) remove_flatpak_and_flathub;;
+
+  # Resolve
+  prepare_resolve_deps)  prepare_resolve_deps;;
+  install_local_file)    install_local_file "${2:-}";;
+
+  *)
+    cat >&2 <<'EOF'
+Usage: alma-creative-installer-helper <action>
+
+Repo actions:
+  repo_probe
+  enable_crb
+  enable_epel
+  repo_status
+
+DNF apps:
+  install_pkg <name>
+  remove_pkg <name>
+  pkg_status <name>
+
+Flatpak:
+  ensure_flatpak_flathub
+  install_flatpak_app <appid>
+  remove_flatpak_app <appid>
+  flatpak_app_status <appid>
+  remove_flatpak_and_flathub
+
+Local installers:
+  prepare_resolve_deps
+  install_local_file <path_to_.rpm_or_.run>
+EOF
+    exit 1
+    ;;
+esac
