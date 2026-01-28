@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: MIT
 
-Name:           alma-creative-installer
+Name:           almalinux-creative-installer
 Version:        0.1
 Release:        1%{?dist}
 Summary:        One-button creative app installer UI for AlmaLinux
 License:        MIT
-URL:            https://github.com/KernelChief/alma-creative-installer
+URL:            https://github.com/KernelChief/almalinux-creative-installer
 BuildArch:      noarch
 
 Requires:       python3
@@ -14,7 +14,7 @@ Requires:       gtk3
 Requires:       polkit
 Requires:       xdg-utils
 
-Source0:        alma-creative-installer-%{version}.tar.gz
+Source0:        almalinux-creative-installer-%{version}.tar.gz
 
 %description
 A small GTK UI to install creative applications via DNF or local installers,
