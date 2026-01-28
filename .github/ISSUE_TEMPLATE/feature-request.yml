@@ -1,0 +1,56 @@
+name: "✨ Feature Request"
+description: "Suggest an improvement or new capability."
+title: "Feature: [short summary]"
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## ✨ Feature ideas welcome!
+        Clear use-cases help a lot — especially if you're targeting studio/M&E workflows.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / Motivation
+      description: What problem does this solve?
+      placeholder: "I want to… but currently…"
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed Solution
+      description: What do you want the app to do?
+      placeholder: "Describe the feature and how it should work."
+    validations:
+      required: true
+
+  - type: textarea
+    id: ui_ux
+    attributes:
+      label: UI / UX Suggestions
+      description: If you have a UI idea (buttons, flow, layout), describe it.
+      placeholder: "Example: add a new tab for…"
+    validations:
+      required: false
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform Priority
+      options:
+        - "AlmaLinux 9 (supported)"
+        - "AlmaLinux 10 (experimental)"
+        - "Both"
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional Context
+      placeholder: "Links, screenshots, related tools, etc."
+    validations:
+      required: false

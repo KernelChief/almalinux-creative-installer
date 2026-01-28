@@ -1,0 +1,72 @@
+name: "➕ Additional App Request"
+description: "Request a new creative/M&E application to be added."
+title: "App: [application name]"
+labels: ["app-request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## ➕ Request a new application
+        The goal is **one-button installs using supported methods** (DNF repo, vendor RPM, vendor .run).
+        Please include install source details so we can implement it cleanly.
+
+  - type: input
+    id: app_name
+    attributes:
+      label: Application Name
+      placeholder: "e.g., OBS Studio"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install_method
+    attributes:
+      label: Preferred Install Method
+      options:
+        - "DNF (official repos / EPEL / vendor repo)"
+        - "Local RPM (vendor download)"
+        - "Local .run (vendor installer)"
+        - "Other / Not sure"
+    validations:
+      required: true
+
+  - type: input
+    id: official_source
+    attributes:
+      label: Official Source / Download Page
+      description: Link to the vendor’s official download page or repo instructions.
+      placeholder: "https://example.com/download"
+    validations:
+      required: true
+
+  - type: textarea
+    id: install_notes
+    attributes:
+      label: Install Notes
+      description: Any special dependencies, steps, or known issues?
+      placeholder: |
+        - Requires repo X enabled
+        - Needs package Y installed first
+        - Vendor RPM conflicts with …
+    validations:
+      required: false
+
+  - type: dropdown
+    id: supported_versions
+    attributes:
+      label: Target AlmaLinux Version(s)
+      options:
+        - "AlmaLinux 9"
+        - "AlmaLinux 10 (experimental)"
+        - "Both"
+    validations:
+      required: true
+
+  - type: textarea
+    id: why_needed
+    attributes:
+      label: Why this app matters (use-case)
+      description: Studio workflow context helps prioritize.
+      placeholder: "We use this for… in post-production / compositing / audio / editorial…"
+    validations:
+      required: true

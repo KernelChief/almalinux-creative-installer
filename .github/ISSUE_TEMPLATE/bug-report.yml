@@ -1,0 +1,96 @@
+name: "🚨 Bug / Issue Report"
+description: "Report a problem, breakage, or unexpected behavior."
+title: "Bug: [short summary]"
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 🚨 Thanks for reporting an issue
+        Please include as much detail as possible so we can reproduce and fix it quickly.
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: How badly does this affect usage?
+      options:
+        - "🚫 Show-stopper (app unusable / blocks installs)"
+        - "⚠️ Major (core feature broken)"
+        - "🟡 Minor (workaround exists)"
+        - "📝 Cosmetic (UI/text issue)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os_version
+    attributes:
+      label: AlmaLinux Version
+      options:
+        - "AlmaLinux 9"
+        - "AlmaLinux 10 (experimental)"
+        - "Other EL (Rocky/RHEL/etc.)"
+    validations:
+      required: true
+
+  - type: input
+    id: desktop_env
+    attributes:
+      label: Desktop Environment
+      description: GNOME/KDE/XFCE/etc.
+      placeholder: "e.g., GNOME, KDE Plasma"
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Tell us exactly what you clicked/ran.
+      placeholder: |
+        1) Open Alma Creative Installer
+        2) Click “Install” on Blender
+        3) Authentication prompt appears…
+        4) It fails with…
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      placeholder: "What did you expect to happen?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      placeholder: "What actually happened?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / Output
+      description: Paste the content from the app's Logs tab or terminal output.
+      placeholder: "Paste logs here..."
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: system_info
+    attributes:
+      label: System Info
+      description: Helpful command outputs.
+      placeholder: |
+        rpm -q alma-creative-installer
+        uname -r
+        lsb_release -a (if available)
+        dnf repolist --enabled
+      render: shell
+    validations:
+      required: false
