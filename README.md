@@ -12,22 +12,54 @@ All software is installed using **supported system methods** only.
 
 ### 1️⃣ Download the RPM
 
-Go to the GitHub Releases page and download the RPM matching your AlmaLinux version:
+Go to the GitHub Releases page:
 
 https://github.com/KernelChief/almalinux-creative-installer/releases
 
-Choose **one**:
+Download **one RPM file** that matches your AlmaLinux version.
 
-- almalinux-creative-installer-X.X.X-X.el9.noarch.rpm  → AlmaLinux 9
-- almalinux-creative-installer-X.X.X-X.el10.noarch.rpm → AlmaLinux 10 (experimental)
+You will see files named like:
+
+- almalinux-creative-installer-1.0.1-1.el9.noarch.rpm
+- almalinux-creative-installer-1.0.1-1.el10.noarch.rpm
+
+### 📌 Understanding the version number (X.X.X-X)
+
+Example filename:
+
+almalinux-creative-installer-1.0.1-1.el9.noarch.rpm
+
+- 1.0.1 → application version  
+- -1 → RPM release number  
+
+Whenever this README refers to `X.X.X-X`, **replace it with the exact version shown in the filename you downloaded**.
+
+Example:
+
+If the filename is  
+almalinux-creative-installer-1.0.1-1.el9.noarch.rpm  
+
+Then:
+
+- X.X.X-X = 1.0.1-1
 
 ---
 
 ### 2️⃣ Install the RPM
 
+Open a terminal and change to the directory where the RPM was downloaded.
+
+Run the command below, **replacing X.X.X-X with your version number**:
+
 From the directory where you downloaded the file:
 
 sudo dnf install ./almalinux-creative-installer-X.X.X-X.rpm
+
+
+Example for AlmaLinux 9: sudo dnf install ./almalinux-creative-installer-1.0.1-1.el9.noarch.rpm
+
+
+Example for AlmaLinux 10 (experimental): sudo dnf install ./almalinux-creative-installer-1.0.1-1.el10.noarch.rpm
 
 This will:
 - install the application
@@ -36,20 +68,26 @@ This will:
 
 ---
 
-### 3️⃣ Launch the application
+### 3️⃣ Launch the Application
 
-PLEASE note that the app will ask for your root password at launch in order to execute all commands without asking multiple time, once the app is closed, the login is discarded and will need to be re-entered at the next open of the app.
+The application itself runs **unprivileged**.
 
-You can launch it in either way:
+When a system change is required (installing or removing software, enabling repositories),
+you will be prompted for authentication via **polkit**.
+
+Polkit may temporarily cache authentication to avoid repeated prompts.
+Once the application is closed, the authorization is discarded.
+
+You can launch the application:
 
 - From your desktop environment’s application menu:
   AlmaLinux Creative Installer
-- Or from a terminal:
+- Or from a terminal: 
   almalinux-creative-installer
 
 ---
 
-## 📦 Installation Methods
+## 📦 Installation Methods of softwares via the AlmaLinux Creative Installer
 
 AlmaLinux Creative Installer uses the following approaches, depending on the software:
 
@@ -66,8 +104,8 @@ AlmaLinux Creative Installer uses the following approaches, depending on the sof
 - AlmaLinux 9 — officially supported
 - AlmaLinux 10 — experimental
 
-Some creative applications are not yet available (or not yet complete) in EL10/EPEL
-repositories at this time (for example: Blender and GIMP availability may vary),
+Some creative applications are not yet available (or not yet complete) in AlmaLinux 10 /
+EPEL repositories at this time (for example: Blender and GIMP availability varies),
 so results may differ.
 
 ---
@@ -75,7 +113,7 @@ so results may differ.
 ## 🎬 Target Applications
 
 This project focuses on real-world creative tools commonly used in studios,
-post-production, and content creation environments, including:
+post-production, and content creation environments:
 
 - GIMP
 - Krita (Flatpak workflow, upstream-recommended on EL)
@@ -88,24 +126,23 @@ Additional applications may be added as the project evolves.
 
 ## 🎞️ DaVinci Resolve: Guided Install Flow
 
-DaVinci Resolve follows a guided, user-friendly workflow designed specifically
-for AlmaLinux:
+DaVinci Resolve follows a guided workflow designed specifically for AlmaLinux:
 
 1. Pre-install required system dependencies
 2. Open the official Blackmagic Design download page
 3. Prompt the user to select the downloaded installer (.run or .rpm)
 4. Run the installer with elevated privileges
 
-This approach respects vendor distribution models while keeping the process
+This respects vendor distribution models while keeping the process
 simple, transparent, and repeatable.
 
 ---
 
 ## 🔐 Privilege & Security Model
 
-- The graphical application runs unprivileged
-- All system-modifying actions are executed via polkit-protected helpers
-- Authentication is requested only when required
+- The graphical application runs **unprivileged**
+- All system-modifying actions run via **polkit-protected helpers**
+- Authentication is requested **only when required**
 
 This keeps the UI safe, auditable, and aligned with system security best practices.
 
@@ -122,15 +159,23 @@ These tools are advisory and do not imply certification or formal auditing.
 
 ---
 
+## 🧹 Uninstalling the Application
+
+To remove the application, run:
+
+sudo dnf remove almalinux-creative-installer
+
+---
+
 ## 🛠️ Building the RPM (Advanced / Contributors)
 
 To build the RPM locally:
 
 sudo dnf install -y rpmdevtools rpm-build
-./src/packaging/build-rpm.sh 1.0.0
+./src/packaging/build-rpm.sh 1.0.1
+
 
 The resulting RPMs will be located in:
-
 ~/rpmbuild/RPMS/
 
 ---
