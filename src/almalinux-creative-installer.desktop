@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: MIT
 [Desktop Entry]
-Name=Alma Creative Installer
+Name=AlmaLinux Creative Installer
 Comment=One-button installer for creative apps on AlmaLinux
-Exec=alma-creative-installer
+Exec=almalinux-creative-installer
 Icon=computer
 Terminal=false
 Type=Application

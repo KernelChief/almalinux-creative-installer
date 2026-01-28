@@ -11,7 +11,7 @@ import shutil
 from pathlib import Path
 from collections import deque
 
-HELPER = "/usr/libexec/alma-creative-installer-helper"
+HELPER = "/usr/libexec/almalinux-creative-installer-helper"
 RESOLVE_URL = "https://www.blackmagicdesign.com/products/davinciresolve/"
 
 APPS = [
