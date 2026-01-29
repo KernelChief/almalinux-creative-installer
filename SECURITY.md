@@ -19,4 +19,6 @@ This project:
 - does **not** expose network services
 - executes privileged operations only via **polkit-protected helpers**
 
+This project is open-source and licensed under GPLv3.
+
 Reports are reviewed on a best-effort basis.

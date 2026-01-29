@@ -184,4 +184,12 @@ The resulting RPMs will be located in:
 
 ## 📜 License
 
-MIT License. See the LICENSE file for details.
+This project is licensed under the **GNU General Public License v3.0 (GPLv3)**.
+
+This means:
+- You are free to use, modify, and distribute this software
+- Any redistributed or modified versions **must remain GPLv3**
+- Source code must be made available when distributing binaries
+
+See the `LICENSE` file for full terms.
+

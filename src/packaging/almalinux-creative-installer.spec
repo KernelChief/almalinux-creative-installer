@@ -1,4 +1,5 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: GPL-3.0-only
+
 
 Name:           almalinux-creative-installer
 Version:        1.0.2
