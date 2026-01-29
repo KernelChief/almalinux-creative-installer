@@ -82,4 +82,13 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*.rpm
-          generate_release_notes: true
+          generate_release_notes: false
+          body: |
+            ## :tada: AlmaLinux Creative Installer v${{ github.ref_name }}
+            
+            :white_check_mark: Highlights
+            - (fill me in)
+            
+            :package: Assets
+            - EL9 RPM
+            - EL10 RPM (experimental)
