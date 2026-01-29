@@ -1,6 +1,7 @@
 name: Build RPMs
 
 on:
+  workflow_dispatch:
   push:
     tags:
       - "v*"
