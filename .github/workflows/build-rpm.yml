@@ -12,7 +12,6 @@ jobs:
     strategy:
       matrix:
         el: [9, 10]
-
     container:
       image: almalinux:${{ matrix.el }}
 
@@ -41,7 +40,7 @@ jobs:
       - name: Upload RPM artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: rpm-el${{ matrix.el }}
+          name: RPM-EL${{ matrix.el }}
           path: ~/rpmbuild/RPMS/**/*.rpm
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
