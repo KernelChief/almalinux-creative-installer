@@ -140,7 +140,22 @@ install_local_file() {
     *.run)
       log "Running local .run installer: ${path}"
       chmod +x "${path}"
-      SKIP_PACKAGE_CHECK=1 "${path}"
+      if [[ "$(id -u)" -eq 0 ]]; then
+        if [[ -n "${PKEXEC_UID:-}" ]]; then
+          user="$(getent passwd "${PKEXEC_UID}" | cut -d: -f1 || true)"
+          if [[ -z "${user}" ]]; then
+            echo "ERROR: could not resolve invoking user for PKEXEC_UID=${PKEXEC_UID}" >&2
+            exit 6
+          fi
+          log "Dropping privileges to run installer as ${user} (uid ${PKEXEC_UID})"
+          runuser -u "${user}" -p -- env SKIP_PACKAGE_CHECK=1 "${path}"
+        else
+          echo "ERROR: .run installers must be run as a normal user (not root)." >&2
+          exit 6
+        fi
+      else
+        SKIP_PACKAGE_CHECK=1 "${path}"
+      fi
       log "Installer finished (check output above)."
       ;;
     *)

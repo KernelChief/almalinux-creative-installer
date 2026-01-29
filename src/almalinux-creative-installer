@@ -8,6 +8,8 @@ from gi.repository import Gtk, GLib, Gdk
 import subprocess
 import threading
 import shutil
+import os
+import stat
 from pathlib import Path
 from collections import deque
 
@@ -607,8 +609,68 @@ class AlmaCreativeInstaller(Gtk.Window):
         if resp == Gtk.ResponseType.OK:
             path = dialog.get_filename()
             if path:
-                self.run_helper_with_callback(["install_local_file", path])
+                if path.endswith(".run"):
+                    self.run_local_run_installer(path)
+                else:
+                    self.run_helper_with_callback(["install_local_file", path])
         dialog.destroy()
+
+    def run_local_run_installer(self, path):
+        if not path or not Path(path).exists():
+            self.append_log("❌ ERROR: installer path missing or not found.\n")
+            return
+
+        try:
+            st = os.stat(path)
+            if not (st.st_mode & stat.S_IXUSR):
+                os.chmod(path, st.st_mode | stat.S_IXUSR)
+        except Exception as e:
+            self.append_log("❌ ERROR: could not make installer executable: {}\n".format(e))
+            return
+
+        cmd = [path]
+        self.append_log("\n$ SKIP_PACKAGE_CHECK=1 " + " ".join(cmd) + "\n")
+
+        def worker():
+            last_lines = deque(maxlen=40)
+
+            def summarize_failure(rc):
+                for line in reversed(last_lines):
+                    s = line.strip()
+                    if s:
+                        return s
+                return "Exit code {}".format(rc)
+
+            try:
+                env = os.environ.copy()
+                env["SKIP_PACKAGE_CHECK"] = "1"
+                proc = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=1,
+                    env=env,
+                )
+                assert proc.stdout is not None
+
+                for line in proc.stdout:
+                    last_lines.append(line)
+                    GLib.idle_add(self.append_log, line)
+
+                rc = proc.wait()
+
+                if rc == 0:
+                    GLib.idle_add(self.append_log, "✅ Successful\n")
+                    GLib.idle_add(self.append_log, "[exit code: {}]\n".format(rc))
+                else:
+                    reason = summarize_failure(rc)
+                    GLib.idle_add(self.append_log, "❌ Failed: {}\n".format(reason))
+                    GLib.idle_add(self.append_log, "[exit code: {}]\n".format(rc))
+            except Exception as e:
+                GLib.idle_add(self.append_log, "❌ ERROR: {}\n".format(e))
+
+        threading.Thread(target=worker, daemon=True).start()
 
 
 def main():
