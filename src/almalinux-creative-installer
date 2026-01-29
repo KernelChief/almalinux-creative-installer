@@ -613,7 +613,9 @@ class AlmaCreativeInstaller(Gtk.Window):
             text="DaVinci Resolve requires SELinux permissive or disabled.",
         )
         dialog.format_secondary_text(
-            "Choose how you want to proceed before installing Resolve."
+            "Choose how you want to proceed before installing Resolve.\n\n"
+            "A reboot is required for the SELinux change to be fully applied "
+            "before launching DaVinci Resolve."
         )
         dialog.add_button("Cancel", Gtk.ResponseType.CANCEL)
         dialog.add_button("Permissive (permanent)", Gtk.ResponseType.APPLY)
