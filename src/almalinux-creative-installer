@@ -400,9 +400,15 @@ class AlmaCreativeInstaller(Gtk.Window):
         app = w["app"]
 
         if app["type"] == "resolve":
-            w["status"].set_text("ℹ️ Guided install")
-            w["install"].set_sensitive(True)
-            w["remove"].set_sensitive(False)
+            installed = self._resolve_installed()
+            if installed:
+                w["status"].set_text("✅ Installed")
+                w["install"].set_sensitive(False)
+                w["remove"].set_sensitive(False)
+            else:
+                w["status"].set_text("ℹ️ Guided install")
+                w["install"].set_sensitive(True)
+                w["remove"].set_sensitive(False)
             return
 
         if app["type"] == "dnf":
@@ -575,7 +581,68 @@ class AlmaCreativeInstaller(Gtk.Window):
 
     # ---------------- DaVinci Resolve flow ----------------
     def install_resolve_flow(self):
-        self.run_helper_with_callback(["prepare_resolve_deps"], on_success=self._resolve_open_and_pick)
+        self._ensure_selinux_for_resolve()
+
+    def _selinux_getenforce(self):
+        try:
+            proc = subprocess.run(
+                ["getenforce"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                text=True,
+                check=False,
+            )
+            out = proc.stdout.strip().lower()
+            if out:
+                return out
+        except Exception:
+            pass
+        return "unknown"
+
+    def _ensure_selinux_for_resolve(self):
+        mode = self._selinux_getenforce()
+        if mode in ("permissive", "disabled"):
+            self.run_helper_with_callback(["prepare_resolve_deps"], on_success=self._resolve_open_and_pick)
+            return
+
+        dialog = Gtk.MessageDialog(
+            parent=self,
+            flags=0,
+            message_type=Gtk.MessageType.WARNING,
+            buttons=Gtk.ButtonsType.NONE,
+            text="DaVinci Resolve requires SELinux permissive or disabled.",
+        )
+        dialog.format_secondary_text(
+            "Choose how you want to proceed before installing Resolve."
+        )
+        dialog.add_button("Cancel", Gtk.ResponseType.CANCEL)
+        dialog.add_button("Proceed without changes", Gtk.ResponseType.NO)
+        dialog.add_button("Temporary permissive", Gtk.ResponseType.OK)
+        dialog.add_button("Permanent permissive", Gtk.ResponseType.APPLY)
+        dialog.add_button("Disable SELinux", Gtk.ResponseType.YES)
+
+        resp = dialog.run()
+        dialog.destroy()
+
+        if resp == Gtk.ResponseType.CANCEL:
+            return
+        if resp == Gtk.ResponseType.NO:
+            self.run_helper_with_callback(["prepare_resolve_deps"], on_success=self._resolve_open_and_pick)
+            return
+        if resp == Gtk.ResponseType.OK:
+            mode_arg = "permissive-temp"
+        elif resp == Gtk.ResponseType.APPLY:
+            mode_arg = "permissive"
+        else:
+            mode_arg = "disabled"
+
+        self.run_helper_with_callback(
+            ["set_selinux_mode", mode_arg],
+            on_success=lambda: self.run_helper_with_callback(
+                ["prepare_resolve_deps"],
+                on_success=self._resolve_open_and_pick
+            )
+        )
 
     def _resolve_open_and_pick(self):
         if shutil.which("xdg-open"):
@@ -612,8 +679,21 @@ class AlmaCreativeInstaller(Gtk.Window):
                 if path.endswith(".run"):
                     self.run_local_run_installer(path)
                 else:
-                    self.run_helper_with_callback(["install_local_file", path])
+                    self.run_helper_with_callback(["install_local_file", path],
+                                                  on_success=lambda: self.refresh_app_state("resolve"))
         dialog.destroy()
+
+    def _resolve_installed(self):
+        candidates = [
+            "/opt/resolve/bin/resolve",
+            "/opt/resolve/bin/resolve.sh",
+            "/usr/bin/resolve",
+            "/usr/local/bin/resolve",
+        ]
+        for c in candidates:
+            if Path(c).exists():
+                return True
+        return shutil.which("resolve") is not None
 
     def run_local_run_installer(self, path):
         if not path or not Path(path).exists():
@@ -663,6 +743,7 @@ class AlmaCreativeInstaller(Gtk.Window):
                 if rc == 0:
                     GLib.idle_add(self.append_log, "✅ Successful\n")
                     GLib.idle_add(self.append_log, "[exit code: {}]\n".format(rc))
+                    GLib.idle_add(self.refresh_app_state, "resolve")
                 else:
                     reason = summarize_failure(rc)
                     GLib.idle_add(self.append_log, "❌ Failed: {}\n".format(reason))

@@ -129,14 +129,15 @@ Additional applications may be added as the project evolves.
 
 ## 🎞️ DaVinci Resolve: Guided Install Flow
 
-DaVinci Resolve follows a guided workflow designed specifically for AlmaLinux:
+DaVinci Resolve follows a guided workflow designed for AlmaLinux:
 
-1. Pre-install required system dependencies
-2. Open the official Blackmagic Design download page
-3. Prompt the user to select the downloaded installer (.run or .rpm)
-4. Run the installer with elevated privileges
+1. Pre-install required system dependencies (prompts for privileges if needed).
+2. Open the official Blackmagic Design download page.
+3. Unzip the downloaded DaVinci Resolve archive (the file picker won’t see it otherwise).
+4. Prompt the user to select the installer (`.run` or `.rpm`).
+5. Run the installer and prompt for elevated privileges if required.
 
-This respects vendor distribution models while keeping the process
+This respects the vendor’s distribution model while keeping the process
 simple, transparent, and repeatable.
 
 ---

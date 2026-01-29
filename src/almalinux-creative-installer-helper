@@ -124,6 +124,40 @@ prepare_resolve_deps() {
   log "Dependencies installed."
 }
 
+set_selinux_mode() {
+  local mode="${1:-}"
+  [[ -n "${mode}" ]] || { echo "ERROR: missing selinux mode" >&2; exit 2; }
+
+  case "${mode}" in
+    permissive-temp)
+      log "Setting SELinux to permissive (temporary)..."
+      if command -v setenforce >/dev/null 2>&1; then
+        setenforce 0 || true
+      fi
+      ;;
+    permissive)
+      log "Setting SELinux to permissive (permanent)..."
+      sed -i 's/^SELINUX=.*/SELINUX=permissive/' /etc/selinux/config
+      if command -v setenforce >/dev/null 2>&1; then
+        setenforce 0 || true
+      fi
+      ;;
+    disabled)
+      log "Setting SELinux to disabled (permanent)..."
+      sed -i 's/^SELINUX=.*/SELINUX=disabled/' /etc/selinux/config
+      if command -v setenforce >/dev/null 2>&1; then
+        setenforce 0 || true
+      fi
+      ;;
+    *)
+      echo "ERROR: unknown selinux mode: ${mode}" >&2
+      exit 2
+      ;;
+  esac
+
+  log "SELinux change requested. A reboot may be required to fully apply."
+}
+
 install_local_file() {
   local path="${1:-}"
   if [[ -z "${path}" || ! -f "${path}" ]]; then
@@ -187,6 +221,7 @@ case "${action}" in
 
   # Resolve
   prepare_resolve_deps)  prepare_resolve_deps;;
+  set_selinux_mode)      set_selinux_mode "${2:-}";;
   install_local_file)    install_local_file "${2:-}";;
 
   *)
@@ -211,6 +246,7 @@ Flatpak:
 
 Local installers:
   prepare_resolve_deps
+  set_selinux_mode <permissive-temp|permissive|disabled>
   install_local_file <path_to_.rpm_or_.run>
 EOF
     exit 1
