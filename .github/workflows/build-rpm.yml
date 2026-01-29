@@ -6,17 +6,14 @@ on:
     tags:
       - "v*"
 
-# Least privilege by default (applies to all jobs unless overridden)
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
     name: Build (EL${{ matrix.el }})
     runs-on: ubuntu-latest
-
     strategy:
-      fail-fast: false
       matrix:
         el: [9, 10]
 
@@ -30,54 +27,59 @@ jobs:
       - name: Install build dependencies
         run: |
           dnf -y install \
-            rpm-build \
-            rpmdevtools \
-            python3 \
-            python3-gobject \
-            gtk3 \
-            polkit \
-            xdg-utils \
-            rsync \
-            tar
+            rpm-build rpmdevtools \
+            python3 python3-gobject gtk3 \
+            polkit xdg-utils \
+            rsync tar findutils
 
       - name: Build RPM
+        env:
+          TOPDIR: ${{ github.workspace }}/rpmbuild
+          DISTDIR: ${{ github.workspace }}/dist
         run: |
+          mkdir -p "$TOPDIR" "$DISTDIR"
+          # Ensure rpmbuild writes inside the shared workspace (not ~)
+          export HOME="${{ github.workspace }}"
+          mkdir -p "$HOME"/rpmbuild
+
           chmod +x src/packaging/build-rpm.sh
-          # Build script reads Name/Version from spec, so no VERSION needed
           ./src/packaging/build-rpm.sh
+
+          # Collect RPMs into dist/
+          find "$HOME/rpmbuild/RPMS" -type f -name "*.rpm" -exec cp -v {} "$DISTDIR/" \;
 
       - name: Upload RPM artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: RPM-EL${{ matrix.el }}
-          path: /root/rpmbuild/RPMS/**/*.rpm
+          name: rpm-el${{ matrix.el }}
+          path: dist/*.rpm
 
   release:
     name: Release
     needs: build
     runs-on: ubuntu-latest
 
-    # Only run release job for tag pushes (not manual workflow_dispatch)
-    if: startsWith(github.ref, 'refs/tags/v')
-
-    # This job needs to create/update a Release and upload assets
-    permissions:
-      contents: write
-
     steps:
       - name: Download EL9 artifacts
         uses: actions/download-artifact@v4
         with:
-          name: RPM-EL9
+          name: rpm-el9
           path: dist
 
       - name: Download EL10 artifacts
         uses: actions/download-artifact@v4
         with:
-          name: RPM-EL10
+          name: rpm-el10
           path: dist
 
-      - name: Create GitHub Release (attach RPMs)
+      - name: List files (debug)
+        run: |
+          ls -lah dist
+          echo "Found RPMs:"
+          ls -lah dist/*.rpm || true
+
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/**/*.rpm
+          files: dist/*.rpm
+          generate_release_notes: true
