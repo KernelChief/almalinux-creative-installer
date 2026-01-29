@@ -6,12 +6,20 @@ on:
     tags:
       - "v*"
 
+# Least privilege by default (applies to all jobs unless overridden)
+permissions:
+  contents: read
+
 jobs:
   build:
+    name: Build (EL${{ matrix.el }})
     runs-on: ubuntu-latest
+
     strategy:
+      fail-fast: false
       matrix:
         el: [9, 10]
+
     container:
       image: almalinux:${{ matrix.el }}
 
@@ -35,16 +43,41 @@ jobs:
       - name: Build RPM
         run: |
           chmod +x src/packaging/build-rpm.sh
-          ./src/packaging/build-rpm.sh "$VERSION"
+          # Build script reads Name/Version from spec, so no VERSION needed
+          ./src/packaging/build-rpm.sh
 
       - name: Upload RPM artifacts
         uses: actions/upload-artifact@v4
         with:
           name: RPM-EL${{ matrix.el }}
-          path: ~/rpmbuild/RPMS/**/*.rpm
-      - name: Create GitHub Release
+          path: /root/rpmbuild/RPMS/**/*.rpm
+
+  release:
+    name: Release
+    needs: build
+    runs-on: ubuntu-latest
+
+    # Only run release job for tag pushes (not manual workflow_dispatch)
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    # This job needs to create/update a Release and upload assets
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download EL9 artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: RPM-EL9
+          path: dist
+
+      - name: Download EL10 artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: RPM-EL10
+          path: dist
+
+      - name: Create GitHub Release (attach RPMs)
         uses: softprops/action-gh-release@v2
         with:
-          files: ~/rpmbuild/RPMS/**/*.rpm
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          files: dist/**/*.rpm
