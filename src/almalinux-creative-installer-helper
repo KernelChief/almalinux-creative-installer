@@ -149,6 +149,13 @@ set_selinux_mode() {
         setenforce 0 || true
       fi
       ;;
+    enforcing)
+      log "Setting SELinux to enforcing (permanent)..."
+      sed -i 's/^SELINUX=.*/SELINUX=enforcing/' /etc/selinux/config
+      if command -v setenforce >/dev/null 2>&1; then
+        setenforce 1 || true
+      fi
+      ;;
     *)
       echo "ERROR: unknown selinux mode: ${mode}" >&2
       exit 2
@@ -246,7 +253,7 @@ Flatpak:
 
 Local installers:
   prepare_resolve_deps
-  set_selinux_mode <permissive-temp|permissive|disabled>
+  set_selinux_mode <permissive-temp|permissive|disabled|enforcing>
   install_local_file <path_to_.rpm_or_.run>
 EOF
     exit 1

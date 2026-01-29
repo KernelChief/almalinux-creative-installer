@@ -764,6 +764,7 @@ class AlmaCreativeInstaller(Gtk.Window):
                     GLib.idle_add(self.append_log, "✅ Successful\n")
                     GLib.idle_add(self.append_log, "[exit code: {}]\n".format(rc))
                     GLib.idle_add(self.refresh_app_state, "resolve")
+                    GLib.idle_add(self._prompt_reenable_selinux)
                 else:
                     reason = summarize_failure(rc)
                     GLib.idle_add(self.append_log, "❌ Failed: {}\n".format(reason))
@@ -772,6 +773,31 @@ class AlmaCreativeInstaller(Gtk.Window):
                 GLib.idle_add(self.append_log, "❌ ERROR: {}\n".format(e))
 
         threading.Thread(target=worker, daemon=True).start()
+
+    def _prompt_reenable_selinux(self):
+        mode = self._selinux_getenforce()
+        if mode == "enforcing":
+            return
+
+        dialog = Gtk.MessageDialog(
+            parent=self,
+            flags=0,
+            message_type=Gtk.MessageType.WARNING,
+            buttons=Gtk.ButtonsType.NONE,
+            text="Re-enable SELinux enforcing?",
+        )
+        dialog.format_secondary_text(
+            "DaVinci Resolve has been removed. You can restore SELinux enforcing.\n\n"
+            "A reboot may be required for the change to fully apply."
+        )
+        dialog.add_button("Leave as-is", Gtk.ResponseType.CANCEL)
+        dialog.add_button("Set Enforcing (permanent)", Gtk.ResponseType.OK)
+
+        resp = dialog.run()
+        dialog.destroy()
+
+        if resp == Gtk.ResponseType.OK:
+            self.run_helper_with_callback(["set_selinux_mode", "enforcing"])
 
     def run_local_run_installer(self, path):
         if not path or not Path(path).exists():
