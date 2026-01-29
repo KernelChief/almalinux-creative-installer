@@ -1,0 +1,51 @@
+name: Build RPMs
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        el: [9, 10]
+
+    container:
+      image: almalinux:${{ matrix.el }}
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          dnf -y install \
+            rpm-build \
+            rpmdevtools \
+            python3 \
+            python3-gobject \
+            gtk3 \
+            polkit \
+            xdg-utils \
+            rsync \
+            tar
+
+      - name: Build RPM
+        run: |
+          chmod +x src/packaging/build-rpm.sh
+          ./src/packaging/build-rpm.sh "$VERSION"
+
+      - name: Upload RPM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpm-el${{ matrix.el }}
+          path: ~/rpmbuild/RPMS/**/*.rpm
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ~/rpmbuild/RPMS/**/*.rpm
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
