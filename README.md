@@ -6,6 +6,9 @@ dependency headaches.
 
 All software is installed using **supported system methods** only.
 
+![AlmaLinux Creative Installer – main window](docs/screenshots/main.png)
+*Main window showing system requirements, install status, and guided workflows.*
+
 ---
 
 ## 🚀 Quick Start (Recommended)
