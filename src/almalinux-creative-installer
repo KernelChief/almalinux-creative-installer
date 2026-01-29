@@ -616,22 +616,15 @@ class AlmaCreativeInstaller(Gtk.Window):
             "Choose how you want to proceed before installing Resolve."
         )
         dialog.add_button("Cancel", Gtk.ResponseType.CANCEL)
-        dialog.add_button("Proceed without changes", Gtk.ResponseType.NO)
-        dialog.add_button("Temporary permissive", Gtk.ResponseType.OK)
-        dialog.add_button("Permanent permissive", Gtk.ResponseType.APPLY)
-        dialog.add_button("Disable SELinux", Gtk.ResponseType.YES)
+        dialog.add_button("Permissive (permanent)", Gtk.ResponseType.APPLY)
+        dialog.add_button("Disable SELinux (permanent)", Gtk.ResponseType.YES)
 
         resp = dialog.run()
         dialog.destroy()
 
         if resp == Gtk.ResponseType.CANCEL:
             return
-        if resp == Gtk.ResponseType.NO:
-            self.run_helper_with_callback(["prepare_resolve_deps"], on_success=self._resolve_open_and_pick)
-            return
-        if resp == Gtk.ResponseType.OK:
-            mode_arg = "permissive-temp"
-        elif resp == Gtk.ResponseType.APPLY:
+        if resp == Gtk.ResponseType.APPLY:
             mode_arg = "permissive"
         else:
             mode_arg = "disabled"
