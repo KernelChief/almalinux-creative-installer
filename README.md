@@ -9,6 +9,9 @@ All software is installed using **supported system methods** only.
 ![AlmaLinux Creative Installer – main window](docs/screenshots/main.png)
 *Main window showing system requirements, install status, and guided workflows.*
 
+![AlmaLinux Creative Installer – logs window](docs/screenshots/logs.png)
+*Logs window showing the live log while installing, removing apps / repos. Able to show enabled repos for debug and clear log in that window with button*
+
 ---
 
 ## 🚀 Quick Start (Recommended)
