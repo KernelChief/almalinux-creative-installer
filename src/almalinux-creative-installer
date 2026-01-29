@@ -103,14 +103,6 @@ class AlmaCreativeInstaller(Gtk.Window):
         actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
         apps_page.pack_start(actions, False, False, 0)
 
-        btn_repo_status = Gtk.Button(label="Show enabled repos (debug)")
-        btn_repo_status.connect("clicked", lambda *_: self.show_enabled_repos_debug())
-        actions.pack_start(btn_repo_status, False, False, 0)
-
-        btn_clear_logs = Gtk.Button(label="Clear logs")
-        btn_clear_logs.connect("clicked", lambda *_: self.set_log(""))
-        actions.pack_start(btn_clear_logs, False, False, 0)
-
         btn_quit = Gtk.Button(label="Quit")
         btn_quit.connect("clicked", lambda *_: self.close())
         actions.pack_end(btn_quit, False, False, 0)
@@ -119,6 +111,18 @@ class AlmaCreativeInstaller(Gtk.Window):
         logs_page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
         logs_page.set_border_width(6)
         self.notebook.append_page(logs_page, Gtk.Label(label="Logs"))
+
+        logs_actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        logs_actions.set_halign(Gtk.Align.START)
+        logs_page.pack_start(logs_actions, False, False, 0)
+
+        btn_repo_status = Gtk.Button(label="Show enabled repos (debug)")
+        btn_repo_status.connect("clicked", lambda *_: self.show_enabled_repos_debug())
+        logs_actions.pack_start(btn_repo_status, False, False, 0)
+
+        btn_clear_logs = Gtk.Button(label="Clear logs")
+        btn_clear_logs.connect("clicked", lambda *_: self.set_log(""))
+        logs_actions.pack_start(btn_clear_logs, False, False, 0)
 
         self.textview = Gtk.TextView()
         self.textview.set_editable(False)
