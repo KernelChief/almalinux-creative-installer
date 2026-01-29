@@ -239,7 +239,7 @@ class AlmaCreativeInstaller(Gtk.Window):
             remove_btn.connect("clicked", lambda *_: self.confirm_remove_krita())
         elif app["type"] == "resolve":
             install_btn.connect("clicked", lambda *_: self.install_resolve_flow())
-            remove_btn.set_sensitive(False)
+            remove_btn.connect("clicked", lambda *_: self.remove_resolve_flow())
 
         self.app_widgets[app["id"]] = {
             "app": app,
@@ -404,7 +404,7 @@ class AlmaCreativeInstaller(Gtk.Window):
             if installed:
                 w["status"].set_text("✅ Installed")
                 w["install"].set_sensitive(False)
-                w["remove"].set_sensitive(False)
+                w["remove"].set_sensitive(True)
             else:
                 w["status"].set_text("ℹ️ Guided install")
                 w["install"].set_sensitive(True)
@@ -682,6 +682,7 @@ class AlmaCreativeInstaller(Gtk.Window):
         candidates = [
             "/opt/resolve/bin/resolve",
             "/opt/resolve/bin/resolve.sh",
+            "/opt/resolve/installer",
             "/usr/bin/resolve",
             "/usr/local/bin/resolve",
         ]
@@ -689,6 +690,88 @@ class AlmaCreativeInstaller(Gtk.Window):
             if Path(c).exists():
                 return True
         return shutil.which("resolve") is not None
+
+    def remove_resolve_flow(self):
+        if not self._resolve_installed():
+            self.append_log("ℹ️ DaVinci Resolve does not appear to be installed.\n")
+            self.refresh_app_state("resolve")
+            return
+
+        dialog = Gtk.MessageDialog(
+            parent=self,
+            flags=0,
+            message_type=Gtk.MessageType.WARNING,
+            buttons=Gtk.ButtonsType.NONE,
+            text="Uninstall DaVinci Resolve?",
+        )
+        dialog.format_secondary_text(
+            "This will run the vendor uninstaller.\n\n"
+            "Note: The uninstaller must run as a normal user (not root)."
+        )
+        dialog.add_button("Cancel", Gtk.ResponseType.CANCEL)
+        dialog.add_button("Uninstall", Gtk.ResponseType.OK)
+
+        resp = dialog.run()
+        dialog.destroy()
+
+        if resp == Gtk.ResponseType.OK:
+            self.run_resolve_uninstaller()
+
+    def run_resolve_uninstaller(self):
+        path = "/opt/resolve/installer"
+        if not Path(path).exists():
+            self.append_log("❌ ERROR: Resolve uninstaller not found at {}\n".format(path))
+            return
+
+        try:
+            st = os.stat(path)
+            if not (st.st_mode & stat.S_IXUSR):
+                os.chmod(path, st.st_mode | stat.S_IXUSR)
+        except Exception as e:
+            self.append_log("❌ ERROR: could not make uninstaller executable: {}\n".format(e))
+            return
+
+        cmd = [path]
+        self.append_log("\n$ " + " ".join(cmd) + "\n")
+
+        def worker():
+            last_lines = deque(maxlen=40)
+
+            def summarize_failure(rc):
+                for line in reversed(last_lines):
+                    s = line.strip()
+                    if s:
+                        return s
+                return "Exit code {}".format(rc)
+
+            try:
+                proc = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=1,
+                )
+                assert proc.stdout is not None
+
+                for line in proc.stdout:
+                    last_lines.append(line)
+                    GLib.idle_add(self.append_log, line)
+
+                rc = proc.wait()
+
+                if rc == 0:
+                    GLib.idle_add(self.append_log, "✅ Successful\n")
+                    GLib.idle_add(self.append_log, "[exit code: {}]\n".format(rc))
+                    GLib.idle_add(self.refresh_app_state, "resolve")
+                else:
+                    reason = summarize_failure(rc)
+                    GLib.idle_add(self.append_log, "❌ Failed: {}\n".format(reason))
+                    GLib.idle_add(self.append_log, "[exit code: {}]\n".format(rc))
+            except Exception as e:
+                GLib.idle_add(self.append_log, "❌ ERROR: {}\n".format(e))
+
+        threading.Thread(target=worker, daemon=True).start()
 
     def run_local_run_installer(self, path):
         if not path or not Path(path).exists():
