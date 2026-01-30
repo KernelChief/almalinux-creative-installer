@@ -15,12 +15,12 @@ if [[ ! -f "${SPEC}" ]]; then
   exit 2
 fi
 
-# Read Name and Version from the spec (single source of truth)
+# Read Name from the spec; Version comes from git tags.
 NAME="$(awk -F: '/^Name:[[:space:]]*/ {gsub(/[[:space:]]+/, "", $2); print $2; exit}' "${SPEC}")"
-VERSION="$(awk -F: '/^Version:[[:space:]]*/ {gsub(/[[:space:]]+/, "", $2); print $2; exit}' "${SPEC}")"
+VERSION="$(git -C "${ROOT_DIR}" describe --tags --abbrev=0 2>/dev/null | sed 's/^v//')"
 
 if [[ -z "${NAME}" || -z "${VERSION}" ]]; then
-  echo "ERROR: Could not parse Name/Version from spec: ${SPEC}" >&2
+  echo "ERROR: Could not determine Name/Version. Ensure git tags exist (e.g., v1.0.4)." >&2
   exit 3
 fi
 
@@ -49,7 +49,7 @@ tar -C "${TMPDIR}" -czf "${TARBALL}" "${NAME}-${VERSION}"
 echo "Created source tarball: ${TARBALL}"
 echo "Building ${NAME} version ${VERSION} using spec: ${SPEC}"
 
-rpmbuild -ba "${SPEC}"
+rpmbuild -ba --define "version ${VERSION}" "${SPEC}"
 
 echo "Done."
 echo "RPMs are in: ${HOME}/rpmbuild/RPMS/"
