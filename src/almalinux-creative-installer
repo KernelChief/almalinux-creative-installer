@@ -8,6 +8,9 @@ from gi.repository import Gtk, GLib, Gdk
 import subprocess
 import threading
 import shutil
+import os
+import stat
+import importlib.metadata
 from pathlib import Path
 from collections import deque
 
@@ -32,10 +35,12 @@ class AlmaCreativeInstaller(Gtk.Window):
 
         self._apply_css()
 
+        self.app_version = self._get_app_version()
+
         hb = Gtk.HeaderBar()
         hb.set_show_close_button(True)
         hb.props.title = "Alma Creative Installer"
-        hb.props.subtitle = "Creative & M&E workstation installs"
+        hb.props.subtitle = "Creative & M&E workstation installs • v{}".format(self.app_version)
         self.set_titlebar(hb)
 
         btn_refresh = Gtk.Button.new_from_icon_name("view-refresh", Gtk.IconSize.BUTTON)
@@ -135,6 +140,7 @@ class AlmaCreativeInstaller(Gtk.Window):
         scroller.add(self.textview)
         logs_page.pack_start(scroller, True, True, 0)
 
+        self.append_log("Alma Creative Installer v{}\n".format(self.app_version))
         self.append_log("Ready.\n")
 
         if not Path(HELPER).exists():
@@ -156,6 +162,28 @@ class AlmaCreativeInstaller(Gtk.Window):
             provider,
             Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
         )
+
+    def _get_app_version(self):
+        try:
+            return importlib.metadata.version("almalinux-creative-installer")
+        except Exception:
+            pass
+
+        try:
+            proc = subprocess.run(
+                ["rpm", "-q", "--qf", "%{VERSION}-%{RELEASE}", "almalinux-creative-installer"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                text=True,
+                check=False,
+            )
+            out = proc.stdout.strip()
+            if out and "not installed" not in out.lower():
+                return out
+        except Exception:
+            pass
+
+        return "dev"
 
     # ---------------- UI builders ----------------
     def _make_requirement_row(self, key, title, subtitle, enable_action):
@@ -237,7 +265,7 @@ class AlmaCreativeInstaller(Gtk.Window):
             remove_btn.connect("clicked", lambda *_: self.confirm_remove_krita())
         elif app["type"] == "resolve":
             install_btn.connect("clicked", lambda *_: self.install_resolve_flow())
-            remove_btn.set_sensitive(False)
+            remove_btn.connect("clicked", lambda *_: self.remove_resolve_flow())
 
         self.app_widgets[app["id"]] = {
             "app": app,
@@ -398,9 +426,15 @@ class AlmaCreativeInstaller(Gtk.Window):
         app = w["app"]
 
         if app["type"] == "resolve":
-            w["status"].set_text("ℹ️ Guided install")
-            w["install"].set_sensitive(True)
-            w["remove"].set_sensitive(False)
+            installed = self._resolve_installed()
+            if installed:
+                w["status"].set_text("✅ Installed")
+                w["install"].set_sensitive(False)
+                w["remove"].set_sensitive(True)
+            else:
+                w["status"].set_text("ℹ️ Guided install")
+                w["install"].set_sensitive(True)
+                w["remove"].set_sensitive(False)
             return
 
         if app["type"] == "dnf":
@@ -573,7 +607,63 @@ class AlmaCreativeInstaller(Gtk.Window):
 
     # ---------------- DaVinci Resolve flow ----------------
     def install_resolve_flow(self):
-        self.run_helper_with_callback(["prepare_resolve_deps"], on_success=self._resolve_open_and_pick)
+        self._ensure_selinux_for_resolve()
+
+    def _selinux_getenforce(self):
+        try:
+            proc = subprocess.run(
+                ["getenforce"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                text=True,
+                check=False,
+            )
+            out = proc.stdout.strip().lower()
+            if out:
+                return out
+        except Exception:
+            pass
+        return "unknown"
+
+    def _ensure_selinux_for_resolve(self):
+        mode = self._selinux_getenforce()
+        if mode in ("permissive", "disabled"):
+            self.run_helper_with_callback(["prepare_resolve_deps"], on_success=self._resolve_open_and_pick)
+            return
+
+        dialog = Gtk.MessageDialog(
+            parent=self,
+            flags=0,
+            message_type=Gtk.MessageType.WARNING,
+            buttons=Gtk.ButtonsType.NONE,
+            text="DaVinci Resolve requires SELinux permissive or disabled.",
+        )
+        dialog.format_secondary_text(
+            "Choose how you want to proceed before installing Resolve.\n\n"
+            "A reboot is required for the SELinux change to be fully applied "
+            "before launching DaVinci Resolve."
+        )
+        dialog.add_button("Cancel", Gtk.ResponseType.CANCEL)
+        dialog.add_button("Permissive (permanent)", Gtk.ResponseType.APPLY)
+        dialog.add_button("Disable SELinux (permanent)", Gtk.ResponseType.YES)
+
+        resp = dialog.run()
+        dialog.destroy()
+
+        if resp == Gtk.ResponseType.CANCEL:
+            return
+        if resp == Gtk.ResponseType.APPLY:
+            mode_arg = "permissive"
+        else:
+            mode_arg = "disabled"
+
+        self.run_helper_with_callback(
+            ["set_selinux_mode", mode_arg],
+            on_success=lambda: self.run_helper_with_callback(
+                ["prepare_resolve_deps"],
+                on_success=self._resolve_open_and_pick
+            )
+        )
 
     def _resolve_open_and_pick(self):
         if shutil.which("xdg-open"):
@@ -607,8 +697,191 @@ class AlmaCreativeInstaller(Gtk.Window):
         if resp == Gtk.ResponseType.OK:
             path = dialog.get_filename()
             if path:
-                self.run_helper_with_callback(["install_local_file", path])
+                if path.endswith(".run"):
+                    self.run_local_run_installer(path)
+                else:
+                    self.run_helper_with_callback(["install_local_file", path],
+                                                  on_success=lambda: self.refresh_app_state("resolve"))
         dialog.destroy()
+
+    def _resolve_installed(self):
+        candidates = [
+            "/opt/resolve/bin/resolve",
+            "/opt/resolve/bin/resolve.sh",
+            "/opt/resolve/installer",
+            "/usr/bin/resolve",
+            "/usr/local/bin/resolve",
+        ]
+        for c in candidates:
+            if Path(c).exists():
+                return True
+        return shutil.which("resolve") is not None
+
+    def remove_resolve_flow(self):
+        if not self._resolve_installed():
+            self.append_log("ℹ️ DaVinci Resolve does not appear to be installed.\n")
+            self.refresh_app_state("resolve")
+            return
+
+        dialog = Gtk.MessageDialog(
+            parent=self,
+            flags=0,
+            message_type=Gtk.MessageType.WARNING,
+            buttons=Gtk.ButtonsType.NONE,
+            text="Uninstall DaVinci Resolve?",
+        )
+        dialog.format_secondary_text(
+            "This will run the vendor uninstaller.\n\n"
+            "Note: The uninstaller must run as a normal user (not root)."
+        )
+        dialog.add_button("Cancel", Gtk.ResponseType.CANCEL)
+        dialog.add_button("Uninstall", Gtk.ResponseType.OK)
+
+        resp = dialog.run()
+        dialog.destroy()
+
+        if resp == Gtk.ResponseType.OK:
+            self.run_resolve_uninstaller()
+
+    def run_resolve_uninstaller(self):
+        path = "/opt/resolve/installer"
+        if not Path(path).exists():
+            self.append_log("❌ ERROR: Resolve uninstaller not found at {}\n".format(path))
+            return
+
+        try:
+            st = os.stat(path)
+            if not (st.st_mode & stat.S_IXUSR):
+                os.chmod(path, st.st_mode | stat.S_IXUSR)
+        except Exception as e:
+            self.append_log("❌ ERROR: could not make uninstaller executable: {}\n".format(e))
+            return
+
+        cmd = [path]
+        self.append_log("\n$ " + " ".join(cmd) + "\n")
+
+        def worker():
+            last_lines = deque(maxlen=40)
+
+            def summarize_failure(rc):
+                for line in reversed(last_lines):
+                    s = line.strip()
+                    if s:
+                        return s
+                return "Exit code {}".format(rc)
+
+            try:
+                proc = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=1,
+                )
+                assert proc.stdout is not None
+
+                for line in proc.stdout:
+                    last_lines.append(line)
+                    GLib.idle_add(self.append_log, line)
+
+                rc = proc.wait()
+
+                if rc == 0:
+                    GLib.idle_add(self.append_log, "✅ Successful\n")
+                    GLib.idle_add(self.append_log, "[exit code: {}]\n".format(rc))
+                    GLib.idle_add(self.refresh_app_state, "resolve")
+                    GLib.idle_add(self._prompt_reenable_selinux)
+                else:
+                    reason = summarize_failure(rc)
+                    GLib.idle_add(self.append_log, "❌ Failed: {}\n".format(reason))
+                    GLib.idle_add(self.append_log, "[exit code: {}]\n".format(rc))
+            except Exception as e:
+                GLib.idle_add(self.append_log, "❌ ERROR: {}\n".format(e))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _prompt_reenable_selinux(self):
+        mode = self._selinux_getenforce()
+        if mode == "enforcing":
+            return
+
+        dialog = Gtk.MessageDialog(
+            parent=self,
+            flags=0,
+            message_type=Gtk.MessageType.WARNING,
+            buttons=Gtk.ButtonsType.NONE,
+            text="Re-enable SELinux enforcing?",
+        )
+        dialog.format_secondary_text(
+            "DaVinci Resolve has been removed. You can restore SELinux enforcing.\n\n"
+            "A reboot may be required for the change to fully apply."
+        )
+        dialog.add_button("Leave as-is", Gtk.ResponseType.CANCEL)
+        dialog.add_button("Set Enforcing (permanent)", Gtk.ResponseType.OK)
+
+        resp = dialog.run()
+        dialog.destroy()
+
+        if resp == Gtk.ResponseType.OK:
+            self.run_helper_with_callback(["set_selinux_mode", "enforcing"])
+
+    def run_local_run_installer(self, path):
+        if not path or not Path(path).exists():
+            self.append_log("❌ ERROR: installer path missing or not found.\n")
+            return
+
+        try:
+            st = os.stat(path)
+            if not (st.st_mode & stat.S_IXUSR):
+                os.chmod(path, st.st_mode | stat.S_IXUSR)
+        except Exception as e:
+            self.append_log("❌ ERROR: could not make installer executable: {}\n".format(e))
+            return
+
+        cmd = [path]
+        self.append_log("\n$ SKIP_PACKAGE_CHECK=1 " + " ".join(cmd) + "\n")
+
+        def worker():
+            last_lines = deque(maxlen=40)
+
+            def summarize_failure(rc):
+                for line in reversed(last_lines):
+                    s = line.strip()
+                    if s:
+                        return s
+                return "Exit code {}".format(rc)
+
+            try:
+                env = os.environ.copy()
+                env["SKIP_PACKAGE_CHECK"] = "1"
+                proc = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=1,
+                    env=env,
+                )
+                assert proc.stdout is not None
+
+                for line in proc.stdout:
+                    last_lines.append(line)
+                    GLib.idle_add(self.append_log, line)
+
+                rc = proc.wait()
+
+                if rc == 0:
+                    GLib.idle_add(self.append_log, "✅ Successful\n")
+                    GLib.idle_add(self.append_log, "[exit code: {}]\n".format(rc))
+                    GLib.idle_add(self.refresh_app_state, "resolve")
+                else:
+                    reason = summarize_failure(rc)
+                    GLib.idle_add(self.append_log, "❌ Failed: {}\n".format(reason))
+                    GLib.idle_add(self.append_log, "[exit code: {}]\n".format(rc))
+            except Exception as e:
+                GLib.idle_add(self.append_log, "❌ ERROR: {}\n".format(e))
+
+        threading.Thread(target=worker, daemon=True).start()
 
 
 def main():
