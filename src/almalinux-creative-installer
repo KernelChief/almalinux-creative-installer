@@ -10,6 +10,7 @@ import threading
 import shutil
 import os
 import stat
+import importlib.metadata
 from pathlib import Path
 from collections import deque
 
@@ -34,10 +35,12 @@ class AlmaCreativeInstaller(Gtk.Window):
 
         self._apply_css()
 
+        self.app_version = self._get_app_version()
+
         hb = Gtk.HeaderBar()
         hb.set_show_close_button(True)
         hb.props.title = "Alma Creative Installer"
-        hb.props.subtitle = "Creative & M&E workstation installs"
+        hb.props.subtitle = "Creative & M&E workstation installs • v{}".format(self.app_version)
         self.set_titlebar(hb)
 
         btn_refresh = Gtk.Button.new_from_icon_name("view-refresh", Gtk.IconSize.BUTTON)
@@ -137,6 +140,7 @@ class AlmaCreativeInstaller(Gtk.Window):
         scroller.add(self.textview)
         logs_page.pack_start(scroller, True, True, 0)
 
+        self.append_log("Alma Creative Installer v{}\n".format(self.app_version))
         self.append_log("Ready.\n")
 
         if not Path(HELPER).exists():
@@ -158,6 +162,28 @@ class AlmaCreativeInstaller(Gtk.Window):
             provider,
             Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
         )
+
+    def _get_app_version(self):
+        try:
+            return importlib.metadata.version("almalinux-creative-installer")
+        except Exception:
+            pass
+
+        try:
+            proc = subprocess.run(
+                ["rpm", "-q", "--qf", "%{VERSION}-%{RELEASE}", "almalinux-creative-installer"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                text=True,
+                check=False,
+            )
+            out = proc.stdout.strip()
+            if out and "not installed" not in out.lower():
+                return out
+        except Exception:
+            pass
+
+        return "dev"
 
     # ---------------- UI builders ----------------
     def _make_requirement_row(self, key, title, subtitle, enable_action):
