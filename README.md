@@ -228,9 +228,6 @@ If you’re running from source, make sure the system package is updated too.
 Yes. Krita is installed via Flatpak, and the installer adds Flathub system‑wide
 to enable it.
 
-**The RPM build script fails.**  
-`build-rpm.sh` uses the **latest git tag** for the version. Create a tag like
-`v1.0.5` before building.
 ---
 
 ## 📜 License
