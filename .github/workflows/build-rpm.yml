@@ -84,7 +84,7 @@ jobs:
           files: dist/*.rpm
           generate_release_notes: false
           body: |
-            ## :tada: AlmaLinux Creative Installer v${{ github.ref_name }}
+            ## :tada: AlmaLinux Creative Installer ${{ github.ref_name }}
             
             :white_check_mark: Highlights
             - (fill me in)
