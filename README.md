@@ -134,14 +134,18 @@ Additional applications may be added as the project evolves.
 
 DaVinci Resolve follows a guided workflow designed for AlmaLinux:
 
-1. Pre-install required system dependencies (prompts for privileges if needed).
-2. Open the official Blackmagic Design download page.
-3. Unzip the downloaded DaVinci Resolve archive (the file picker won’t see it otherwise).
-4. Prompt the user to select the installer (`.run` or `.rpm`).
-5. Run the installer and prompt for elevated privileges if required.
+1. If SELinux is enforcing, prompt to set it to **permissive** or **disabled** (permanent).  
+   A reboot is required for the change to fully apply before launching Resolve.
+2. Pre-install required system dependencies (prompts for privileges if needed).
+3. Open the official Blackmagic Design download page.
+4. Unzip the downloaded DaVinci Resolve archive (the file picker won’t see it otherwise).
+5. Prompt the user to select the installer (`.run` or `.rpm`).
+6. Run the installer:
+   - `.run` is executed as the **normal user** (vendor requirement).
+   - `.rpm` is installed with elevated privileges.
 
-This respects the vendor’s distribution model while keeping the process
-simple, transparent, and repeatable.
+Uninstalling Resolve runs the vendor uninstaller at `/opt/resolve/installer`
+and must also be run as a normal user.
 
 ---
 
