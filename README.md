@@ -154,6 +154,7 @@ and must also be run as a normal user.
 - The graphical application runs **unprivileged**
 - All system-modifying actions run via **polkit-protected helpers**
 - Authentication is requested **only when required**
+- Vendor `.run` installers and uninstallers are executed as the **normal user**
 
 This keeps the UI safe, auditable, and aligned with system security best practices.
 
@@ -178,16 +179,58 @@ To remove the application, run:
 
 ---
 
-## 🛠️ Building the RPM (Advanced / Contributors)
+---
 
-To build the RPM locally:
+## ❓ FAQ
 
-`sudo dnf install -y rpmdevtools rpm-build`
-`./src/packaging/build-rpm.sh 1.0.1`
+**Why does DaVinci Resolve require SELinux permissive or disabled?**  
+Resolve’s vendor installer and runtime expect permissive/disabled on EL.
+The installer will prompt to set this **permanently** before continuing.
 
-The resulting RPMs will be located in:
-`~/rpmbuild/RPMS/`
+**Why does the SELinux prompt sometimes not appear?**  
+If SELinux is already **permissive** or **disabled**, the prompt is skipped.
+Check with `getenforce`.
 
+**I rebooted and SELinux is still permissive. Why?**  
+Check `/etc/selinux/config`. If it contains an invalid value like
+`SELINUX=enforced`, the system falls back to permissive. Valid values are
+`enforcing`, `permissive`, or `disabled`.
+
+**Why does the Resolve `.run` installer/uninstaller run as a normal user?**  
+Blackmagic’s installer explicitly refuses to run as root. The UI enforces this.
+
+**Why is Krita installed via Flatpak?**  
+Krita’s upstream recommends Flatpak for Enterprise Linux to ensure current
+features and dependencies that may lag in EL repositories.
+
+**Where is the Resolve uninstaller?**  
+It is located at `/opt/resolve/installer` and must be run as a normal user.
+
+**Why doesn’t the Resolve installer show in the file picker?**  
+You must **unzip/extract** the downloaded archive first.
+
+**Can I re-enable SELinux enforcing after uninstalling Resolve?**  
+Yes. The UI prompts to restore enforcing after a successful uninstall.
+
+---
+
+## 🧰 Troubleshooting
+
+**The Resolve installer/uninstaller won’t run over SSH.**  
+Resolve’s `.run` uses interactive UI prompts. Run the installer from a graphical
+desktop session as a normal user.
+
+**The app shows old behavior after I updated the source.**  
+The UI calls the installed helper at `/usr/libexec/almalinux-creative-installer-helper`.
+If you’re running from source, make sure the system package is updated too.
+
+**Flathub was added to my system. Is that expected?**  
+Yes. Krita is installed via Flatpak, and the installer adds Flathub system‑wide
+to enable it.
+
+**The RPM build script fails.**  
+`build-rpm.sh` uses the **latest git tag** for the version. Create a tag like
+`v1.0.5` before building.
 ---
 
 ## 📜 License
@@ -200,4 +243,3 @@ This means:
 - Source code must be made available when distributing binaries
 
 See the `LICENSE` file for full terms.
-
