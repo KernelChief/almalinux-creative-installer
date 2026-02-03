@@ -7,7 +7,7 @@ ENTRYPOINT="${ROOT_DIR}/src/almalinux-creative-installer"
 DIST_DIR="${ROOT_DIR}/dist/binary"
 
 if [[ "$(id -u)" -eq 0 ]]; then
-  echo "ERROR: Do not run PyInstaller as root. Use a normal user account." >&2
+  echo "ERROR: Do not run Nuitka as root. Use a normal user account." >&2
   exit 4
 fi
 
@@ -21,8 +21,8 @@ command -v python3 >/dev/null 2>&1 || {
   exit 2
 }
 
-command -v pyinstaller >/dev/null 2>&1 || {
-  echo "ERROR: pyinstaller is not installed. Install with pip." >&2
+command -v nuitka >/dev/null 2>&1 || {
+  echo "ERROR: nuitka is not installed. Install with pip." >&2
   exit 3
 }
 
@@ -30,14 +30,14 @@ mkdir -p "${DIST_DIR}"
 
 echo "Bundling entrypoint: ${ENTRYPOINT}"
 
-pyinstaller \
-  --clean \
-  --noconfirm \
+nuitka \
+  --standalone \
   --onefile \
-  --name almalinux-creative-installer \
-  --distpath "${DIST_DIR}" \
-  --workpath "${DIST_DIR}/build" \
-  --specpath "${DIST_DIR}" \
+  --follow-imports \
+  --assume-yes-for-downloads \
+  --enable-plugin=pyside6 \
+  --output-filename=almalinux-creative-installer \
+  --output-dir="${DIST_DIR}" \
   "${ENTRYPOINT}"
 
 echo "Binary created at ${DIST_DIR}/almalinux-creative-installer"
