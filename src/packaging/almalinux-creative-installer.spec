@@ -45,5 +45,7 @@ install -D -m 0644 LICENSE \
 %{_datadir}/licenses/%{name}/LICENSE
 
 %changelog
-* Wed Jan 28 2026 KernelChief
-- Initial public release
+* Tue Feb 03 2026 KernelChief - 2.0.0-1
+- MAJOR RELEASE: Migrated entire UI from GTK3 to Qt6 (PySide6)
+- Updated dependencies for AlmaLinux 9 and 10
+- Added mandatory requirement for EPEL and CRB repositories in README.md
