@@ -35,6 +35,7 @@ from PySide6.QtWidgets import (
 
 HELPER = "/usr/libexec/almalinux-creative-installer-helper"
 RESOLVE_URL = "https://www.blackmagicdesign.com/products/davinciresolve/"
+POLKIT_ACTION_ID = "org.almalinux.creativeinstaller"
 
 APPS = [
     {"id": "gimp", "name": "GIMP", "type": "dnf", "pkg": "gimp", "emoji": "🖌️"},
@@ -440,7 +441,11 @@ class AlmaCreativeInstaller(QMainWindow):
 
             self._run_ui(self._set_requirement_state, "CRB", crb)
             self._run_ui(self._set_requirement_state, "EPEL", epel)
-            self._run_ui(self.append_log, "✅ Requirements refreshed\n")
+            if repos:
+                repo_list = ", ".join(sorted(repos))
+                self._run_ui(self.append_log, f"✅ Requirements refreshed ({repo_list})\n")
+            else:
+                self._run_ui(self.append_log, "⚠️ Requirements refresh found no enabled repos.\n")
 
         threading.Thread(target=worker, daemon=True).start()
 
@@ -448,13 +453,13 @@ class AlmaCreativeInstaller(QMainWindow):
         def worker():
             try:
                 proc = subprocess.run(
-                    ["dnf", "repolist", "--enabled"],
+                    ["dnf", "-v", "repolist", "--enabled"],
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     text=True,
                     check=False,
                 )
-                self._run_ui(self.append_log, "\n$ dnf repolist --enabled\n")
+                self._run_ui(self.append_log, "\n$ dnf -v repolist --enabled\n")
                 self._run_ui(self.append_log, proc.stdout + "\n")
             except Exception as e:
                 self._run_ui(self.append_log, f"❌ ERROR: {e}\n")
@@ -589,6 +594,8 @@ class AlmaCreativeInstaller(QMainWindow):
             self.append_log("❌ ERROR: Helper not found: " + HELPER + "\n")
             return
 
+        self._log_polkit_check()
+
         cmd = ["pkexec", HELPER] + args
         self.append_log("\n$ " + " ".join(cmd) + "\n")
 
@@ -634,6 +641,26 @@ class AlmaCreativeInstaller(QMainWindow):
                 self._run_ui(self._stop_all_busy)
 
         threading.Thread(target=worker, daemon=True).start()
+
+    def _log_polkit_check(self):
+        try:
+            proc = subprocess.run(
+                ["pkcheck", "--action-id", POLKIT_ACTION_ID],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                check=False,
+            )
+            if proc.returncode != 0:
+                self.append_log(
+                    "⚠️ Polkit check failed for action {} (rc={}). Output:\n{}\n".format(
+                        POLKIT_ACTION_ID,
+                        proc.returncode,
+                        proc.stdout.strip() or "(no output)",
+                    )
+                )
+        except Exception as e:
+            self.append_log(f"⚠️ Polkit check error: {e}\n")
 
     def _stop_all_busy(self):
         for app_id in list(self.app_widgets.keys()):
