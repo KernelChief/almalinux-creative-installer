@@ -11,8 +11,8 @@ from pathlib import Path
 from collections import deque
 from functools import partial
 
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QIcon, QAction, QTextCursor
+from PySide6.QtCore import Qt, QObject, Signal
+from PySide6.QtGui import QIcon, QTextCursor
 from PySide6.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -45,6 +45,10 @@ APPS = [
 ]
 
 
+class UiDispatcher(QObject):
+    dispatch = Signal(object)
+
+
 class AlmaCreativeInstaller(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -56,8 +60,10 @@ class AlmaCreativeInstaller(QMainWindow):
 
         self.app_version = self._get_app_version()
 
+        self.dispatcher = UiDispatcher()
+        self.dispatcher.dispatch.connect(lambda fn: fn())
+
         self._apply_styles()
-        self._build_header()
         self._build_ui()
 
         self.append_log(f"Alma Creative Installer v{self.app_version}\n")
@@ -69,24 +75,31 @@ class AlmaCreativeInstaller(QMainWindow):
         self.refresh_all_states()
 
     # ---------------- UI ----------------
-    def _build_header(self):
-        toolbar = self.addToolBar("Main")
-        toolbar.setMovable(False)
-
-        refresh_action = QAction(QIcon.fromTheme("view-refresh"), "Refresh checks", self)
-        refresh_action.triggered.connect(self.refresh_all_states)
-        toolbar.addAction(refresh_action)
-
-        subtitle = QLabel(f"Creative & M&E workstation installs • v{self.app_version}")
-        subtitle.setProperty("role", "subtle")
-        toolbar.addWidget(subtitle)
-
     def _build_ui(self):
         central = QWidget()
         outer = QVBoxLayout(central)
         outer.setContentsMargins(16, 16, 16, 16)
         outer.setSpacing(14)
         self.setCentralWidget(central)
+
+        header = QHBoxLayout()
+        outer.addLayout(header)
+
+        title = QLabel("Alma Creative Installer")
+        title.setProperty("role", "header")
+        header.addWidget(title)
+
+        subtitle = QLabel(f"Creative & M&E workstation installs • v{self.app_version}")
+        subtitle.setProperty("role", "subtle")
+        header.addWidget(subtitle)
+
+        header.addStretch(1)
+
+        refresh_btn = QToolButton()
+        refresh_btn.setIcon(QIcon.fromTheme("view-refresh"))
+        refresh_btn.setToolTip("Refresh checks")
+        refresh_btn.clicked.connect(self.refresh_all_states)
+        header.addWidget(refresh_btn)
 
         self.tabs = QTabWidget()
         outer.addWidget(self.tabs)
@@ -169,6 +182,7 @@ class AlmaCreativeInstaller(QMainWindow):
         self.setStyleSheet(
             """
             QListWidget::item { padding: 8px; }
+            QLabel[role='header'] { font-size: 18px; font-weight: 600; }
             QLabel[role='subtle'] { color: rgba(0, 0, 0, 160); }
             """
         )
@@ -428,7 +442,7 @@ class AlmaCreativeInstaller(QMainWindow):
             w["button"].setEnabled(True)
 
     def _run_ui(self, func, *args, **kwargs):
-        QTimer.singleShot(0, partial(func, *args, **kwargs))
+        self.dispatcher.dispatch.emit(partial(func, *args, **kwargs))
 
     def refresh_repo_state(self):
         self._set_requirement_state("CRB", None)
