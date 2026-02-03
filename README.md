@@ -16,6 +16,18 @@ All software is installed using **supported system methods** only.
 
 ## 🚀 Quick Start (Recommended)
 
+### Enable Required Repositories
+
+AlmaLinux 9 and 10 require the EPEL and CRB repositories to provide the Qt6/PySide6 framework.
+### Enable the Code Ready Builder (CRB) repo
+```bash
+sudo dnf config-manager --set-enabled crb
+```
+### Install the EPEL  release package
+```bash
+sudo dnf install epel-release -y
+```
+
 ### 1️⃣ Download the RPM
 
 Go to the GitHub Releases page:
