@@ -13,14 +13,13 @@ Requires:       python3
 Requires:       python3-pyside6
 Requires:       qt6-qtbase
 Requires:       qt6-qtbase-gui
-Requires:       qt6-qtbase-plugins
 Requires:       polkit
 Requires:       xdg-utils
 
 Source0:        almalinux-creative-installer-%{version}.tar.gz
 
 %description
-A small GTK UI to install creative applications via DNF or local installers,
+A small Qt6 UI to install creative applications via DNF or local installers,
 using pkexec + polkit for privileged operations.
 
 %prep
