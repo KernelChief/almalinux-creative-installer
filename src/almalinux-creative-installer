@@ -83,8 +83,8 @@ class AlmaCreativeInstaller(QMainWindow):
     def _build_ui(self):
         central = QWidget()
         outer = QVBoxLayout(central)
-        outer.setContentsMargins(12, 12, 12, 12)
-        outer.setSpacing(12)
+        outer.setContentsMargins(16, 16, 16, 16)
+        outer.setSpacing(14)
         self.setCentralWidget(central)
 
         self.tabs = QTabWidget()
@@ -92,14 +92,14 @@ class AlmaCreativeInstaller(QMainWindow):
 
         apps_page = QWidget()
         apps_layout = QVBoxLayout(apps_page)
-        apps_layout.setContentsMargins(6, 6, 6, 6)
-        apps_layout.setSpacing(12)
+        apps_layout.setContentsMargins(10, 10, 10, 10)
+        apps_layout.setSpacing(14)
         self.tabs.addTab(apps_page, "Apps")
 
         req_frame = QGroupBox("System Requirements")
         req_layout = QVBoxLayout(req_frame)
-        req_layout.setContentsMargins(10, 10, 10, 10)
-        req_layout.setSpacing(8)
+        req_layout.setContentsMargins(12, 12, 12, 12)
+        req_layout.setSpacing(10)
         apps_layout.addWidget(req_frame)
 
         req_layout.addWidget(
@@ -121,11 +121,12 @@ class AlmaCreativeInstaller(QMainWindow):
 
         app_frame = QGroupBox("Applications")
         app_layout = QVBoxLayout(app_frame)
-        app_layout.setContentsMargins(10, 10, 10, 10)
-        app_layout.setSpacing(8)
+        app_layout.setContentsMargins(12, 12, 12, 12)
+        app_layout.setSpacing(10)
         apps_layout.addWidget(app_frame, 1)
 
         self.listbox = QListWidget()
+        self.listbox.setSpacing(6)
         self.listbox.setSelectionMode(QListWidget.NoSelection)
         self.listbox.setFocusPolicy(Qt.NoFocus)
         app_layout.addWidget(self.listbox, 1)
@@ -143,8 +144,8 @@ class AlmaCreativeInstaller(QMainWindow):
 
         logs_page = QWidget()
         logs_layout = QVBoxLayout(logs_page)
-        logs_layout.setContentsMargins(6, 6, 6, 6)
-        logs_layout.setSpacing(8)
+        logs_layout.setContentsMargins(10, 10, 10, 10)
+        logs_layout.setSpacing(10)
         self.tabs.addTab(logs_page, "Logs")
 
         logs_actions = QHBoxLayout()
@@ -166,7 +167,7 @@ class AlmaCreativeInstaller(QMainWindow):
     def _apply_styles(self):
         self.setStyleSheet(
             """
-            QListWidget::item { padding: 10px; }
+            QListWidget::item { padding: 8px; }
             QLabel[role='subtle'] { color: rgba(0, 0, 0, 160); }
             """
         )
@@ -197,8 +198,8 @@ class AlmaCreativeInstaller(QMainWindow):
     def _make_requirement_row(self, key, title, subtitle, enable_action):
         row = QWidget()
         layout = QHBoxLayout(row)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(10)
+        layout.setContentsMargins(6, 4, 6, 4)
+        layout.setSpacing(12)
 
         icon = QLabel("…")
         icon.setFixedWidth(20)
@@ -230,8 +231,8 @@ class AlmaCreativeInstaller(QMainWindow):
         lbrow = QListWidgetItem()
         row = QWidget()
         layout = QHBoxLayout(row)
-        layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(12)
+        layout.setContentsMargins(12, 10, 12, 10)
+        layout.setSpacing(14)
 
         left = QVBoxLayout()
         left.setSpacing(2)
@@ -339,15 +340,22 @@ class AlmaCreativeInstaller(QMainWindow):
         """
         try:
             proc = subprocess.run(
-                ["dnf", "-q", "repolist", "--enabled"],
+                ["dnf", "-q", "repolist", "--enabled", "--cacheonly"],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.DEVNULL,
                 text=True,
                 check=False,
+                timeout=8,
             )
-            out = proc.stdout.splitlines()
+            if proc.returncode == 0:
+                out = proc.stdout.splitlines()
+            else:
+                out = []
+        except subprocess.TimeoutExpired:
+            self._run_ui(self.append_log, "⚠️ dnf repolist timed out; falling back to repo files.\n")
+            out = []
         except Exception:
-            return set()
+            out = []
 
         repos = set()
         for ln in out:
@@ -359,7 +367,31 @@ class AlmaCreativeInstaller(QMainWindow):
                 continue
             parts = ln.split()
             if parts:
-                repos.add(parts[0].strip())
+                repos.add(parts[0].strip().lower())
+
+        if repos:
+            return repos
+
+        return self._repo_files_enabled_ids()
+
+    def _repo_files_enabled_ids(self):
+        repos = set()
+        repo_dir = Path("/etc/yum.repos.d")
+        if not repo_dir.exists():
+            return repos
+
+        import configparser
+
+        for repo_file in repo_dir.glob("*.repo"):
+            parser = configparser.ConfigParser(interpolation=None, strict=False)
+            try:
+                parser.read(repo_file)
+            except Exception:
+                continue
+            for section in parser.sections():
+                enabled = parser.get(section, "enabled", fallback="1").strip()
+                if enabled in ("1", "yes", "true", "on"):
+                    repos.add(section.lower())
         return repos
 
     def _detect_crb(self, repos):
