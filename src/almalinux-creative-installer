@@ -96,7 +96,11 @@ class AlmaCreativeInstaller(QMainWindow):
         header.addStretch(1)
 
         refresh_btn = QToolButton()
-        refresh_btn.setIcon(QIcon.fromTheme("view-refresh"))
+        refresh_icon = QIcon.fromTheme("view-refresh")
+        if not refresh_icon.isNull():
+            refresh_btn.setIcon(refresh_icon)
+        else:
+            refresh_btn.setText("⟳")
         refresh_btn.setToolTip("Refresh checks")
         refresh_btn.clicked.connect(self.refresh_all_states)
         header.addWidget(refresh_btn)
@@ -355,7 +359,7 @@ class AlmaCreativeInstaller(QMainWindow):
         """
         try:
             proc = subprocess.run(
-                ["dnf", "-q", "repolist", "--enabled", "--cacheonly"],
+                ["dnf", "repolist", "--enabled"],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.DEVNULL,
                 text=True,
@@ -467,13 +471,13 @@ class AlmaCreativeInstaller(QMainWindow):
         def worker():
             try:
                 proc = subprocess.run(
-                    ["dnf", "-v", "repolist", "--enabled"],
+                    ["dnf", "repolist", "--enabled"],
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     text=True,
                     check=False,
                 )
-                self._run_ui(self.append_log, "\n$ dnf -v repolist --enabled\n")
+                self._run_ui(self.append_log, "\n$ dnf repolist --enabled\n")
                 self._run_ui(self.append_log, proc.stdout + "\n")
             except Exception as e:
                 self._run_ui(self.append_log, f"❌ ERROR: {e}\n")
