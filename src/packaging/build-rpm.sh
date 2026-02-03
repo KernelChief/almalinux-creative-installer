@@ -4,6 +4,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SPEC="${ROOT_DIR}/src/packaging/almalinux-creative-installer.spec"
+BUILD_BINARY="${ROOT_DIR}/src/packaging/build-binary.sh"
 
 command -v rpmdev-setuptree >/dev/null 2>&1 || {
   echo "ERROR: rpmdevtools not installed. Install: sudo dnf install rpmdevtools" >&2
@@ -15,14 +16,21 @@ if [[ ! -f "${SPEC}" ]]; then
   exit 2
 fi
 
-# Read Name from the spec; Version comes from git tags.
+# Read Name from the spec; Version comes from git tags or VERSION_OVERRIDE.
 NAME="$(awk -F: '/^Name:[[:space:]]*/ {gsub(/[[:space:]]+/, "", $2); print $2; exit}' "${SPEC}")"
-VERSION="$(git -C "${ROOT_DIR}" describe --tags --abbrev=0 2>/dev/null | sed 's/^v//')"
+VERSION="${VERSION_OVERRIDE:-}"
+
+if [[ -z "${VERSION}" ]]; then
+  VERSION="$(git -C "${ROOT_DIR}" describe --tags --abbrev=0 2>/dev/null | sed 's/^v//')"
+fi
 
 if [[ -z "${NAME}" || -z "${VERSION}" ]]; then
   echo "ERROR: Could not determine Name/Version. Ensure git tags exist (e.g., v1.0.4)." >&2
   exit 3
 fi
+
+echo "Building bundled binary..."
+bash "${BUILD_BINARY}"
 
 rpmdev-setuptree >/dev/null 2>&1 || true
 

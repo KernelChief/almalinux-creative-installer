@@ -11,14 +11,10 @@ permissions:
 
 jobs:
   build:
-    name: Build (EL${{ matrix.el }})
+    name: Build (EL10)
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        el: [9, 10]
-
     container:
-      image: almalinux:${{ matrix.el }}
+      image: almalinux:10
 
     steps:
       - name: Checkout source
@@ -26,16 +22,45 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          dnf -y install \
-            rpm-build rpmdevtools \
-            python3 python3-gobject gtk3 \
-            polkit xdg-utils \
-            rsync tar findutils
+          # 1. Install EPEL and the plugins needed to enable CRB
+          dnf -y install epel-release dnf-plugins-core
+
+          # 2. Enable CRB (Necessary for PySide6/Qt6 dependencies)
+          dnf config-manager --set-enabled crb
+
+          # 3. Clean and install with strict CI flags
+          dnf clean all
+          BASE_PACKAGES=(
+            rpm-build
+            rpmdevtools
+            python3
+            python3-pip
+            python3-devel
+            gcc
+            gcc-c++
+            make
+            qt6-qtbase
+            qt6-qtbase-gui
+            polkit
+            xdg-utils
+            git
+            rsync
+            tar
+            findutils
+          )
+
+          dnf -y --nogpgcheck install \
+            --setopt=install_weak_deps=False \
+            "${BASE_PACKAGES[@]}"
+
+          python3 -m pip install --upgrade pip
+          python3 -m pip install --upgrade pyinstaller PySide6
 
       - name: Build RPM
         env:
           TOPDIR: ${{ github.workspace }}/rpmbuild
           DISTDIR: ${{ github.workspace }}/dist
+          VERSION_OVERRIDE: ${{ github.ref_name }}
         run: |
           mkdir -p "$TOPDIR" "$DISTDIR"
           # Ensure rpmbuild writes inside the shared workspace (not ~)
@@ -48,10 +73,15 @@ jobs:
           # Collect RPMs into dist/
           find "$HOME/rpmbuild/RPMS" -type f -name "*.rpm" -exec cp -v {} "$DISTDIR/" \;
 
+          VERSION_TAG="${VERSION_OVERRIDE#v}"
+          ORIGINAL_RPM=$(ls -1 "${DISTDIR}"/*.rpm | head -n 1)
+          RENAMED_RPM="${DISTDIR}/almalinux-creative-installer-x86_64.v${VERSION_TAG}.rpm"
+          mv -v "${ORIGINAL_RPM}" "${RENAMED_RPM}"
+
       - name: Upload RPM artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: rpm-el${{ matrix.el }}
+          name: rpm-el10
           path: dist/*.rpm
 
   release:
@@ -60,13 +90,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Download EL9 artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: rpm-el9
-          path: dist
-
-      - name: Download EL10 artifacts
+      - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
           name: rpm-el10
@@ -90,5 +114,4 @@ jobs:
             - (fill me in)
             
             :package: Assets
-            - EL9 RPM
-            - EL10 RPM (experimental)
+            - EL10 RPM

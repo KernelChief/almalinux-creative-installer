@@ -9,10 +9,6 @@ License:        MIT
 URL:            https://github.com/KernelChief/almalinux-creative-installer
 BuildArch:      noarch
 
-Requires:       python3
-Requires:       python3-pyside6
-Requires:       qt6-qtbase
-Requires:       qt6-qtbase-gui
 Requires:       polkit
 Requires:       xdg-utils
 
@@ -28,7 +24,7 @@ using pkexec + polkit for privileged operations.
 %install
 rm -rf %{buildroot}
 
-install -D -m 0755 src/almalinux-creative-installer %{buildroot}%{_bindir}/almalinux-creative-installer
+install -D -m 0755 dist/binary/almalinux-creative-installer %{buildroot}%{_bindir}/almalinux-creative-installer
 install -D -m 0755 src/almalinux-creative-installer-helper %{buildroot}%{_libexecdir}/almalinux-creative-installer-helper
 install -D -m 0644 src/org.almalinux.creativeinstaller.policy \
   %{buildroot}%{_datadir}/polkit-1/actions/org.almalinux.creativeinstaller.policy
