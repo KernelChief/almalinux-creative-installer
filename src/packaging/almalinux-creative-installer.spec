@@ -10,8 +10,10 @@ URL:            https://github.com/KernelChief/almalinux-creative-installer
 BuildArch:      noarch
 
 Requires:       python3
-Requires:       python3-gobject
-Requires:       gtk3
+Requires:       python3-pyside6
+Requires:       qt6-qtbase
+Requires:       qt6-qtbase-gui
+Requires:       qt6-qtbase-plugins
 Requires:       polkit
 Requires:       xdg-utils
 

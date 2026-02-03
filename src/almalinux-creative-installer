@@ -1,10 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-only
 
-import gi
-gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, GLib, Gdk
-
 import subprocess
 import threading
 import shutil
@@ -13,6 +9,29 @@ import stat
 import importlib.metadata
 from pathlib import Path
 from collections import deque
+from functools import partial
+
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QIcon, QAction, QTextCursor
+from PySide6.QtWidgets import (
+    QApplication,
+    QMainWindow,
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QTabWidget,
+    QGroupBox,
+    QListWidget,
+    QListWidgetItem,
+    QLabel,
+    QPushButton,
+    QPlainTextEdit,
+    QToolButton,
+    QMessageBox,
+    QFileDialog,
+    QCheckBox,
+    QProgressBar,
+)
 
 HELPER = "/usr/libexec/almalinux-creative-installer-helper"
 RESOLVE_URL = "https://www.blackmagicdesign.com/products/davinciresolve/"
@@ -25,142 +44,131 @@ APPS = [
 ]
 
 
-class AlmaCreativeInstaller(Gtk.Window):
+class AlmaCreativeInstaller(QMainWindow):
     def __init__(self):
-        super().__init__(title="Alma Creative Installer")
-        self.set_default_size(980, 640)
+        super().__init__()
+        self.setWindowTitle("Alma Creative Installer")
+        self.resize(980, 640)
 
         self.repo_widgets = {}
         self.app_widgets = {}
 
-        self._apply_css()
-
         self.app_version = self._get_app_version()
 
-        hb = Gtk.HeaderBar()
-        hb.set_show_close_button(True)
-        hb.props.title = "Alma Creative Installer"
-        hb.props.subtitle = "Creative & M&E workstation installs • v{}".format(self.app_version)
-        self.set_titlebar(hb)
+        self._apply_styles()
+        self._build_header()
+        self._build_ui()
 
-        btn_refresh = Gtk.Button.new_from_icon_name("view-refresh", Gtk.IconSize.BUTTON)
-        btn_refresh.set_tooltip_text("Refresh checks")
-        btn_refresh.connect("clicked", lambda *_: self.refresh_all_states())
-        hb.pack_end(btn_refresh)
+        self.append_log(f"Alma Creative Installer v{self.app_version}\n")
+        self.append_log("Ready.\n")
 
-        outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
-        outer.set_border_width(12)
-        self.add(outer)
+        if not Path(HELPER).exists():
+            self.append_log(f"\nWARNING: Helper not found at {HELPER}\n")
 
-        self.notebook = Gtk.Notebook()
-        outer.pack_start(self.notebook, True, True, 0)
+        self.refresh_all_states()
 
-        # ---------------- Apps tab ----------------
-        apps_page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
-        apps_page.set_border_width(6)
-        self.notebook.append_page(apps_page, Gtk.Label(label="Apps"))
+    # ---------------- UI ----------------
+    def _build_header(self):
+        toolbar = self.addToolBar("Main")
+        toolbar.setMovable(False)
 
-        # System Requirements
-        req_frame = Gtk.Frame(label="System Requirements")
-        req_frame.set_shadow_type(Gtk.ShadowType.IN)
-        apps_page.pack_start(req_frame, False, False, 0)
+        refresh_action = QAction(QIcon.fromTheme("view-refresh"), "Refresh checks", self)
+        refresh_action.triggered.connect(self.refresh_all_states)
+        toolbar.addAction(refresh_action)
 
-        req_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-        req_box.set_border_width(10)
-        req_frame.add(req_box)
+        subtitle = QLabel(f"Creative & M&E workstation installs • v{self.app_version}")
+        subtitle.setProperty("role", "subtle")
+        toolbar.addWidget(subtitle)
 
-        req_box.pack_start(
+    def _build_ui(self):
+        central = QWidget()
+        outer = QVBoxLayout(central)
+        outer.setContentsMargins(12, 12, 12, 12)
+        outer.setSpacing(12)
+        self.setCentralWidget(central)
+
+        self.tabs = QTabWidget()
+        outer.addWidget(self.tabs)
+
+        apps_page = QWidget()
+        apps_layout = QVBoxLayout(apps_page)
+        apps_layout.setContentsMargins(6, 6, 6, 6)
+        apps_layout.setSpacing(12)
+        self.tabs.addTab(apps_page, "Apps")
+
+        req_frame = QGroupBox("System Requirements")
+        req_layout = QVBoxLayout(req_frame)
+        req_layout.setContentsMargins(10, 10, 10, 10)
+        req_layout.setSpacing(8)
+        apps_layout.addWidget(req_frame)
+
+        req_layout.addWidget(
             self._make_requirement_row(
                 key="CRB",
                 title="CodeReady Builder (CRB) / PowerTools",
                 subtitle="Extra dependencies used by many workstation apps.",
                 enable_action=["enable_crb"],
-            ),
-            False, False, 0
+            )
         )
-        req_box.pack_start(
+        req_layout.addWidget(
             self._make_requirement_row(
                 key="EPEL",
                 title="Extra Packages for Enterprise Linux (EPEL)",
                 subtitle="Community packages used by many creative tools.",
                 enable_action=["enable_epel"],
-            ),
-            False, False, 0
+            )
         )
 
-        # Applications
-        app_frame = Gtk.Frame(label="Applications")
-        app_frame.set_shadow_type(Gtk.ShadowType.IN)
-        apps_page.pack_start(app_frame, True, True, 0)
+        app_frame = QGroupBox("Applications")
+        app_layout = QVBoxLayout(app_frame)
+        app_layout.setContentsMargins(10, 10, 10, 10)
+        app_layout.setSpacing(8)
+        apps_layout.addWidget(app_frame, 1)
 
-        app_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-        app_box.set_border_width(10)
-        app_frame.add(app_box)
-
-        self.listbox = Gtk.ListBox()
-        self.listbox.set_selection_mode(Gtk.SelectionMode.NONE)
-        self.listbox.get_style_context().add_class("boxed-list")
-        app_box.pack_start(self.listbox, True, True, 0)
+        self.listbox = QListWidget()
+        self.listbox.setSelectionMode(QListWidget.NoSelection)
+        self.listbox.setFocusPolicy(Qt.NoFocus)
+        app_layout.addWidget(self.listbox, 1)
 
         for app in APPS:
-            self.listbox.add(self._make_app_row(app))
+            self._add_app_row(app)
 
-        actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
-        apps_page.pack_start(actions, False, False, 0)
+        actions = QHBoxLayout()
+        actions.addStretch(1)
+        apps_layout.addLayout(actions)
 
-        btn_quit = Gtk.Button(label="Quit")
-        btn_quit.connect("clicked", lambda *_: self.close())
-        actions.pack_end(btn_quit, False, False, 0)
+        btn_quit = QPushButton("Quit")
+        btn_quit.clicked.connect(self.close)
+        actions.addWidget(btn_quit)
 
-        # ---------------- Logs tab ----------------
-        logs_page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-        logs_page.set_border_width(6)
-        self.notebook.append_page(logs_page, Gtk.Label(label="Logs"))
+        logs_page = QWidget()
+        logs_layout = QVBoxLayout(logs_page)
+        logs_layout.setContentsMargins(6, 6, 6, 6)
+        logs_layout.setSpacing(8)
+        self.tabs.addTab(logs_page, "Logs")
 
-        logs_actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
-        logs_actions.set_halign(Gtk.Align.START)
-        logs_page.pack_start(logs_actions, False, False, 0)
+        logs_actions = QHBoxLayout()
+        logs_layout.addLayout(logs_actions)
 
-        btn_repo_status = Gtk.Button(label="Show enabled repos (debug)")
-        btn_repo_status.connect("clicked", lambda *_: self.show_enabled_repos_debug())
-        logs_actions.pack_start(btn_repo_status, False, False, 0)
+        btn_repo_status = QPushButton("Show enabled repos (debug)")
+        btn_repo_status.clicked.connect(self.show_enabled_repos_debug)
+        logs_actions.addWidget(btn_repo_status)
 
-        btn_clear_logs = Gtk.Button(label="Clear logs")
-        btn_clear_logs.connect("clicked", lambda *_: self.set_log(""))
-        logs_actions.pack_start(btn_clear_logs, False, False, 0)
+        btn_clear_logs = QPushButton("Clear logs")
+        btn_clear_logs.clicked.connect(lambda: self.set_log(""))
+        logs_actions.addWidget(btn_clear_logs)
+        logs_actions.addStretch(1)
 
-        self.textview = Gtk.TextView()
-        self.textview.set_editable(False)
-        self.textview.set_monospace(True)
-        self.textbuf = self.textview.get_buffer()
+        self.textview = QPlainTextEdit()
+        self.textview.setReadOnly(True)
+        logs_layout.addWidget(self.textview, 1)
 
-        scroller = Gtk.ScrolledWindow()
-        scroller.set_hexpand(True)
-        scroller.set_vexpand(True)
-        scroller.add(self.textview)
-        logs_page.pack_start(scroller, True, True, 0)
-
-        self.append_log("Alma Creative Installer v{}\n".format(self.app_version))
-        self.append_log("Ready.\n")
-
-        if not Path(HELPER).exists():
-            self.append_log("\nWARNING: Helper not found at {}\n".format(HELPER))
-
-        # IMPORTANT: no pkexec at launch anymore
-        self.refresh_all_states()
-
-    # ---------------- CSS ----------------
-    def _apply_css(self):
-        css = b"""
-        .boxed-list row { padding: 10px; }
-        .subtle { opacity: 0.75; }
-        """
-        provider = Gtk.CssProvider()
-        provider.load_from_data(css)
-        Gtk.StyleContext.add_provider_for_screen(
-            Gdk.Screen.get_default(),
-            provider,
-            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+    def _apply_styles(self):
+        self.setStyleSheet(
+            """
+            QListWidget::item { padding: 10px; }
+            QLabel[role='subtle'] { color: rgba(0, 0, 0, 160); }
+            """
         )
 
     def _get_app_version(self):
@@ -187,85 +195,87 @@ class AlmaCreativeInstaller(Gtk.Window):
 
     # ---------------- UI builders ----------------
     def _make_requirement_row(self, key, title, subtitle, enable_action):
-        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        row = QWidget()
+        layout = QHBoxLayout(row)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(10)
 
-        icon = Gtk.Label(label="…")
-        icon.set_width_chars(2)
-        row.pack_start(icon, False, False, 0)
+        icon = QLabel("…")
+        icon.setFixedWidth(20)
+        layout.addWidget(icon)
 
-        text_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
-        row.pack_start(text_box, True, True, 0)
+        text_box = QVBoxLayout()
+        text_box.setSpacing(2)
+        layout.addLayout(text_box, 1)
 
-        title_lbl = Gtk.Label(label=title)
-        title_lbl.set_xalign(0)
-        title_lbl.set_hexpand(True)
-        text_box.pack_start(title_lbl, False, False, 0)
+        title_lbl = QLabel(title)
+        text_box.addWidget(title_lbl)
 
-        subtitle_lbl = Gtk.Label(label=subtitle)
-        subtitle_lbl.set_xalign(0)
-        subtitle_lbl.set_hexpand(True)
-        subtitle_lbl.get_style_context().add_class("subtle")
-        text_box.pack_start(subtitle_lbl, False, False, 0)
+        subtitle_lbl = QLabel(subtitle)
+        subtitle_lbl.setProperty("role", "subtle")
+        text_box.addWidget(subtitle_lbl)
 
-        status_lbl = Gtk.Label(label="Checking…")
-        row.pack_start(status_lbl, False, False, 0)
+        status_lbl = QLabel("Checking…")
+        layout.addWidget(status_lbl)
 
-        btn = Gtk.Button(label="Enable")
-        btn.connect("clicked", lambda *_: self.run_helper_with_callback(enable_action, on_success=self.refresh_repo_state))
-        row.pack_start(btn, False, False, 0)
+        btn = QPushButton("Enable")
+        btn.clicked.connect(lambda *_: self.run_helper_with_callback(enable_action, on_success=self.refresh_repo_state))
+        layout.addWidget(btn)
 
         self.repo_widgets[key] = {"icon": icon, "status": status_lbl, "button": btn}
         self._set_requirement_state(key, None)
         return row
 
-    def _make_app_row(self, app):
-        lbrow = Gtk.ListBoxRow()
-        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
-        row.set_border_width(10)
-        lbrow.add(row)
+    def _add_app_row(self, app):
+        lbrow = QListWidgetItem()
+        row = QWidget()
+        layout = QHBoxLayout(row)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(12)
 
-        left = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
-        row.pack_start(left, True, True, 0)
+        left = QVBoxLayout()
+        left.setSpacing(2)
+        layout.addLayout(left, 1)
 
-        title = Gtk.Label(label="{}  {}".format(app.get("emoji", ""), app["name"]).strip())
-        title.set_xalign(0)
-        title.set_hexpand(True)
-        left.pack_start(title, False, False, 0)
+        title = QLabel("{}  {}".format(app.get("emoji", ""), app["name"]).strip())
+        left.addWidget(title)
 
-        subtitle = Gtk.Label(label=self._subtitle_for_app(app))
-        subtitle.set_xalign(0)
-        subtitle.set_hexpand(True)
-        subtitle.get_style_context().add_class("subtle")
-        left.pack_start(subtitle, False, False, 0)
+        subtitle = QLabel(self._subtitle_for_app(app))
+        subtitle.setProperty("role", "subtle")
+        left.addWidget(subtitle)
 
-        status_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
-        spinner = Gtk.Spinner()
-        spinner.set_no_show_all(True)
+        status_box = QHBoxLayout()
+        status_box.setSpacing(6)
+        layout.addLayout(status_box)
+
+        spinner = QProgressBar()
+        spinner.setRange(0, 0)
+        spinner.setFixedWidth(80)
         spinner.hide()
-        status_box.pack_start(spinner, False, False, 0)
+        status_box.addWidget(spinner)
 
-        status = Gtk.Label(label="…")
-        status_box.pack_start(status, False, False, 0)
-        row.pack_start(status_box, False, False, 0)
+        status = QLabel("…")
+        status_box.addWidget(status)
 
-        btn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-        row.pack_start(btn_box, False, False, 0)
+        btn_box = QHBoxLayout()
+        btn_box.setSpacing(8)
+        layout.addLayout(btn_box)
 
-        install_btn = Gtk.Button(label="Install")
-        btn_box.pack_start(install_btn, False, False, 0)
+        install_btn = QPushButton("Install")
+        btn_box.addWidget(install_btn)
 
-        remove_btn = Gtk.Button(label="Remove")
-        btn_box.pack_start(remove_btn, False, False, 0)
+        remove_btn = QPushButton("Remove")
+        btn_box.addWidget(remove_btn)
 
         if app["type"] == "dnf":
-            install_btn.connect("clicked", lambda *_: self.install_app(app["id"]))
-            remove_btn.connect("clicked", lambda *_: self.remove_app(app["id"]))
+            install_btn.clicked.connect(lambda *_: self.install_app(app["id"]))
+            remove_btn.clicked.connect(lambda *_: self.remove_app(app["id"]))
         elif app["type"] == "flatpak":
-            install_btn.connect("clicked", lambda *_: self.install_app(app["id"]))
-            remove_btn.connect("clicked", lambda *_: self.confirm_remove_krita())
+            install_btn.clicked.connect(lambda *_: self.install_app(app["id"]))
+            remove_btn.clicked.connect(lambda *_: self.confirm_remove_krita())
         elif app["type"] == "resolve":
-            install_btn.connect("clicked", lambda *_: self.install_resolve_flow())
-            remove_btn.connect("clicked", lambda *_: self.remove_resolve_flow())
+            install_btn.clicked.connect(lambda *_: self.install_resolve_flow())
+            remove_btn.clicked.connect(lambda *_: self.remove_resolve_flow())
 
         self.app_widgets[app["id"]] = {
             "app": app,
@@ -275,7 +285,10 @@ class AlmaCreativeInstaller(Gtk.Window):
             "remove": remove_btn,
             "busy": False,
         }
-        return lbrow
+
+        lbrow.setSizeHint(row.sizeHint())
+        self.listbox.addItem(lbrow)
+        self.listbox.setItemWidget(lbrow, row)
 
     def _subtitle_for_app(self, app):
         if app["type"] == "dnf":
@@ -295,24 +308,21 @@ class AlmaCreativeInstaller(Gtk.Window):
 
         if busy:
             w["spinner"].show()
-            w["spinner"].start()
             if msg:
-                w["status"].set_text(msg)
-            w["install"].set_sensitive(False)
-            w["remove"].set_sensitive(False)
+                w["status"].setText(msg)
+            w["install"].setEnabled(False)
+            w["remove"].setEnabled(False)
         else:
-            w["spinner"].stop()
             w["spinner"].hide()
 
     # ---------------- Log helpers ----------------
     def set_log(self, text):
-        self.textbuf.set_text(text)
+        self.textview.setPlainText(text)
 
     def append_log(self, text):
-        end = self.textbuf.get_end_iter()
-        self.textbuf.insert(end, text)
-        mark = self.textbuf.create_mark(None, self.textbuf.get_end_iter(), True)
-        self.textview.scroll_mark_onscreen(mark)
+        self.textview.moveCursor(QTextCursor.End)
+        self.textview.insertPlainText(text)
+        self.textview.moveCursor(QTextCursor.End)
 
     # ---------------- State refresh ----------------
     def refresh_all_states(self):
@@ -347,14 +357,12 @@ class AlmaCreativeInstaller(Gtk.Window):
             low = ln.lower()
             if low.startswith("repo id") or low.startswith("repolist:"):
                 continue
-            # First column is repo id
             parts = ln.split()
             if parts:
                 repos.add(parts[0].strip())
         return repos
 
     def _detect_crb(self, repos):
-        # Alma 9/10: crb; older naming: powertools
         for r in repos:
             if r == "crb" or r.startswith("crb"):
                 return True
@@ -374,17 +382,20 @@ class AlmaCreativeInstaller(Gtk.Window):
         if not w:
             return
         if state is None:
-            w["icon"].set_text("…")
-            w["status"].set_text("Checking…")
-            w["button"].set_sensitive(False)
+            w["icon"].setText("…")
+            w["status"].setText("Checking…")
+            w["button"].setEnabled(False)
         elif state is True:
-            w["icon"].set_text("✅")
-            w["status"].set_text("Enabled")
-            w["button"].set_sensitive(False)
+            w["icon"].setText("✅")
+            w["status"].setText("Enabled")
+            w["button"].setEnabled(False)
         else:
-            w["icon"].set_text("❌")
-            w["status"].set_text("Not enabled")
-            w["button"].set_sensitive(True)
+            w["icon"].setText("❌")
+            w["status"].setText("Not enabled")
+            w["button"].setEnabled(True)
+
+    def _run_ui(self, func, *args, **kwargs):
+        QTimer.singleShot(0, partial(func, *args, **kwargs))
 
     def refresh_repo_state(self):
         self._set_requirement_state("CRB", None)
@@ -395,9 +406,9 @@ class AlmaCreativeInstaller(Gtk.Window):
             crb = self._detect_crb(repos)
             epel = self._detect_epel(repos)
 
-            GLib.idle_add(self._set_requirement_state, "CRB", crb)
-            GLib.idle_add(self._set_requirement_state, "EPEL", epel)
-            GLib.idle_add(self.append_log, "✅ Requirements refreshed\n")
+            self._run_ui(self._set_requirement_state, "CRB", crb)
+            self._run_ui(self._set_requirement_state, "EPEL", epel)
+            self._run_ui(self.append_log, "✅ Requirements refreshed\n")
 
         threading.Thread(target=worker, daemon=True).start()
 
@@ -411,10 +422,10 @@ class AlmaCreativeInstaller(Gtk.Window):
                     text=True,
                     check=False,
                 )
-                GLib.idle_add(self.append_log, "\n$ dnf repolist --enabled\n")
-                GLib.idle_add(self.append_log, proc.stdout + "\n")
+                self._run_ui(self.append_log, "\n$ dnf repolist --enabled\n")
+                self._run_ui(self.append_log, proc.stdout + "\n")
             except Exception as e:
-                GLib.idle_add(self.append_log, "❌ ERROR: {}\n".format(e))
+                self._run_ui(self.append_log, f"❌ ERROR: {e}\n")
 
         threading.Thread(target=worker, daemon=True).start()
 
@@ -428,13 +439,13 @@ class AlmaCreativeInstaller(Gtk.Window):
         if app["type"] == "resolve":
             installed = self._resolve_installed()
             if installed:
-                w["status"].set_text("✅ Installed")
-                w["install"].set_sensitive(False)
-                w["remove"].set_sensitive(True)
+                w["status"].setText("✅ Installed")
+                w["install"].setEnabled(False)
+                w["remove"].setEnabled(True)
             else:
-                w["status"].set_text("ℹ️ Guided install")
-                w["install"].set_sensitive(True)
-                w["remove"].set_sensitive(False)
+                w["status"].setText("ℹ️ Guided install")
+                w["install"].setEnabled(True)
+                w["remove"].setEnabled(False)
             return
 
         if app["type"] == "dnf":
@@ -446,9 +457,9 @@ class AlmaCreativeInstaller(Gtk.Window):
 
         elif app["type"] == "flatpak":
             if not shutil.which("flatpak"):
-                w["status"].set_text("ℹ️ Flatpak not installed")
-                w["install"].set_sensitive(True)
-                w["remove"].set_sensitive(False)
+                w["status"].setText("ℹ️ Flatpak not installed")
+                w["install"].setEnabled(True)
+                w["remove"].setEnabled(False)
                 return
 
             installed = subprocess.run(
@@ -460,13 +471,13 @@ class AlmaCreativeInstaller(Gtk.Window):
             installed = False
 
         if installed:
-            w["status"].set_text("✅ Installed")
-            w["install"].set_sensitive(False)
-            w["remove"].set_sensitive(True)
+            w["status"].setText("✅ Installed")
+            w["install"].setEnabled(False)
+            w["remove"].setEnabled(True)
         else:
-            w["status"].set_text("❌ Not installed")
-            w["install"].set_sensitive(True)
-            w["remove"].set_sensitive(False)
+            w["status"].setText("❌ Not installed")
+            w["install"].setEnabled(True)
+            w["remove"].setEnabled(False)
 
     # ---------------- Install/remove actions with spinner ----------------
     def install_app(self, app_id):
@@ -509,32 +520,26 @@ class AlmaCreativeInstaller(Gtk.Window):
         if w and w.get("busy"):
             return
 
-        dialog = Gtk.MessageDialog(
-            parent=self,
-            flags=0,
-            message_type=Gtk.MessageType.WARNING,
-            buttons=Gtk.ButtonsType.NONE,
-            text="Remove Krita?",
-        )
-        dialog.format_secondary_text(
+        dialog = QMessageBox(self)
+        dialog.setIcon(QMessageBox.Warning)
+        dialog.setWindowTitle("Remove Krita?")
+        dialog.setText("Remove Krita?")
+        dialog.setInformativeText(
             "This will remove Krita.\n\n"
             "Optionally, you can also remove Flatpak + Flathub (system-wide). "
             "Only do that if you’re sure you don’t need Flatpak for anything else."
         )
-        dialog.add_button("Cancel", Gtk.ResponseType.CANCEL)
-        dialog.add_button("Remove Krita", Gtk.ResponseType.OK)
+        dialog.setStandardButtons(QMessageBox.Cancel)
+        remove_button = dialog.addButton("Remove Krita", QMessageBox.AcceptRole)
 
-        box = dialog.get_message_area()
-        checkbox = Gtk.CheckButton(label="Also remove Flatpak + Flathub (system-wide)")
-        checkbox.set_active(False)
-        box.pack_start(checkbox, False, False, 0)
-        box.show_all()
+        checkbox = QCheckBox("Also remove Flatpak + Flathub (system-wide)")
+        checkbox.setChecked(False)
+        dialog.setCheckBox(checkbox)
 
-        resp = dialog.run()
-        remove_flatpak_too = checkbox.get_active()
-        dialog.destroy()
+        dialog.exec()
 
-        if resp == Gtk.ResponseType.OK:
+        if dialog.clickedButton() == remove_button:
+            remove_flatpak_too = checkbox.isChecked()
             self.set_app_busy("krita", True, "Removing…")
 
             def after_krita():
@@ -577,24 +582,24 @@ class AlmaCreativeInstaller(Gtk.Window):
 
                 for line in proc.stdout:
                     last_lines.append(line)
-                    GLib.idle_add(self.append_log, line)
+                    self._run_ui(self.append_log, line)
 
                 rc = proc.wait()
 
                 if rc == 0:
-                    GLib.idle_add(self.append_log, "✅ Successful\n")
-                    GLib.idle_add(self.append_log, "[exit code: {}]\n".format(rc))
+                    self._run_ui(self.append_log, "✅ Successful\n")
+                    self._run_ui(self.append_log, "[exit code: {}]\n".format(rc))
                     if on_success:
-                        GLib.idle_add(on_success)
+                        self._run_ui(on_success)
                 else:
                     reason = summarize_failure(rc)
-                    GLib.idle_add(self.append_log, "❌ Failed: {}\n".format(reason))
-                    GLib.idle_add(self.append_log, "[exit code: {}]\n".format(rc))
-                    GLib.idle_add(self._stop_all_busy)
+                    self._run_ui(self.append_log, "❌ Failed: {}\n".format(reason))
+                    self._run_ui(self.append_log, "[exit code: {}]\n".format(rc))
+                    self._run_ui(self._stop_all_busy)
 
             except Exception as e:
-                GLib.idle_add(self.append_log, "❌ ERROR: {}\n".format(e))
-                GLib.idle_add(self._stop_all_busy)
+                self._run_ui(self.append_log, "❌ ERROR: {}\n".format(e))
+                self._run_ui(self._stop_all_busy)
 
         threading.Thread(target=worker, daemon=True).start()
 
@@ -631,28 +636,23 @@ class AlmaCreativeInstaller(Gtk.Window):
             self.run_helper_with_callback(["prepare_resolve_deps"], on_success=self._resolve_open_and_pick)
             return
 
-        dialog = Gtk.MessageDialog(
-            parent=self,
-            flags=0,
-            message_type=Gtk.MessageType.WARNING,
-            buttons=Gtk.ButtonsType.NONE,
-            text="DaVinci Resolve requires SELinux permissive or disabled.",
-        )
-        dialog.format_secondary_text(
+        dialog = QMessageBox(self)
+        dialog.setIcon(QMessageBox.Warning)
+        dialog.setWindowTitle("DaVinci Resolve requires SELinux permissive or disabled.")
+        dialog.setText("DaVinci Resolve requires SELinux permissive or disabled.")
+        dialog.setInformativeText(
             "Choose how you want to proceed before installing Resolve.\n\n"
             "A reboot is required for the SELinux change to be fully applied "
             "before launching DaVinci Resolve."
         )
-        dialog.add_button("Cancel", Gtk.ResponseType.CANCEL)
-        dialog.add_button("Permissive (permanent)", Gtk.ResponseType.APPLY)
-        dialog.add_button("Disable SELinux (permanent)", Gtk.ResponseType.YES)
+        cancel_button = dialog.addButton("Cancel", QMessageBox.RejectRole)
+        permissive_button = dialog.addButton("Permissive (permanent)", QMessageBox.ApplyRole)
+        disable_button = dialog.addButton("Disable SELinux (permanent)", QMessageBox.YesRole)
+        dialog.exec()
 
-        resp = dialog.run()
-        dialog.destroy()
-
-        if resp == Gtk.ResponseType.CANCEL:
+        if dialog.clickedButton() == cancel_button:
             return
-        if resp == Gtk.ResponseType.APPLY:
+        if dialog.clickedButton() == permissive_button:
             mode_arg = "permissive"
         else:
             mode_arg = "disabled"
@@ -668,41 +668,25 @@ class AlmaCreativeInstaller(Gtk.Window):
     def _resolve_open_and_pick(self):
         if shutil.which("xdg-open"):
             subprocess.Popen(["xdg-open", RESOLVE_URL])
-            self.append_log("Opened download page: {}\n".format(RESOLVE_URL))
+            self.append_log(f"Opened download page: {RESOLVE_URL}\n")
         else:
-            self.append_log("Please open this URL manually: {}\n".format(RESOLVE_URL))
+            self.append_log(f"Please open this URL manually: {RESOLVE_URL}\n")
 
         self.pick_resolve_installer()
 
     def pick_resolve_installer(self):
-        dialog = Gtk.FileChooserDialog(
-            title="Select DaVinci Resolve installer (.run preferred)",
-            parent=self,
-            action=Gtk.FileChooserAction.OPEN,
+        path, _filter = QFileDialog.getOpenFileName(
+            self,
+            "Select DaVinci Resolve installer (.run preferred)",
+            "",
+            "Installers (*.run *.rpm);;All Files (*)",
         )
-        dialog.add_buttons(
-            Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
-            Gtk.STOCK_OPEN, Gtk.ResponseType.OK,
-        )
-
-        f = Gtk.FileFilter()
-        f.set_name("Installers (*.run, *.rpm)")
-        f.add_pattern("DaVinci_Resolve*.run")
-        f.add_pattern("DaVinci_Resolve*.rpm")
-        f.add_pattern("*.run")
-        f.add_pattern("*.rpm")
-        dialog.add_filter(f)
-
-        resp = dialog.run()
-        if resp == Gtk.ResponseType.OK:
-            path = dialog.get_filename()
-            if path:
-                if path.endswith(".run"):
-                    self.run_local_run_installer(path)
-                else:
-                    self.run_helper_with_callback(["install_local_file", path],
-                                                  on_success=lambda: self.refresh_app_state("resolve"))
-        dialog.destroy()
+        if path:
+            if path.endswith(".run"):
+                self.run_local_run_installer(path)
+            else:
+                self.run_helper_with_callback(["install_local_file", path],
+                                              on_success=lambda: self.refresh_app_state("resolve"))
 
     def _resolve_installed(self):
         candidates = [
@@ -723,30 +707,25 @@ class AlmaCreativeInstaller(Gtk.Window):
             self.refresh_app_state("resolve")
             return
 
-        dialog = Gtk.MessageDialog(
-            parent=self,
-            flags=0,
-            message_type=Gtk.MessageType.WARNING,
-            buttons=Gtk.ButtonsType.NONE,
-            text="Uninstall DaVinci Resolve?",
-        )
-        dialog.format_secondary_text(
+        dialog = QMessageBox(self)
+        dialog.setIcon(QMessageBox.Warning)
+        dialog.setWindowTitle("Uninstall DaVinci Resolve?")
+        dialog.setText("Uninstall DaVinci Resolve?")
+        dialog.setInformativeText(
             "This will run the vendor uninstaller.\n\n"
             "Note: The uninstaller must run as a normal user (not root)."
         )
-        dialog.add_button("Cancel", Gtk.ResponseType.CANCEL)
-        dialog.add_button("Uninstall", Gtk.ResponseType.OK)
+        dialog.setStandardButtons(QMessageBox.Cancel)
+        uninstall_button = dialog.addButton("Uninstall", QMessageBox.AcceptRole)
+        dialog.exec()
 
-        resp = dialog.run()
-        dialog.destroy()
-
-        if resp == Gtk.ResponseType.OK:
+        if dialog.clickedButton() == uninstall_button:
             self.run_resolve_uninstaller()
 
     def run_resolve_uninstaller(self):
         path = "/opt/resolve/installer"
         if not Path(path).exists():
-            self.append_log("❌ ERROR: Resolve uninstaller not found at {}\n".format(path))
+            self.append_log(f"❌ ERROR: Resolve uninstaller not found at {path}\n")
             return
 
         try:
@@ -754,7 +733,7 @@ class AlmaCreativeInstaller(Gtk.Window):
             if not (st.st_mode & stat.S_IXUSR):
                 os.chmod(path, st.st_mode | stat.S_IXUSR)
         except Exception as e:
-            self.append_log("❌ ERROR: could not make uninstaller executable: {}\n".format(e))
+            self.append_log(f"❌ ERROR: could not make uninstaller executable: {e}\n")
             return
 
         cmd = [path]
@@ -782,21 +761,21 @@ class AlmaCreativeInstaller(Gtk.Window):
 
                 for line in proc.stdout:
                     last_lines.append(line)
-                    GLib.idle_add(self.append_log, line)
+                    self._run_ui(self.append_log, line)
 
                 rc = proc.wait()
 
                 if rc == 0:
-                    GLib.idle_add(self.append_log, "✅ Successful\n")
-                    GLib.idle_add(self.append_log, "[exit code: {}]\n".format(rc))
-                    GLib.idle_add(self.refresh_app_state, "resolve")
-                    GLib.idle_add(self._prompt_reenable_selinux)
+                    self._run_ui(self.append_log, "✅ Successful\n")
+                    self._run_ui(self.append_log, "[exit code: {}]\n".format(rc))
+                    self._run_ui(self.refresh_app_state, "resolve")
+                    self._run_ui(self._prompt_reenable_selinux)
                 else:
                     reason = summarize_failure(rc)
-                    GLib.idle_add(self.append_log, "❌ Failed: {}\n".format(reason))
-                    GLib.idle_add(self.append_log, "[exit code: {}]\n".format(rc))
+                    self._run_ui(self.append_log, "❌ Failed: {}\n".format(reason))
+                    self._run_ui(self.append_log, "[exit code: {}]\n".format(rc))
             except Exception as e:
-                GLib.idle_add(self.append_log, "❌ ERROR: {}\n".format(e))
+                self._run_ui(self.append_log, "❌ ERROR: {}\n".format(e))
 
         threading.Thread(target=worker, daemon=True).start()
 
@@ -805,24 +784,19 @@ class AlmaCreativeInstaller(Gtk.Window):
         if mode == "enforcing":
             return
 
-        dialog = Gtk.MessageDialog(
-            parent=self,
-            flags=0,
-            message_type=Gtk.MessageType.WARNING,
-            buttons=Gtk.ButtonsType.NONE,
-            text="Re-enable SELinux enforcing?",
-        )
-        dialog.format_secondary_text(
+        dialog = QMessageBox(self)
+        dialog.setIcon(QMessageBox.Warning)
+        dialog.setWindowTitle("Re-enable SELinux enforcing?")
+        dialog.setText("Re-enable SELinux enforcing?")
+        dialog.setInformativeText(
             "DaVinci Resolve has been removed. You can restore SELinux enforcing.\n\n"
             "A reboot may be required for the change to fully apply."
         )
-        dialog.add_button("Leave as-is", Gtk.ResponseType.CANCEL)
-        dialog.add_button("Set Enforcing (permanent)", Gtk.ResponseType.OK)
+        dialog.setStandardButtons(QMessageBox.Cancel)
+        enable_button = dialog.addButton("Set Enforcing (permanent)", QMessageBox.AcceptRole)
+        dialog.exec()
 
-        resp = dialog.run()
-        dialog.destroy()
-
-        if resp == Gtk.ResponseType.OK:
+        if dialog.clickedButton() == enable_button:
             self.run_helper_with_callback(["set_selinux_mode", "enforcing"])
 
     def run_local_run_installer(self, path):
@@ -835,7 +809,7 @@ class AlmaCreativeInstaller(Gtk.Window):
             if not (st.st_mode & stat.S_IXUSR):
                 os.chmod(path, st.st_mode | stat.S_IXUSR)
         except Exception as e:
-            self.append_log("❌ ERROR: could not make installer executable: {}\n".format(e))
+            self.append_log(f"❌ ERROR: could not make installer executable: {e}\n")
             return
 
         cmd = [path]
@@ -866,36 +840,29 @@ class AlmaCreativeInstaller(Gtk.Window):
 
                 for line in proc.stdout:
                     last_lines.append(line)
-                    GLib.idle_add(self.append_log, line)
+                    self._run_ui(self.append_log, line)
 
                 rc = proc.wait()
 
                 if rc == 0:
-                    GLib.idle_add(self.append_log, "✅ Successful\n")
-                    GLib.idle_add(self.append_log, "[exit code: {}]\n".format(rc))
-                    GLib.idle_add(self.refresh_app_state, "resolve")
+                    self._run_ui(self.append_log, "✅ Successful\n")
+                    self._run_ui(self.append_log, "[exit code: {}]\n".format(rc))
+                    self._run_ui(self.refresh_app_state, "resolve")
                 else:
                     reason = summarize_failure(rc)
-                    GLib.idle_add(self.append_log, "❌ Failed: {}\n".format(reason))
-                    GLib.idle_add(self.append_log, "[exit code: {}]\n".format(rc))
+                    self._run_ui(self.append_log, "❌ Failed: {}\n".format(reason))
+                    self._run_ui(self.append_log, "[exit code: {}]\n".format(rc))
             except Exception as e:
-                GLib.idle_add(self.append_log, "❌ ERROR: {}\n".format(e))
+                self._run_ui(self.append_log, "❌ ERROR: {}\n".format(e))
 
         threading.Thread(target=worker, daemon=True).start()
 
 
 def main():
-    ok, _argv = Gtk.init_check()
-    if not ok:
-        print("ERROR: GTK could not be initialized.")
-        print("Run inside a GNOME/KDE graphical session as a normal user (not root over SSH).")
-        return 1
-
+    app = QApplication([])
     win = AlmaCreativeInstaller()
-    win.connect("destroy", Gtk.main_quit)
-    win.show_all()
-    Gtk.main()
-    return 0
+    win.show()
+    return app.exec()
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 # 🎨 AlmaLinux Creative Installer
 
-A small, opinionated GTK application for AlmaLinux that delivers **one-button installs**
+A small, opinionated Qt6 (PySide6) application for AlmaLinux that delivers **one-button installs**
 for creative and Media & Entertainment (M&E) workstation software — without the usual
 dependency headaches.
 

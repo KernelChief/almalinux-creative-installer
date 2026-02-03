@@ -1,6 +1,7 @@
 # IDEs
 .idea/
 .vscode/
+.clinerules
 
 # Python
 __pycache__/
