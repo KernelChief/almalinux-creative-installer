@@ -6,6 +6,11 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 ENTRYPOINT="${ROOT_DIR}/src/almalinux-creative-installer"
 DIST_DIR="${ROOT_DIR}/dist/binary"
 
+if [[ "$(id -u)" -eq 0 ]]; then
+  echo "ERROR: Do not run PyInstaller as root. Use a normal user account." >&2
+  exit 4
+fi
+
 if [[ ! -f "${ENTRYPOINT}" ]]; then
   echo "ERROR: entrypoint not found at ${ENTRYPOINT}" >&2
   exit 1
@@ -22,6 +27,8 @@ command -v pyinstaller >/dev/null 2>&1 || {
 }
 
 mkdir -p "${DIST_DIR}"
+
+echo "Bundling entrypoint: ${ENTRYPOINT}"
 
 pyinstaller \
   --clean \
