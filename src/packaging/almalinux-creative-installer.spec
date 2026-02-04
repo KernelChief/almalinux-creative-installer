@@ -18,6 +18,8 @@ Source0:        almalinux-creative-installer-%{version}.tar.gz
 A small Qt6 UI to install creative applications via DNF or local installers,
 using pkexec + polkit for privileged operations.
 
+%global __strip /bin/true
+
 %prep
 %setup -q
 
