@@ -54,7 +54,7 @@ jobs:
             "${BASE_PACKAGES[@]}"
 
           python3 -m pip install --upgrade pip
-          python3 -m pip install --upgrade nuitka PySide6
+          python3 -m pip install --upgrade PySide6 pyside6-deploy
 
       - name: Build RPM
         env:

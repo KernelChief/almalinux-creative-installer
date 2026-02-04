@@ -5,9 +5,10 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 ENTRYPOINT="${ROOT_DIR}/src/almalinux-creative-installer"
 DIST_DIR="${ROOT_DIR}/dist/binary"
+DEPLOY_CONFIG="${ROOT_DIR}/src/packaging/pyside6-deploy.json"
 
 if [[ "$(id -u)" -eq 0 ]]; then
-  echo "ERROR: Do not run Nuitka as root. Use a normal user account." >&2
+  echo "ERROR: Do not run pyside6-deploy as root. Use a normal user account." >&2
   exit 4
 fi
 
@@ -21,23 +22,21 @@ command -v python3 >/dev/null 2>&1 || {
   exit 2
 }
 
-command -v nuitka >/dev/null 2>&1 || {
-  echo "ERROR: nuitka is not installed. Install with pip." >&2
+command -v pyside6-deploy >/dev/null 2>&1 || {
+  echo "ERROR: pyside6-deploy is not installed. Install with pip." >&2
   exit 3
 }
 
 mkdir -p "${DIST_DIR}"
 
-echo "Bundling entrypoint: ${ENTRYPOINT}"
+if [[ ! -f "${DEPLOY_CONFIG}" ]]; then
+  echo "ERROR: pyside6-deploy config not found at ${DEPLOY_CONFIG}" >&2
+  exit 5
+fi
 
-nuitka \
-  --standalone \
-  --onefile \
-  --follow-imports \
-  --assume-yes-for-downloads \
-  --enable-plugin=pyside6 \
-  --output-filename=almalinux-creative-installer \
-  --output-dir="${DIST_DIR}" \
-  "${ENTRYPOINT}"
+echo "Bundling entrypoint: ${ENTRYPOINT}"
+echo "Using deploy config: ${DEPLOY_CONFIG}"
+
+pyside6-deploy --config-file "${DEPLOY_CONFIG}"
 
 echo "Binary created at ${DIST_DIR}/almalinux-creative-installer"
