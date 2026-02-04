@@ -1,5 +1,5 @@
 [app]
-entrypoint = src/almalinux-creative-installer
+input_file = src/almalinux-creative-installer
 name = almalinux-creative-installer
 
 [python]
