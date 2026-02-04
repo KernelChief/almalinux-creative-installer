@@ -7,7 +7,7 @@ Release:        1%{?dist}
 Summary:        One-button creative app installer UI for AlmaLinux
 License:        MIT
 URL:            https://github.com/KernelChief/almalinux-creative-installer
-BuildArch:      noarch
+BuildArch:      x86_64
 
 Requires:       polkit
 Requires:       xdg-utils
