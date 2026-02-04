@@ -5,7 +5,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 ENTRYPOINT="${ROOT_DIR}/src/almalinux-creative-installer"
 DIST_DIR="${ROOT_DIR}/dist/binary"
-DEPLOY_CONFIG="${ROOT_DIR}/src/packaging/pyside6-deploy.json"
+DEPLOY_CONFIG="${ROOT_DIR}/src/packaging/pyside6-deploy.spec"
 
 if [[ "$(id -u)" -eq 0 ]]; then
   echo "ERROR: Do not run pyside6-deploy as root. Use a normal user account." >&2
