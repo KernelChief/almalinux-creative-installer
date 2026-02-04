@@ -1,0 +1,13 @@
+{
+  "app": {
+    "entrypoint": "/home/ttheroux/PycharmProjects/almalinux-creative-installer/src/almalinux-creative-installer",
+    "name": "almalinux-creative-installer"
+  },
+  "python": {
+    "python_path": "python3"
+  },
+  "build": {
+    "output_dir": "/home/ttheroux/PycharmProjects/almalinux-creative-installer/dist/binary",
+    "onefile": true
+  }
+}
