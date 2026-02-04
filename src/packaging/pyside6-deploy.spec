@@ -11,4 +11,4 @@ packages = PySide6
 
 [build]
 output_dir = dist/binary
-onefile = true
+onefile = false

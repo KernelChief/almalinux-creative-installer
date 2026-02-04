@@ -26,7 +26,12 @@ using pkexec + polkit for privileged operations.
 %install
 rm -rf %{buildroot}
 
-install -D -m 0755 dist/binary/almalinux-creative-installer %{buildroot}%{_bindir}/almalinux-creative-installer
+install -D -m 0755 dist/binary/almalinux-creative-installer.dist/almalinux-creative-installer \
+  %{buildroot}%{_libexecdir}/almalinux-creative-installer/almalinux-creative-installer
+cp -a dist/binary/almalinux-creative-installer.dist/* \
+  %{buildroot}%{_libexecdir}/almalinux-creative-installer/
+install -D -m 0755 src/packaging/almalinux-creative-installer-wrapper.sh \
+  %{buildroot}%{_bindir}/almalinux-creative-installer
 install -D -m 0755 src/almalinux-creative-installer-helper %{buildroot}%{_libexecdir}/almalinux-creative-installer-helper
 install -D -m 0644 src/org.almalinux.creativeinstaller.policy \
   %{buildroot}%{_datadir}/polkit-1/actions/org.almalinux.creativeinstaller.policy
@@ -37,6 +42,7 @@ install -D -m 0644 LICENSE \
 
 %files
 %{_bindir}/almalinux-creative-installer
+%{_libexecdir}/almalinux-creative-installer/
 %{_libexecdir}/almalinux-creative-installer-helper
 %{_datadir}/polkit-1/actions/org.almalinux.creativeinstaller.policy
 %{_datadir}/applications/almalinux-creative-installer.desktop
