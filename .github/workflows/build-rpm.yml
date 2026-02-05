@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 jobs:
-  build:
+  build-el10:
     name: Build (EL10)
     runs-on: ubuntu-latest
     container:
@@ -54,13 +54,13 @@ jobs:
             "${BASE_PACKAGES[@]}"
 
           python3 -m pip install --upgrade pip
-          python3 -m pip install --upgrade PySide6 pyside6-deploy
 
       - name: Build RPM
         env:
           TOPDIR: ${{ github.workspace }}/rpmbuild
           DISTDIR: ${{ github.workspace }}/dist
           VERSION_OVERRIDE: ${{ github.ref_name }}
+          SPEC_OVERRIDE: ${{ github.workspace }}/src/packaging/almalinux-creative-installer-el10.spec
         run: |
           mkdir -p "$TOPDIR" "$DISTDIR"
           # Ensure rpmbuild writes inside the shared workspace (not ~)
@@ -75,7 +75,7 @@ jobs:
 
           VERSION_TAG="${VERSION_OVERRIDE#v}"
           ORIGINAL_RPM=$(ls -1 "${DISTDIR}"/*.rpm | head -n 1)
-          RENAMED_RPM="${DISTDIR}/almalinux-creative-installer-x86_64.v${VERSION_TAG}.rpm"
+          RENAMED_RPM="${DISTDIR}/almalinux-creative-installer-qt6-x86_64.v${VERSION_TAG}.rpm"
           mv -v "${ORIGINAL_RPM}" "${RENAMED_RPM}"
 
       - name: Upload RPM artifacts
@@ -84,16 +84,89 @@ jobs:
           name: rpm-el10
           path: dist/*.rpm
 
+  build-el9:
+    name: Build (EL9)
+    runs-on: ubuntu-latest
+    container:
+      image: almalinux:9
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          dnf -y install epel-release dnf-plugins-core
+          dnf config-manager --set-enabled crb || true
+          dnf clean all
+          BASE_PACKAGES=(
+            rpm-build
+            rpmdevtools
+            python3
+            python3-pip
+            python3-devel
+            gcc
+            gcc-c++
+            make
+            qt5-qtbase
+            qt5-qtbase-gui
+            polkit
+            xdg-utils
+            git
+            rsync
+            tar
+            findutils
+          )
+
+          dnf -y --nogpgcheck install \
+            --setopt=install_weak_deps=False \
+            "${BASE_PACKAGES[@]}"
+
+          python3 -m pip install --upgrade pip
+
+      - name: Build RPM
+        env:
+          TOPDIR: ${{ github.workspace }}/rpmbuild
+          DISTDIR: ${{ github.workspace }}/dist
+          VERSION_OVERRIDE: ${{ github.ref_name }}
+          SPEC_OVERRIDE: ${{ github.workspace }}/src/packaging/almalinux-creative-installer-el9.spec
+        run: |
+          mkdir -p "$TOPDIR" "$DISTDIR"
+          export HOME="${{ github.workspace }}"
+          mkdir -p "$HOME"/rpmbuild
+
+          chmod +x src/packaging/build-rpm.sh
+          ./src/packaging/build-rpm.sh
+
+          find "$HOME/rpmbuild/RPMS" -type f -name "*.rpm" -exec cp -v {} "$DISTDIR/" \;
+
+          VERSION_TAG="${VERSION_OVERRIDE#v}"
+          ORIGINAL_RPM=$(ls -1 "${DISTDIR}"/*.rpm | head -n 1)
+          RENAMED_RPM="${DISTDIR}/almalinux-creative-installer-qt5-x86_64.v${VERSION_TAG}.el9.rpm"
+          mv -v "${ORIGINAL_RPM}" "${RENAMED_RPM}"
+
+      - name: Upload RPM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpm-el9
+          path: dist/*.rpm
+
   release:
     name: Release
-    needs: build
+    needs: [build-el10, build-el9]
     runs-on: ubuntu-latest
 
     steps:
-      - name: Download artifacts
+      - name: Download artifacts (EL10)
         uses: actions/download-artifact@v4
         with:
           name: rpm-el10
+          path: dist
+
+      - name: Download artifacts (EL9)
+        uses: actions/download-artifact@v4
+        with:
+          name: rpm-el9
           path: dist
 
       - name: List files (debug)
@@ -115,3 +188,4 @@ jobs:
             
             :package: Assets
             - EL10 RPM
+            - EL9 RPM

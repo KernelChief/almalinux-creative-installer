@@ -11,9 +11,9 @@ from pathlib import Path
 from collections import deque
 from functools import partial
 
-from PySide6.QtCore import Qt, QObject, Signal
-from PySide6.QtGui import QIcon, QTextCursor
-from PySide6.QtWidgets import (
+from qtpy.QtCore import Qt, QObject, Signal
+from qtpy.QtGui import QIcon, QTextCursor
+from qtpy.QtWidgets import (
     QApplication,
     QMainWindow,
     QWidget,

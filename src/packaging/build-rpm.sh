@@ -3,8 +3,8 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-SPEC="${ROOT_DIR}/src/packaging/almalinux-creative-installer.spec"
-BUILD_BINARY="${ROOT_DIR}/src/packaging/build-binary.sh"
+DEFAULT_SPEC="${ROOT_DIR}/src/packaging/almalinux-creative-installer.spec"
+SPEC="${SPEC_OVERRIDE:-${DEFAULT_SPEC}}"
 
 command -v rpmdev-setuptree >/dev/null 2>&1 || {
   echo "ERROR: rpmdevtools not installed. Install: sudo dnf install rpmdevtools" >&2
@@ -28,9 +28,6 @@ if [[ -z "${NAME}" || -z "${VERSION}" ]]; then
   echo "ERROR: Could not determine Name/Version. Ensure git tags exist (e.g., v1.0.4)." >&2
   exit 3
 fi
-
-echo "Building bundled binary..."
-bash "${BUILD_BINARY}"
 
 rpmdev-setuptree >/dev/null 2>&1 || true
 

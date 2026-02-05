@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-only
 
-
 Name:           almalinux-creative-installer
 Version:        %{version}
 Release:        1%{?dist}
@@ -23,6 +22,13 @@ using pkexec + polkit for privileged operations.
 %prep
 %setup -q
 
+%build
+python3 -m venv venv
+source venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install --no-cache-dir qtpy PySide6
+deactivate
+
 %install
 rm -rf %{buildroot}
 
@@ -44,6 +50,8 @@ install -D -m 0644 LICENSE \
 install -D -m 0755 src/almalinux-creative-installer \
   %{buildroot}%{_libexecdir}/almalinux-creative-installer/app/almalinux-creative-installer
 
+cp -a venv %{buildroot}%{_libexecdir}/almalinux-creative-installer/venv
+
 %files
 %{_bindir}/almalinux-creative-installer
 %{_libexecdir}/almalinux-creative-installer/
@@ -53,6 +61,5 @@ install -D -m 0755 src/almalinux-creative-installer \
 %{_datadir}/licenses/%{name}/LICENSE
 
 %changelog
-* Thu Feb 05 2026 KernelChief - 2.0.1-1
-- Switch to QtPy entrypoint for Qt5/Qt6 compatibility
-- Use venv-bundled runtime in EL9/EL10 specs (no Nuitka)
+* Thu Feb 05 2026 KernelChief - 2.0.0-1
+- Bundle QtPy + PySide6 runtime for EL10 (no Nuitka)

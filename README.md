@@ -1,6 +1,6 @@
 # 🎨 AlmaLinux Creative Installer
 
-A small, opinionated Qt6 (PySide6) application for AlmaLinux that delivers **one-button installs**
+A small, opinionated Qt (QtPy + PySide) application for AlmaLinux that delivers **one-button installs**
 for creative and Media & Entertainment (M&E) workstation software — without the usual
 dependency headaches.
 
@@ -18,7 +18,7 @@ All software is installed using **supported system methods** only.
 
 ### Enable Required Repositories
 
-AlmaLinux 9 and 10 require the EPEL and CRB repositories to provide the Qt6/PySide6 framework.
+AlmaLinux 9 and 10 require the EPEL and CRB repositories for Qt dependencies used by the bundled runtime.
 ### Enable the Code Ready Builder (CRB) repo
 ```bash
 sudo dnf config-manager --set-enabled crb
@@ -38,14 +38,14 @@ Download **one RPM file** that matches your AlmaLinux version.
 
 You will see files named like:
 
-- almalinux-creative-installer-1.0.1-1.el9.noarch.rpm
-- almalinux-creative-installer-1.0.1-1.el10.noarch.rpm
+- almalinux-creative-installer-qt5-1.0.1-1.el9.noarch.rpm
+- almalinux-creative-installer-qt6-1.0.1-1.el10.noarch.rpm
 
 ### 📌 Understanding the version number (X.X.X-X)
 
 Example filename:
 
-almalinux-creative-installer-1.0.1-1.el9.noarch.rpm
+almalinux-creative-installer-qt5-1.0.1-1.el9.noarch.rpm
 
 - 1.0.1 → application version  
 - -1 → RPM release number  
@@ -55,7 +55,7 @@ Whenever this README refers to `X.X.X-X`, **replace it with the exact version sh
 Example:
 
 If the filename is  
-almalinux-creative-installer-1.0.1-1.el9.noarch.rpm  
+almalinux-creative-installer-qt5-1.0.1-1.el9.noarch.rpm  
 
 Then:
 
@@ -74,10 +74,10 @@ From the directory where you downloaded the file:
 `sudo dnf install ./almalinux-creative-installer-X.X.X-X.rpm`
 
 
-Example for AlmaLinux 9: sudo dnf install ./almalinux-creative-installer-1.0.1-1.el9.noarch.rpm
+Example for AlmaLinux 9: sudo dnf install ./almalinux-creative-installer-qt5-1.0.1-1.el9.noarch.rpm
 
 
-Example for AlmaLinux 10 (experimental): sudo dnf install ./almalinux-creative-installer-1.0.1-1.el10.noarch.rpm
+Example for AlmaLinux 10 (experimental): sudo dnf install ./almalinux-creative-installer-qt6-1.0.1-1.el10.noarch.rpm
 
 This will:
 - install the application
