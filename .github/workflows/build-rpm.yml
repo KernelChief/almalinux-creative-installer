@@ -49,6 +49,16 @@ jobs:
           # Ensure rpmbuild writes inside the shared workspace (not ~)
           export HOME="${{ github.workspace }}"
           mkdir -p "$HOME"/rpmbuild
+          echo "GITHUB_REF=$GITHUB_REF"
+          echo "GITHUB_REF_NAME=$GITHUB_REF_NAME"
+          echo "GITHUB_REF_TYPE=$GITHUB_REF_TYPE"
+          echo "VERSION (env)=$VERSION"
+          if [ -z "$VERSION" ] && [ "${GITHUB_REF#refs/tags/}" != "${GITHUB_REF}" ]; then
+            VERSION="${GITHUB_REF#refs/tags/}"
+            VERSION="${VERSION#v}"
+            export VERSION
+            echo "VERSION (fallback)=$VERSION"
+          fi
 
           chmod +x src/packaging/build-rpm.sh
           ./src/packaging/build-rpm.sh
