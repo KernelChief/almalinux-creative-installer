@@ -21,6 +21,10 @@ VERSION="${VERSION:-}"
 if [[ -z "${VERSION}" && "${GITHUB_REF_TYPE:-}" == "tag" && -n "${GITHUB_REF_NAME:-}" ]]; then
   VERSION="${GITHUB_REF_NAME#v}"
 fi
+if [[ -z "${VERSION}" && -n "${GITHUB_REF:-}" && "${GITHUB_REF}" == refs/tags/* ]]; then
+  VERSION="${GITHUB_REF#refs/tags/}"
+  VERSION="${VERSION#v}"
+fi
 VERSION="${VERSION#v}"
 
 if [[ -z "${NAME}" || -z "${VERSION}" ]]; then
