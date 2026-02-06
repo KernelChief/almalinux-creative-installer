@@ -67,6 +67,25 @@ pkg_status() {
 # -------------------------------------------------
 # Flatpak / Krita support (system-wide)
 # -------------------------------------------------
+require_invoking_user() {
+  if [[ -z "${PKEXEC_UID:-}" ]]; then
+    echo "ERROR: PKEXEC_UID missing; cannot determine invoking user." >&2
+    exit 6
+  fi
+  user="$(getent passwd "${PKEXEC_UID}" | cut -d: -f1 || true)"
+  if [[ -z "${user}" ]]; then
+    echo "ERROR: could not resolve invoking user for PKEXEC_UID=${PKEXEC_UID}" >&2
+    exit 6
+  fi
+  echo "${user}"
+}
+
+run_flatpak_user() {
+  local user
+  user="$(require_invoking_user)"
+  runuser -u "${user}" -p -- flatpak --user "$@"
+}
+
 ensure_flatpak_flathub() {
   log "Ensuring Flatpak is installed..."
   dnf -y install flatpak
@@ -75,6 +94,16 @@ ensure_flatpak_flathub() {
   flatpak remote-add --if-not-exists --system flathub https://flathub.org/repo/flathub.flatpakrepo
 
   log "Flatpak + Flathub ready."
+}
+
+ensure_flatpak_flathub_user() {
+  log "Ensuring Flatpak is installed..."
+  dnf -y install flatpak
+
+  log "Ensuring Flathub remote exists (user)..."
+  run_flatpak_user remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+
+  log "Flatpak + Flathub ready (user)."
 }
 
 install_flatpak_app() {
@@ -86,11 +115,28 @@ install_flatpak_app() {
   log "Done."
 }
 
+install_flatpak_app_user() {
+  local appid="${1:-}"
+  [[ -n "${appid}" ]] || { echo "ERROR: missing flatpak app id" >&2; exit 2; }
+  ensure_flatpak_flathub_user
+  log "Installing Flatpak app (user): ${appid}"
+  run_flatpak_user install -y flathub "${appid}"
+  log "Done."
+}
+
 remove_flatpak_app() {
   local appid="${1:-}"
   [[ -n "${appid}" ]] || { echo "ERROR: missing flatpak app id" >&2; exit 2; }
   log "Removing Flatpak app: ${appid}"
   flatpak uninstall -y --system "${appid}"
+  log "Done."
+}
+
+remove_flatpak_app_user() {
+  local appid="${1:-}"
+  [[ -n "${appid}" ]] || { echo "ERROR: missing flatpak app id" >&2; exit 2; }
+  log "Removing Flatpak app (user): ${appid}"
+  run_flatpak_user uninstall -y "${appid}"
   log "Done."
 }
 
@@ -223,7 +269,9 @@ case "${action}" in
   # Flatpak
   ensure_flatpak_flathub) ensure_flatpak_flathub;;
   install_flatpak_app)    install_flatpak_app "${2:-}";;
+  install_flatpak_app_user) install_flatpak_app_user "${2:-}";;
   remove_flatpak_app)     remove_flatpak_app "${2:-}";;
+  remove_flatpak_app_user) remove_flatpak_app_user "${2:-}";;
   remove_flatpak_and_flathub) remove_flatpak_and_flathub;;
 
   # Resolve
@@ -248,7 +296,9 @@ DNF apps:
 Flatpak:
   ensure_flatpak_flathub
   install_flatpak_app <appid>
+  install_flatpak_app_user <appid>
   remove_flatpak_app <appid>
+  remove_flatpak_app_user <appid>
   remove_flatpak_and_flathub
 
 Local installers:
