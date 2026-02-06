@@ -15,29 +15,16 @@ if [[ ! -f "${SPEC}" ]]; then
   exit 2
 fi
 
-# Read Name from the spec; Version comes from VERSION, tag ref, or main's tag.
+# Read Name from the spec; Version comes from VERSION or tag ref.
 NAME="$(awk -F: '/^Name:[[:space:]]*/ {gsub(/[[:space:]]+/, "", $2); print $2; exit}' "${SPEC}")"
 VERSION="${VERSION:-}"
 if [[ -z "${VERSION}" && "${GITHUB_REF_TYPE:-}" == "tag" && -n "${GITHUB_REF_NAME:-}" ]]; then
   VERSION="${GITHUB_REF_NAME#v}"
 fi
-if [[ -z "${VERSION}" ]]; then
-  if git -C "${ROOT_DIR}" show-ref --verify --quiet refs/remotes/origin/main; then
-    VERSION="$(git -C "${ROOT_DIR}" describe --tags --abbrev=0 origin/main 2>/dev/null || true)"
-    VERSION="${VERSION#v}"
-  elif git -C "${ROOT_DIR}" show-ref --verify --quiet refs/heads/main; then
-    VERSION="$(git -C "${ROOT_DIR}" describe --tags --abbrev=0 main 2>/dev/null || true)"
-    VERSION="${VERSION#v}"
-  fi
-fi
-if [[ -z "${VERSION}" ]]; then
-  VERSION="$(git -C "${ROOT_DIR}" describe --tags --abbrev=0 2>/dev/null || true)"
-  VERSION="${VERSION#v}"
-fi
 VERSION="${VERSION#v}"
 
 if [[ -z "${NAME}" || -z "${VERSION}" ]]; then
-  echo "ERROR: Could not determine Name/Version. Set VERSION or ensure main has a tag (e.g., v1.0.4)." >&2
+  echo "ERROR: Could not determine Name/Version. Set VERSION or run on a tag (e.g., v1.0.4)." >&2
   exit 3
 fi
 
