@@ -419,6 +419,49 @@ class AlmaCreativeInstaller(Gtk.Window):
         threading.Thread(target=worker, daemon=True).start()
 
     # ---------------- App status (no pkexec) ----------------
+    def _flatpak_install_scope(self, appid):
+        if not shutil.which("flatpak"):
+            return None
+        if subprocess.run(
+            ["flatpak", "info", "--system", appid],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        ).returncode == 0:
+            return "system"
+        if subprocess.run(
+            ["flatpak", "info", "--user", appid],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        ).returncode == 0:
+            return "user"
+        return None
+
+    def _prompt_flatpak_scope(self, app_name):
+        dialog = Gtk.MessageDialog(
+            parent=self,
+            flags=0,
+            message_type=Gtk.MessageType.QUESTION,
+            buttons=Gtk.ButtonsType.NONE,
+            text="Install {} via Flatpak".format(app_name),
+        )
+        dialog.format_secondary_text(
+            "Choose where to install this Flatpak app.\n\n"
+            "System-wide installs are available to all users.\n"
+            "User installs apply only to your account."
+        )
+        dialog.add_button("User only", 1)
+        dialog.add_button("System-wide", 2)
+        dialog.add_button("Cancel", 0)
+        dialog.set_default_response(2)
+        response = dialog.run()
+        dialog.destroy()
+
+        if response == 1:
+            return "user"
+        if response == 2:
+            return "system"
+        return None
+
     def refresh_app_state(self, app_id):
         w = self.app_widgets.get(app_id)
         if not w:
@@ -450,19 +493,20 @@ class AlmaCreativeInstaller(Gtk.Window):
                 w["install"].set_sensitive(True)
                 w["remove"].set_sensitive(False)
                 return
-
-            installed = subprocess.run(
-                ["flatpak", "info", "--system", app["appid"]],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL
-            ).returncode == 0
+            scope = self._flatpak_install_scope(app["appid"])
+            installed = scope is not None
         else:
             installed = False
 
         if installed:
-            w["status"].set_text("✅ Installed")
-            w["install"].set_sensitive(False)
-            w["remove"].set_sensitive(True)
+            if app["type"] == "flatpak" and scope == "user":
+                w["status"].set_text("✅ Installed (user)")
+                w["install"].set_sensitive(False)
+                w["remove"].set_sensitive(True)
+            else:
+                w["status"].set_text("✅ Installed")
+                w["install"].set_sensitive(False)
+                w["remove"].set_sensitive(True)
         else:
             w["status"].set_text("❌ Not installed")
             w["install"].set_sensitive(True)
@@ -478,7 +522,14 @@ class AlmaCreativeInstaller(Gtk.Window):
         if app["type"] == "dnf":
             args = ["install_pkg", app["pkg"]]
         elif app["type"] == "flatpak":
+            scope = self._flatpak_install_scope(app["appid"])
+            if scope is None:
+                scope = self._prompt_flatpak_scope(app["name"])
+                if scope is None:
+                    return
             args = ["install_flatpak_app", app["appid"]]
+            if scope == "user":
+                args = ["install_flatpak_app_user", app["appid"]]
         else:
             return
 
@@ -507,6 +558,42 @@ class AlmaCreativeInstaller(Gtk.Window):
     def confirm_remove_krita(self):
         w = self.app_widgets.get("krita")
         if w and w.get("busy"):
+            return
+        scope = self._flatpak_install_scope("org.kde.krita")
+
+        if scope == "user":
+            dialog = Gtk.MessageDialog(
+                parent=self,
+                flags=0,
+                message_type=Gtk.MessageType.WARNING,
+                buttons=Gtk.ButtonsType.NONE,
+                text="Remove Krita (user install)?",
+            )
+            dialog.format_secondary_text(
+                "This will remove the user-installed Flatpak app for your account."
+            )
+            dialog.add_button("Cancel", Gtk.ResponseType.CANCEL)
+            dialog.add_button("Remove Krita", Gtk.ResponseType.OK)
+
+            resp = dialog.run()
+            dialog.destroy()
+
+            if resp == Gtk.ResponseType.OK:
+                self.set_app_busy("krita", True, "Removing…")
+
+                def after_krita():
+                    self.set_app_busy("krita", False)
+                    self.refresh_app_state("krita")
+
+                self.run_helper_with_callback(
+                    ["remove_flatpak_app_user", "org.kde.krita"],
+                    on_success=after_krita
+                )
+            return
+
+        if scope is None:
+            self.append_log("ℹ️ Krita is not installed.\n")
+            self.refresh_app_state("krita")
             return
 
         dialog = Gtk.MessageDialog(
