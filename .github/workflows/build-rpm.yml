@@ -23,8 +23,6 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Install build dependencies
         run: |
@@ -86,6 +84,7 @@ jobs:
           files: dist/*.rpm
           generate_release_notes: false
           body: |
+            ## :tada: AlmaLinux Creative Installer v${{ github.ref_name }}
             ## :tada: AlmaLinux Creative Installer ${{ github.ref_name }}
             
             :white_check_mark: Highlights
@@ -94,3 +93,4 @@ jobs:
             :package: Assets
             - EL9 RPM
             - EL10 RPM (experimental)
+
