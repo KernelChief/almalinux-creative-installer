@@ -34,6 +34,7 @@ if [[ -z "${VERSION}" ]]; then
   VERSION="$(git -C "${ROOT_DIR}" describe --tags --abbrev=0 2>/dev/null || true)"
   VERSION="${VERSION#v}"
 fi
+VERSION="${VERSION#v}"
 
 if [[ -z "${NAME}" || -z "${VERSION}" ]]; then
   echo "ERROR: Could not determine Name/Version. Set VERSION or ensure main has a tag (e.g., v1.0.4)." >&2
