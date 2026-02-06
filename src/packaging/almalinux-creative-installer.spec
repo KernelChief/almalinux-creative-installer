@@ -2,6 +2,7 @@
 
 
 Name:           almalinux-creative-installer
+Version:        1.0.4
 Version:        %{version}
 Release:        2%{?dist}
 Summary:        One-button creative app installer UI for AlmaLinux
@@ -46,3 +47,4 @@ install -D -m 0644 LICENSE \
 %changelog
 * Wed Jan 28 2026 KernelChief
 - Initial public release
+
