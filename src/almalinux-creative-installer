@@ -70,6 +70,13 @@ APPS = [
         "appid": "org.libreoffice.LibreOffice",
         "emoji": "📄",
     },
+    {
+        "id": "onlyoffice",
+        "name": "onlyoffice",
+        "type": "flatpak",
+        "appid": "org.onlyoffice.desktopeditors",
+        "emoji": "📄",
+    },
     {"id": "resolve", "name": "DaVinci Resolve", "type": "resolve", "emoji": "🎞️"},
 ]
 
