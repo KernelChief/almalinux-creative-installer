@@ -3,12 +3,7 @@
 
 Name:           almalinux-creative-installer
 Version:        %{version}
-%{!?prerelease:%global prerelease }
-%if "%{prerelease}" == ""
-Release:        1%{?dist}
-%else
-Release:        0.%{prerelease}.1%{?dist}
-%endif
+Release:        %{?prerelease:0.%{prerelease}.1}%{!?prerelease:1}%{?dist}
 Summary:        One-button creative app installer UI for AlmaLinux
 License:        MIT
 URL:            https://github.com/KernelChief/almalinux-creative-installer
