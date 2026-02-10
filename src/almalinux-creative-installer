@@ -733,6 +733,8 @@ class AlmaCreativeInstaller(Gtk.Window):
         return None
 
     def _prompt_flatpak_scope(self, app_name):
+        user_scope_available = self._flatpak_user_scope_available()
+
         dialog = Gtk.MessageDialog(
             parent=self,
             flags=0,
@@ -745,10 +747,21 @@ class AlmaCreativeInstaller(Gtk.Window):
             "System-wide installs are available to all users.\n"
             "User installs apply only to your account."
         )
-        dialog.add_button("User only", 1)
+        user_btn = dialog.add_button("User only", 1)
         dialog.add_button("System-wide", 2)
         dialog.add_button("Cancel", 0)
         dialog.set_default_response(2)
+
+        if not user_scope_available:
+            user_btn.set_sensitive(False)
+            dialog.format_secondary_text(
+                "Choose where to install this Flatpak app.\n\n"
+                "System-wide installs are available to all users.\n"
+                "User installs apply only to your account.\n\n"
+                "User-only mode is unavailable because a user Flatpak installation "
+                "was not detected."
+            )
+
         response = dialog.run()
         dialog.destroy()
 
@@ -757,6 +770,12 @@ class AlmaCreativeInstaller(Gtk.Window):
         if response == 2:
             return "system"
         return None
+
+    def _flatpak_user_scope_available(self):
+        if not shutil.which("flatpak"):
+            return False
+        user_installation_dir = Path.home() / ".local/share/flatpak"
+        return user_installation_dir.is_dir()
 
     def refresh_app_state(self, app_id):
         w = self.app_widgets.get(app_id)
