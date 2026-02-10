@@ -49,7 +49,8 @@ rpmdev-setuptree >/dev/null 2>&1 || true
 TMPDIR="$(mktemp -d)"
 trap 'rm -rf "$TMPDIR"' EXIT
 
-SRC_DIR="${TMPDIR}/${NAME}-${VERSION}"
+# Source tarball/layout must match spec %setup/%{version}, so use RPM_VERSION.
+SRC_DIR="${TMPDIR}/${NAME}-${RPM_VERSION}"
 mkdir -p "${SRC_DIR}"
 
 rsync -a \
@@ -63,8 +64,8 @@ rsync -a \
   --exclude "rpmbuild" \
   "${ROOT_DIR}/" "${SRC_DIR}/"
 
-TARBALL="${HOME}/rpmbuild/SOURCES/${NAME}-${VERSION}.tar.gz"
-tar -C "${TMPDIR}" -czf "${TARBALL}" "${NAME}-${VERSION}"
+TARBALL="${HOME}/rpmbuild/SOURCES/${NAME}-${RPM_VERSION}.tar.gz"
+tar -C "${TMPDIR}" -czf "${TARBALL}" "${NAME}-${RPM_VERSION}"
 
 echo "Created source tarball: ${TARBALL}"
 echo "Building ${NAME} version ${VERSION} using spec: ${SPEC}"
