@@ -44,6 +44,14 @@ install_pkg() {
   log "Done."
 }
 
+install_pkg_version() {
+  local pkg_expr="${1:-}"
+  [[ -n "${pkg_expr}" ]] || { echo "ERROR: missing package/version expression" >&2; exit 2; }
+  log "Installing specific package version: ${pkg_expr}"
+  dnf -y install "${pkg_expr}"
+  log "Done."
+}
+
 remove_pkg() {
   local pkg="${1:-}"
   [[ -n "${pkg}" ]] || { echo "ERROR: missing package name" >&2; exit 2; }
@@ -67,6 +75,38 @@ pkg_status() {
 # -------------------------------------------------
 # Flatpak / Krita support (system-wide)
 # -------------------------------------------------
+require_invoking_user() {
+  if [[ -z "${PKEXEC_UID:-}" ]]; then
+    echo "ERROR: PKEXEC_UID missing; cannot determine invoking user." >&2
+    exit 6
+  fi
+  user="$(getent passwd "${PKEXEC_UID}" | cut -d: -f1 || true)"
+  if [[ -z "${user}" ]]; then
+    echo "ERROR: could not resolve invoking user for PKEXEC_UID=${PKEXEC_UID}" >&2
+    exit 6
+  fi
+  echo "${user}"
+}
+
+require_invoking_user_home() {
+  local user
+  user="$(require_invoking_user)"
+  local home
+  home="$(getent passwd "${user}" | cut -d: -f6 || true)"
+  if [[ -z "${home}" ]]; then
+    echo "ERROR: could not resolve home directory for user ${user}" >&2
+    exit 6
+  fi
+  echo "${home}"
+}
+
+run_flatpak_user() {
+  local user home
+  user="$(require_invoking_user)"
+  home="$(require_invoking_user_home)"
+  runuser -u "${user}" -- env HOME="${home}" flatpak --user "$@"
+}
+
 ensure_flatpak_flathub() {
   log "Ensuring Flatpak is installed..."
   dnf -y install flatpak
@@ -75,6 +115,16 @@ ensure_flatpak_flathub() {
   flatpak remote-add --if-not-exists --system flathub https://flathub.org/repo/flathub.flatpakrepo
 
   log "Flatpak + Flathub ready."
+}
+
+ensure_flatpak_flathub_user() {
+  log "Ensuring Flatpak is installed..."
+  dnf -y install flatpak
+
+  log "Ensuring Flathub remote exists (user)..."
+  run_flatpak_user remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+
+  log "Flatpak + Flathub ready (user)."
 }
 
 install_flatpak_app() {
@@ -86,6 +136,61 @@ install_flatpak_app() {
   log "Done."
 }
 
+install_flatpak_app_branch() {
+  local appid="${1:-}"
+  local branch="${2:-stable}"
+  [[ -n "${appid}" ]] || { echo "ERROR: missing flatpak app id" >&2; exit 2; }
+  ensure_flatpak_flathub
+  log "Installing Flatpak app: ${appid} (branch: ${branch})"
+  flatpak install -y --system flathub "${appid}//${branch}"
+  log "Done."
+}
+
+install_flatpak_app_commit() {
+  local appid="${1:-}"
+  local branch="${2:-stable}"
+  local commit="${3:-}"
+  [[ -n "${appid}" ]] || { echo "ERROR: missing flatpak app id" >&2; exit 2; }
+  [[ -n "${commit}" ]] || { echo "ERROR: missing flatpak commit" >&2; exit 2; }
+  ensure_flatpak_flathub
+  log "Installing Flatpak app: ${appid} (branch: ${branch}, commit: ${commit})"
+  flatpak install -y --system flathub "${appid}//${branch}"
+  flatpak update -y --system --commit="${commit}" "${appid}"
+  log "Done."
+}
+
+install_flatpak_app_user() {
+  local appid="${1:-}"
+  [[ -n "${appid}" ]] || { echo "ERROR: missing flatpak app id" >&2; exit 2; }
+  ensure_flatpak_flathub_user
+  log "Installing Flatpak app (user): ${appid}"
+  run_flatpak_user install -y flathub "${appid}"
+  log "Done."
+}
+
+install_flatpak_app_user_branch() {
+  local appid="${1:-}"
+  local branch="${2:-stable}"
+  [[ -n "${appid}" ]] || { echo "ERROR: missing flatpak app id" >&2; exit 2; }
+  ensure_flatpak_flathub_user
+  log "Installing Flatpak app (user): ${appid} (branch: ${branch})"
+  run_flatpak_user install -y flathub "${appid}//${branch}"
+  log "Done."
+}
+
+install_flatpak_app_user_commit() {
+  local appid="${1:-}"
+  local branch="${2:-stable}"
+  local commit="${3:-}"
+  [[ -n "${appid}" ]] || { echo "ERROR: missing flatpak app id" >&2; exit 2; }
+  [[ -n "${commit}" ]] || { echo "ERROR: missing flatpak commit" >&2; exit 2; }
+  ensure_flatpak_flathub_user
+  log "Installing Flatpak app (user): ${appid} (branch: ${branch}, commit: ${commit})"
+  run_flatpak_user install -y flathub "${appid}//${branch}"
+  run_flatpak_user update -y --commit="${commit}" "${appid}"
+  log "Done."
+}
+
 remove_flatpak_app() {
   local appid="${1:-}"
   [[ -n "${appid}" ]] || { echo "ERROR: missing flatpak app id" >&2; exit 2; }
@@ -94,16 +199,11 @@ remove_flatpak_app() {
   log "Done."
 }
 
-remove_flatpak_and_flathub() {
-  log "Removing all system Flatpaks..."
-  flatpak uninstall -y --system --all || true
-
-  log "Removing Flathub remote (system)..."
-  flatpak remote-delete --system flathub || true
-
-  log "Removing Flatpak package..."
-  dnf -y remove flatpak || true
-
+remove_flatpak_app_user() {
+  local appid="${1:-}"
+  [[ -n "${appid}" ]] || { echo "ERROR: missing flatpak app id" >&2; exit 2; }
+  log "Removing Flatpak app (user): ${appid}"
+  run_flatpak_user uninstall -y "${appid}"
   log "Done."
 }
 
@@ -217,14 +317,20 @@ case "${action}" in
 
   # DNF apps
   install_pkg)         install_pkg "${2:-}";;
+  install_pkg_version) install_pkg_version "${2:-}";;
   remove_pkg)          remove_pkg "${2:-}";;
   pkg_status)          pkg_status "${2:-}";;
 
   # Flatpak
   ensure_flatpak_flathub) ensure_flatpak_flathub;;
   install_flatpak_app)    install_flatpak_app "${2:-}";;
+  install_flatpak_app_branch) install_flatpak_app_branch "${2:-}" "${3:-stable}";;
+  install_flatpak_app_commit) install_flatpak_app_commit "${2:-}" "${3:-stable}" "${4:-}";;
+  install_flatpak_app_user) install_flatpak_app_user "${2:-}";;
+  install_flatpak_app_user_branch) install_flatpak_app_user_branch "${2:-}" "${3:-stable}";;
+  install_flatpak_app_user_commit) install_flatpak_app_user_commit "${2:-}" "${3:-stable}" "${4:-}";;
   remove_flatpak_app)     remove_flatpak_app "${2:-}";;
-  remove_flatpak_and_flathub) remove_flatpak_and_flathub;;
+  remove_flatpak_app_user) remove_flatpak_app_user "${2:-}";;
 
   # Resolve
   prepare_resolve_deps)  prepare_resolve_deps;;
@@ -242,14 +348,20 @@ Repo actions:
 
 DNF apps:
   install_pkg <name>
+  install_pkg_version <name-version-release>
   remove_pkg <name>
   pkg_status <name>
 
 Flatpak:
   ensure_flatpak_flathub
   install_flatpak_app <appid>
+  install_flatpak_app_branch <appid> <branch>
+  install_flatpak_app_commit <appid> <branch> <commit>
+  install_flatpak_app_user <appid>
+  install_flatpak_app_user_branch <appid> <branch>
+  install_flatpak_app_user_commit <appid> <branch> <commit>
   remove_flatpak_app <appid>
-  remove_flatpak_and_flathub
+  remove_flatpak_app_user <appid>
 
 Local installers:
   prepare_resolve_deps

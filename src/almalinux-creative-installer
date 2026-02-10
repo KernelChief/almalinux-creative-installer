@@ -10,6 +10,7 @@ import threading
 import shutil
 import os
 import stat
+import re
 import importlib.metadata
 from pathlib import Path
 from collections import deque
@@ -19,10 +20,60 @@ RESOLVE_URL = "https://www.blackmagicdesign.com/products/davinciresolve/"
 
 APPS = [
     {"id": "gimp", "name": "GIMP", "type": "dnf", "pkg": "gimp", "emoji": "🖌️"},
-    {"id": "krita", "name": "Krita", "type": "flatpak", "appid": "org.kde.krita", "emoji": "🎨"},
+    {
+        "id": "krita",
+        "name": "Krita",
+        "type": "flatpak",
+        "appid": "org.kde.krita",
+        "emoji": "🎨",
+    },
     {"id": "blender", "name": "Blender", "type": "dnf", "pkg": "blender", "emoji": "🧊"},
+    {
+        "id": "discord",
+        "name": "Discord",
+        "type": "flatpak",
+        "appid": "com.discordapp.Discord",
+        "emoji": "💬",
+    },
+    {
+        "id": "drawio",
+        "name": "draw.io",
+        "type": "flatpak",
+        "appid": "com.jgraph.drawio.desktop",
+        "emoji": "🧭",
+    },
+    {
+        "id": "mattermost",
+        "name": "Mattermost",
+        "type": "flatpak",
+        "appid": "com.mattermost.Desktop",
+        "emoji": "🗨️",
+    },
+    {
+        "id": "slack",
+        "name": "Slack",
+        "type": "flatpak",
+        "appid": "com.slack.Slack",
+        "emoji": "💼",
+    },
+    {
+        "id": "spotify",
+        "name": "Spotify",
+        "type": "flatpak",
+        "appid": "com.spotify.Client",
+        "emoji": "🎵",
+    },
+    {
+        "id": "libreoffice",
+        "name": "LibreOffice",
+        "type": "flatpak",
+        "appid": "org.libreoffice.LibreOffice",
+        "emoji": "📄",
+    },
     {"id": "resolve", "name": "DaVinci Resolve", "type": "resolve", "emoji": "🎞️"},
 ]
+
+VERSION_SELECTABLE_APPS = {"gimp", "krita", "blender"}
 
 
 class AlmaCreativeInstaller(Gtk.Window):
@@ -100,7 +151,13 @@ class AlmaCreativeInstaller(Gtk.Window):
         self.listbox = Gtk.ListBox()
         self.listbox.set_selection_mode(Gtk.SelectionMode.NONE)
         self.listbox.get_style_context().add_class("boxed-list")
-        app_box.pack_start(self.listbox, True, True, 0)
+
+        app_scroller = Gtk.ScrolledWindow()
+        app_scroller.set_hexpand(True)
+        app_scroller.set_vexpand(True)
+        app_scroller.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        app_scroller.add(self.listbox)
+        app_box.pack_start(app_scroller, True, True, 0)
 
         for app in APPS:
             self.listbox.add(self._make_app_row(app))
@@ -251,6 +308,14 @@ class AlmaCreativeInstaller(Gtk.Window):
         btn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         row.pack_start(btn_box, False, False, 0)
 
+        version_combo = None
+        if app["id"] in VERSION_SELECTABLE_APPS:
+            version_combo = Gtk.ComboBoxText()
+            version_combo.append_text("Loading versions…")
+            version_combo.set_active(0)
+            version_combo.set_sensitive(False)
+            btn_box.pack_start(version_combo, False, False, 0)
+
         install_btn = Gtk.Button(label="Install")
         btn_box.pack_start(install_btn, False, False, 0)
 
@@ -262,7 +327,7 @@ class AlmaCreativeInstaller(Gtk.Window):
             remove_btn.connect("clicked", lambda *_: self.remove_app(app["id"]))
         elif app["type"] == "flatpak":
             install_btn.connect("clicked", lambda *_: self.install_app(app["id"]))
-            remove_btn.connect("clicked", lambda *_: self.confirm_remove_krita())
+            remove_btn.connect("clicked", lambda *_: self.confirm_remove_flatpak_app(app["id"]))
         elif app["type"] == "resolve":
             install_btn.connect("clicked", lambda *_: self.install_resolve_flow())
             remove_btn.connect("clicked", lambda *_: self.remove_resolve_flow())
@@ -273,11 +338,18 @@ class AlmaCreativeInstaller(Gtk.Window):
             "spinner": spinner,
             "install": install_btn,
             "remove": remove_btn,
+            "version_combo": version_combo,
+            "version_options": [],
             "busy": False,
         }
         return lbrow
 
     def _subtitle_for_app(self, app):
+        if app["id"] in VERSION_SELECTABLE_APPS:
+            if app["type"] == "dnf":
+                return "Installed via DNF repositories (version selectable)"
+            if app["type"] == "flatpak":
+                return "Installed via Flatpak (version/branch selectable)"
         if app["type"] == "dnf":
             return "Installed via DNF repositories"
         if app["type"] == "flatpak":
@@ -300,9 +372,13 @@ class AlmaCreativeInstaller(Gtk.Window):
                 w["status"].set_text(msg)
             w["install"].set_sensitive(False)
             w["remove"].set_sensitive(False)
+            if w.get("version_combo") is not None:
+                w["version_combo"].set_sensitive(False)
         else:
             w["spinner"].stop()
             w["spinner"].hide()
+            if w.get("version_combo") is not None:
+                w["version_combo"].set_sensitive(True)
 
     # ---------------- Log helpers ----------------
     def set_log(self, text):
@@ -317,8 +393,228 @@ class AlmaCreativeInstaller(Gtk.Window):
     # ---------------- State refresh ----------------
     def refresh_all_states(self):
         self.refresh_repo_state()
+        self.refresh_app_versions()
         for app in APPS:
             self.refresh_app_state(app["id"])
+
+    # ---------------- Version catalogs (unprivileged) ----------------
+    def refresh_app_versions(self):
+        for app in APPS:
+            if app["id"] in VERSION_SELECTABLE_APPS:
+                self._refresh_single_app_versions(app)
+
+    def _refresh_single_app_versions(self, app):
+        app_id = app["id"]
+        w = self.app_widgets.get(app_id)
+        if not w:
+            return
+
+        combo = w.get("version_combo")
+        if combo is None:
+            return
+
+        combo.remove_all()
+        combo.append_text("Loading versions…")
+        combo.set_active(0)
+        combo.set_sensitive(False)
+
+        def worker():
+            if app["type"] == "dnf":
+                options = self._fetch_dnf_versions(app["pkg"])
+            elif app["type"] == "flatpak":
+                options = self._fetch_flatpak_versions(app["appid"])
+            else:
+                options = []
+            GLib.idle_add(self._set_app_version_options, app_id, options)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _fetch_dnf_versions(self, pkg):
+        options = [{"label": "Latest available", "mode": "latest"}]
+        try:
+            proc = subprocess.run(
+                ["dnf", "-q", "--showduplicates", "list", pkg],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                text=True,
+                check=False,
+            )
+            seen = set()
+            for line in proc.stdout.splitlines():
+                stripped = line.strip()
+                if not stripped:
+                    continue
+                parts = stripped.split()
+                if len(parts) < 2:
+                    continue
+                name_arch = parts[0]
+                version = parts[1]
+                if not name_arch.startswith(pkg + "."):
+                    continue
+                if version in seen:
+                    continue
+                seen.add(version)
+                options.append(
+                    {
+                        "label": version,
+                        "mode": "specific",
+                        "install_arg": "{}-{}".format(pkg, version),
+                    }
+                )
+        except Exception:
+            pass
+        return options
+
+    def _fetch_flatpak_versions(self, appid):
+        stable_version = None
+        branch_options = []
+        if not shutil.which("flatpak"):
+            return [{"label": "Latest stable", "branch": "stable"}]
+
+        try:
+            proc = subprocess.run(
+                [
+                    "flatpak",
+                    "remote-ls",
+                    "--all",
+                    "--app",
+                    "--columns=application,branch,version",
+                    "flathub",
+                ],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                text=True,
+                check=False,
+            )
+            seen = set()
+            for line in proc.stdout.splitlines():
+                stripped = line.strip()
+                if not stripped:
+                    continue
+                parts = stripped.split(None, 2)
+                if len(parts) < 2:
+                    continue
+                app_col = parts[0]
+                branch = parts[1]
+                version = parts[2].strip() if len(parts) > 2 else ""
+                if app_col != appid or branch in seen:
+                    continue
+                seen.add(branch)
+                if branch == "stable":
+                    stable_version = version or stable_version
+                    continue
+                if version:
+                    label = "{} ({})".format(version, branch)
+                else:
+                    label = branch
+                branch_options.append({"label": label, "branch": branch})
+        except Exception:
+            pass
+
+        if stable_version:
+            options = [{"label": "Latest stable ({})".format(stable_version), "branch": "stable"}]
+        else:
+            options = [{"label": "Latest stable", "branch": "stable"}]
+
+        # Group as: latest stable, then older version numbers (no noisy duplicate commit labels)
+        seen_versions = {stable_version} if stable_version else set()
+        for entry in self._fetch_flatpak_commit_history(appid, "stable"):
+            version = entry.get("version")
+            if not version or version in seen_versions:
+                continue
+            seen_versions.add(version)
+            options.append(
+                {
+                    "label": version,
+                    "branch": entry.get("branch", "stable"),
+                    "commit": entry.get("commit"),
+                }
+            )
+
+        options.extend(branch_options)
+        return options
+
+    def _fetch_flatpak_commit_history(self, appid, branch, limit=8):
+        entries = []
+        try:
+            proc = subprocess.run(
+                ["flatpak", "remote-info", "--log", "flathub", "{}//{}".format(appid, branch)],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                text=True,
+                check=False,
+            )
+            current_commit = None
+            current_subject = ""
+
+            for line in proc.stdout.splitlines():
+                stripped = line.strip()
+                if stripped.startswith("Commit:"):
+                    current_commit = stripped.split(":", 1)[1].strip()
+                    current_subject = ""
+                elif stripped.startswith("Subject:") and current_commit:
+                    current_subject = stripped.split(":", 1)[1].strip()
+                    version = self._extract_version_from_text(current_subject)
+                    entries.append(
+                        {
+                            "branch": branch,
+                            "commit": current_commit,
+                            "version": version,
+                        }
+                    )
+                    current_commit = None
+
+            # Deduplicate while preserving order and cap list length
+            unique = []
+            seen = set()
+            for e in entries:
+                key = (e.get("branch"), e.get("commit"))
+                if key in seen:
+                    continue
+                seen.add(key)
+                unique.append(e)
+                if len(unique) >= limit:
+                    break
+            return unique
+        except Exception:
+            return []
+
+    def _extract_version_from_text(self, text):
+        if not text:
+            return None
+        # Capture version-like tokens such as 5.2.4 or 26.2.0.3
+        matches = re.findall(r"\b\d+(?:\.\d+){1,4}\b", text)
+        return matches[-1] if matches else None
+
+    def _set_app_version_options(self, app_id, options):
+        w = self.app_widgets.get(app_id)
+        if not w:
+            return
+
+        combo = w.get("version_combo")
+        if combo is None:
+            return
+
+        w["version_options"] = options[:]
+
+        combo.remove_all()
+        for option in options:
+            combo.append_text(option.get("label", "unknown"))
+        combo.set_active(0)
+        combo.set_sensitive(True)
+
+    def _get_selected_version_option(self, app_id):
+        w = self.app_widgets.get(app_id)
+        if not w:
+            return None
+        combo = w.get("version_combo")
+        options = w.get("version_options", [])
+        if combo is None or not options:
+            return None
+        idx = combo.get_active()
+        if idx < 0 or idx >= len(options):
+            return options[0]
+        return options[idx]
 
     # ---------------- Repo probing (UNPRIVILEGED) ----------------
     def _dnf_enabled_repo_ids(self):
@@ -419,6 +715,70 @@ class AlmaCreativeInstaller(Gtk.Window):
         threading.Thread(target=worker, daemon=True).start()
 
     # ---------------- App status (no pkexec) ----------------
+    def _flatpak_install_scope(self, appid):
+        if not shutil.which("flatpak"):
+            return None
+        if subprocess.run(
+            ["flatpak", "info", "--system", appid],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        ).returncode == 0:
+            return "system"
+        if subprocess.run(
+            ["flatpak", "info", "--user", appid],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        ).returncode == 0:
+            return "user"
+        return None
+
+    def _prompt_flatpak_scope(self, app_name):
+        user_scope_available = self._flatpak_user_scope_available()
+
+        dialog = Gtk.MessageDialog(
+            parent=self,
+            flags=0,
+            message_type=Gtk.MessageType.QUESTION,
+            buttons=Gtk.ButtonsType.NONE,
+            text="Install {} via Flatpak".format(app_name),
+        )
+        dialog.format_secondary_text(
+            "Choose where to install this Flatpak app.\n\n"
+            "System-wide installs are available to all users.\n"
+            "User installs apply only to your account."
+        )
+        user_btn = dialog.add_button("User only", 1)
+        dialog.add_button("System-wide", 2)
+        dialog.add_button("Cancel", 0)
+        dialog.set_default_response(2)
+
+        if not user_scope_available:
+            user_btn.set_sensitive(False)
+            dialog.format_secondary_text(
+                "Choose where to install this Flatpak app.\n\n"
+                "System-wide installs are available to all users.\n"
+                "User installs apply only to your account.\n\n"
+                "User-only mode is unavailable because a user Flatpak installation "
+                "was not detected."
+            )
+
+        response = dialog.run()
+        dialog.destroy()
+
+        if response == 1:
+            return "user"
+        if response == 2:
+            return "system"
+        return None
+
+    def _flatpak_user_scope_available(self):
+        if not shutil.which("flatpak"):
+            return False
+        # Consider user-scope available only when the per-user repo is initialized.
+        # This keeps "User only" greyed out unless user flatpak mode is already set up.
+        user_repo_dir = Path.home() / ".local/share/flatpak/repo"
+        return user_repo_dir.is_dir()
+
     def refresh_app_state(self, app_id):
         w = self.app_widgets.get(app_id)
         if not w:
@@ -450,19 +810,20 @@ class AlmaCreativeInstaller(Gtk.Window):
                 w["install"].set_sensitive(True)
                 w["remove"].set_sensitive(False)
                 return
-
-            installed = subprocess.run(
-                ["flatpak", "info", "--system", app["appid"]],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL
-            ).returncode == 0
+            scope = self._flatpak_install_scope(app["appid"])
+            installed = scope is not None
         else:
             installed = False
 
         if installed:
-            w["status"].set_text("✅ Installed")
-            w["install"].set_sensitive(False)
-            w["remove"].set_sensitive(True)
+            if app["type"] == "flatpak" and scope == "user":
+                w["status"].set_text("✅ Installed (user)")
+                w["install"].set_sensitive(False)
+                w["remove"].set_sensitive(True)
+            else:
+                w["status"].set_text("✅ Installed")
+                w["install"].set_sensitive(False)
+                w["remove"].set_sensitive(True)
         else:
             w["status"].set_text("❌ Not installed")
             w["install"].set_sensitive(True)
@@ -476,9 +837,31 @@ class AlmaCreativeInstaller(Gtk.Window):
 
         app = w["app"]
         if app["type"] == "dnf":
-            args = ["install_pkg", app["pkg"]]
+            selected = self._get_selected_version_option(app_id)
+            if selected and selected.get("mode") == "specific":
+                args = ["install_pkg_version", selected.get("install_arg", app["pkg"])]
+            else:
+                args = ["install_pkg", app["pkg"]]
         elif app["type"] == "flatpak":
-            args = ["install_flatpak_app", app["appid"]]
+            scope = self._flatpak_install_scope(app["appid"])
+            if scope is None:
+                scope = self._prompt_flatpak_scope(app["name"])
+                if scope is None:
+                    return
+            selected = self._get_selected_version_option(app_id)
+            branch = (selected or {}).get("branch", "stable")
+            commit = (selected or {}).get("commit")
+
+            if scope == "user":
+                if commit:
+                    args = ["install_flatpak_app_user_commit", app["appid"], branch, commit]
+                else:
+                    args = ["install_flatpak_app_user_branch", app["appid"], branch]
+            else:
+                if commit:
+                    args = ["install_flatpak_app_commit", app["appid"], branch, commit]
+                else:
+                    args = ["install_flatpak_app_branch", app["appid"], branch]
         else:
             return
 
@@ -503,10 +886,55 @@ class AlmaCreativeInstaller(Gtk.Window):
         self.set_app_busy(app_id, False)
         self.refresh_app_state(app_id)
 
-    # ---------------- Krita removal prompt (with spinner) ----------------
-    def confirm_remove_krita(self):
-        w = self.app_widgets.get("krita")
+    # ---------------- Flatpak removal prompt (with spinner) ----------------
+    def confirm_remove_flatpak_app(self, app_id):
+        w = self.app_widgets.get(app_id)
         if w and w.get("busy"):
+            return
+        if not w:
+            return
+
+        app = w["app"]
+        appid = app.get("appid")
+        if not appid:
+            return
+
+        app_name = app.get("name", appid)
+        scope = self._flatpak_install_scope(appid)
+
+        if scope == "user":
+            dialog = Gtk.MessageDialog(
+                parent=self,
+                flags=0,
+                message_type=Gtk.MessageType.WARNING,
+                buttons=Gtk.ButtonsType.NONE,
+                text="Remove {} (user install)?".format(app_name),
+            )
+            dialog.format_secondary_text(
+                "This will remove the user-installed Flatpak app for your account."
+            )
+            dialog.add_button("Cancel", Gtk.ResponseType.CANCEL)
+            dialog.add_button("Remove {}".format(app_name), Gtk.ResponseType.OK)
+
+            resp = dialog.run()
+            dialog.destroy()
+
+            if resp == Gtk.ResponseType.OK:
+                self.set_app_busy(app_id, True, "Removing…")
+
+                def after_remove_user():
+                    self.set_app_busy(app_id, False)
+                    self.refresh_app_state(app_id)
+
+                self.run_helper_with_callback(
+                    ["remove_flatpak_app_user", appid],
+                    on_success=after_remove_user
+                )
+            return
+
+        if scope is None:
+            self.append_log("ℹ️ {} is not installed.\n".format(app_name))
+            self.refresh_app_state(app_id)
             return
 
         dialog = Gtk.MessageDialog(
@@ -514,37 +942,23 @@ class AlmaCreativeInstaller(Gtk.Window):
             flags=0,
             message_type=Gtk.MessageType.WARNING,
             buttons=Gtk.ButtonsType.NONE,
-            text="Remove Krita?",
+            text="Remove {}?".format(app_name),
         )
-        dialog.format_secondary_text(
-            "This will remove Krita.\n\n"
-            "Optionally, you can also remove Flatpak + Flathub (system-wide). "
-            "Only do that if you’re sure you don’t need Flatpak for anything else."
-        )
+        dialog.format_secondary_text("This will remove {}.".format(app_name))
         dialog.add_button("Cancel", Gtk.ResponseType.CANCEL)
-        dialog.add_button("Remove Krita", Gtk.ResponseType.OK)
-
-        box = dialog.get_message_area()
-        checkbox = Gtk.CheckButton(label="Also remove Flatpak + Flathub (system-wide)")
-        checkbox.set_active(False)
-        box.pack_start(checkbox, False, False, 0)
-        box.show_all()
+        dialog.add_button("Remove {}".format(app_name), Gtk.ResponseType.OK)
 
         resp = dialog.run()
-        remove_flatpak_too = checkbox.get_active()
         dialog.destroy()
 
         if resp == Gtk.ResponseType.OK:
-            self.set_app_busy("krita", True, "Removing…")
+            self.set_app_busy(app_id, True, "Removing…")
 
-            def after_krita():
-                self.set_app_busy("krita", False)
-                self.refresh_app_state("krita")
+            def after_remove():
+                self.set_app_busy(app_id, False)
+                self.refresh_app_state(app_id)
 
-            self.run_helper_with_callback(["remove_flatpak_app", "org.kde.krita"], on_success=after_krita)
-
-            if remove_flatpak_too:
-                self.run_helper_with_callback(["remove_flatpak_and_flathub"], on_success=self.refresh_all_states)
+            self.run_helper_with_callback(["remove_flatpak_app", appid], on_success=after_remove)
 
     # ---------------- Helper runner (PRIVILEGED) ----------------
     def run_helper_with_callback(self, args, on_success=None):
