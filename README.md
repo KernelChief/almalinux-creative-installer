@@ -231,6 +231,7 @@ to enable it.
 **The RPM build script fails.**  
 `build-rpm.sh` uses the **latest git tag** for the version. Create a tag like
 `v1.0.5` before building.
+
 ---
 
 ## 📜 License
