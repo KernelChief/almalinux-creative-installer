@@ -54,6 +54,9 @@ jobs:
           echo "GITHUB_REF_TYPE=$GITHUB_REF_TYPE"
           echo "VERSION (env)=$VERSION"
 
+          # Needed in containerized GitHub Actions runs to allow git commands.
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
           # workflow_dispatch on branches may have empty VERSION.
           # Fallback to latest v* tag so manual runs still work without input.
           if [ -z "$VERSION" ]; then
