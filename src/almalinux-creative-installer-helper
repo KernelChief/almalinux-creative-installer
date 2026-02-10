@@ -88,10 +88,23 @@ require_invoking_user() {
   echo "${user}"
 }
 
-run_flatpak_user() {
+require_invoking_user_home() {
   local user
   user="$(require_invoking_user)"
-  runuser -u "${user}" -p -- flatpak --user "$@"
+  local home
+  home="$(getent passwd "${user}" | cut -d: -f6 || true)"
+  if [[ -z "${home}" ]]; then
+    echo "ERROR: could not resolve home directory for user ${user}" >&2
+    exit 6
+  fi
+  echo "${home}"
+}
+
+run_flatpak_user() {
+  local user home
+  user="$(require_invoking_user)"
+  home="$(require_invoking_user_home)"
+  runuser -u "${user}" -- env HOME="${home}" flatpak --user "$@"
 }
 
 ensure_flatpak_flathub() {

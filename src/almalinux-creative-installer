@@ -774,8 +774,10 @@ class AlmaCreativeInstaller(Gtk.Window):
     def _flatpak_user_scope_available(self):
         if not shutil.which("flatpak"):
             return False
-        user_installation_dir = Path.home() / ".local/share/flatpak"
-        return user_installation_dir.is_dir()
+        # Consider user-scope available only when the per-user repo is initialized.
+        # This keeps "User only" greyed out unless user flatpak mode is already set up.
+        user_repo_dir = Path.home() / ".local/share/flatpak/repo"
+        return user_repo_dir.is_dir()
 
     def refresh_app_state(self, app_id):
         w = self.app_widgets.get(app_id)
