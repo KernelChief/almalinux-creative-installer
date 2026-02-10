@@ -53,6 +53,16 @@ jobs:
           echo "GITHUB_REF_NAME=$GITHUB_REF_NAME"
           echo "GITHUB_REF_TYPE=$GITHUB_REF_TYPE"
           echo "VERSION (env)=$VERSION"
+
+          # workflow_dispatch on branches may have empty VERSION.
+          # Fallback to latest v* tag so manual runs still work without input.
+          if [ -z "$VERSION" ]; then
+            VERSION="$(git tag --list 'v*' --sort=-v:refname | head -n 1 || true)"
+            VERSION="${VERSION#v}"
+            export VERSION
+            echo "VERSION (latest-tag fallback)=$VERSION"
+          fi
+
           if [ -z "$VERSION" ] && [ "${GITHUB_REF#refs/tags/}" != "${GITHUB_REF}" ]; then
             VERSION="${GITHUB_REF#refs/tags/}"
             VERSION="${VERSION#v}"
@@ -76,6 +86,7 @@ jobs:
     name: Release
     needs: build
     runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
 
     steps:
       - name: Download EL9 artifacts
