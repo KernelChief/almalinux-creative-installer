@@ -89,7 +89,7 @@ jobs:
     name: Release
     needs: build
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && github.event.inputs.version != '')
 
     steps:
       - name: Download EL9 artifacts
@@ -113,8 +113,10 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || github.event.inputs.version }}
+          target_commitish: ${{ github.sha }}
           files: dist/*.rpm
-          prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
+          prerelease: ${{ contains((startsWith(github.ref, 'refs/tags/') && github.ref_name) || github.event.inputs.version, '-rc') || contains((startsWith(github.ref, 'refs/tags/') && github.ref_name) || github.event.inputs.version, '-beta') || contains((startsWith(github.ref, 'refs/tags/') && github.ref_name) || github.event.inputs.version, '-alpha') }}
           generate_release_notes: false
           body: |
             ## :tada: AlmaLinux Creative Installer ${{ github.ref_name }}
