@@ -27,7 +27,19 @@ if [[ -z "${VERSION}" && -n "${GITHUB_REF:-}" && "${GITHUB_REF}" == refs/tags/* 
 fi
 VERSION="${VERSION#v}"
 
-if [[ -z "${NAME}" || -z "${VERSION}" ]]; then
+RPM_VERSION="${VERSION}"
+RPM_PRERELEASE=""
+
+# Convert semver prerelease tags like 1.0.5-rc1 into RPM-friendly fields:
+#   Version: 1.0.5
+#   Release: 0.rc1.1%{?dist}
+if [[ "${VERSION}" == *-* ]]; then
+  RPM_VERSION="${VERSION%%-*}"
+  RPM_PRERELEASE="${VERSION#*-}"
+  RPM_PRERELEASE="${RPM_PRERELEASE//-/.}"
+fi
+
+if [[ -z "${NAME}" || -z "${VERSION}" || -z "${RPM_VERSION}" ]]; then
   echo "ERROR: Could not determine Name/Version. Set VERSION or run on a tag (e.g., v1.0.4)." >&2
   exit 3
 fi
@@ -37,7 +49,8 @@ rpmdev-setuptree >/dev/null 2>&1 || true
 TMPDIR="$(mktemp -d)"
 trap 'rm -rf "$TMPDIR"' EXIT
 
-SRC_DIR="${TMPDIR}/${NAME}-${VERSION}"
+# Source tarball/layout must match spec %setup/%{version}, so use RPM_VERSION.
+SRC_DIR="${TMPDIR}/${NAME}-${RPM_VERSION}"
 mkdir -p "${SRC_DIR}"
 
 rsync -a \
@@ -51,13 +64,22 @@ rsync -a \
   --exclude "rpmbuild" \
   "${ROOT_DIR}/" "${SRC_DIR}/"
 
-TARBALL="${HOME}/rpmbuild/SOURCES/${NAME}-${VERSION}.tar.gz"
-tar -C "${TMPDIR}" -czf "${TARBALL}" "${NAME}-${VERSION}"
+TARBALL="${HOME}/rpmbuild/SOURCES/${NAME}-${RPM_VERSION}.tar.gz"
+tar -C "${TMPDIR}" -czf "${TARBALL}" "${NAME}-${RPM_VERSION}"
 
 echo "Created source tarball: ${TARBALL}"
 echo "Building ${NAME} version ${VERSION} using spec: ${SPEC}"
 
-rpmbuild -ba --define "version ${VERSION}" "${SPEC}"
+RPMBUILD_ARGS=(
+  -ba
+  --define "version ${RPM_VERSION}"
+)
+
+if [[ -n "${RPM_PRERELEASE}" ]]; then
+  RPMBUILD_ARGS+=(--define "prerelease ${RPM_PRERELEASE}")
+fi
+
+rpmbuild "${RPMBUILD_ARGS[@]}" "${SPEC}"
 
 echo "Done."
 echo "RPMs are in: ${HOME}/rpmbuild/RPMS/"
