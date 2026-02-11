@@ -130,7 +130,7 @@ class AlmaCreativeInstaller(Gtk.Window):
         req_box.pack_start(
             self._make_requirement_row(
                 key="CRB",
-                title="CodeReady Builder (CRB) / PowerTools",
+                title="CodeReady Builder (CRB) / PowerTools(Required)",
                 subtitle="Extra dependencies used by many workstation apps.",
                 enable_action=["enable_crb"],
             ),
@@ -139,7 +139,7 @@ class AlmaCreativeInstaller(Gtk.Window):
         req_box.pack_start(
             self._make_requirement_row(
                 key="EPEL",
-                title="Extra Packages for Enterprise Linux (EPEL)",
+                title="Extra Packages for Enterprise Linux (EPEL)(Required)",
                 subtitle="Community packages used by many creative tools.",
                 enable_action=["enable_epel"],
             ),
