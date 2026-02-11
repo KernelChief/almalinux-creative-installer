@@ -1,5 +1,8 @@
 # 🎨 AlmaLinux Creative Installer
 
+![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)
+[![Buy Me A Coffee](https://img.shields.io/badge/Support-Buy%20Me%20A%20Coffee-orange?logo=buy-me-a-coffee)](buymeacoffee.com/ttheroux)
+
 A small, opinionated GTK application for AlmaLinux that delivers **one-button installs**
 for creative and Media & Entertainment (M&E) workstation software — without the usual
 dependency headaches.
