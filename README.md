@@ -1,7 +1,13 @@
 # 🎨 AlmaLinux Creative Installer
 
+![Last Commit](https://img.shields.io/github/last-commit/KernelChief/almalinux-creative-installer)
+![Repo Size](https://img.shields.io/github/repo-size/KernelChief/almalinux-creative-installer)
 ![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)
+![Python](https://img.shields.io/badge/Made%20with-Python-3776AB?logo=python&logoColor=white)
+![Shell](https://img.shields.io/badge/Script-Shell-4EAA25?logo=gnu-bash&logoColor=white)
+![AlmaLinux](https://img.shields.io/badge/Platform-AlmaLinux-blue?logo=almalinux&logoColor=white)
 [![Buy Me A Coffee](https://img.shields.io/badge/Support-Buy%20Me%20A%20Coffee-orange?logo=buy-me-a-coffee)](buymeacoffee.com/ttheroux)
+![Stars](https://img.shields.io/github/stars/KernelChief/almalinux-creative-installer?style=social)
 
 A small, opinionated GTK application for AlmaLinux that delivers **one-button installs**
 for creative and Media & Entertainment (M&E) workstation software — without the usual
