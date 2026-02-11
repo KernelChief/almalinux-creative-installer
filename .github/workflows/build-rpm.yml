@@ -34,7 +34,7 @@ jobs:
             polkit xdg-utils \
             rsync tar findutils
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -80,7 +80,7 @@ jobs:
           find "$HOME/rpmbuild/RPMS" -type f -name "*.rpm" -exec cp -v {} "$DISTDIR/" \;
 
       - name: Upload RPM artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: rpm-el${{ matrix.el }}
           path: dist/*.rpm
@@ -93,7 +93,7 @@ jobs:
 
     steps:
       - name: Checkout source (for tag fallback)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -119,14 +119,14 @@ jobs:
 
       - name: Download EL9 artifacts
         if: steps.resolve_tag.outputs.do_release == 'true'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: rpm-el9
           path: dist
 
       - name: Download EL10 artifacts
         if: steps.resolve_tag.outputs.do_release == 'true'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: rpm-el10
           path: dist
