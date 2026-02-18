@@ -40,14 +40,14 @@ APPS = [
         "name": "Ardour",
         "type": "flatpak",
         "appid": "org.ardour.Ardour",
-        "emoji": "🎚️",
+        "emoji": "🎛️",
     },
     {
         "id": "bitwig studio",
-        "name": "bitwig studio",
+        "name": "Bitwig Studio",
         "type": "flatpak",
         "appid": "com.bitwig.BitwigStudio",
-        "emoji": "🎚️",
+        "emoji": "🎹",
     },
     {
         "id": "discord",
@@ -93,7 +93,7 @@ APPS = [
     },
     {
         "id": "onlyoffice",
-        "name": "onlyoffice",
+        "name": "OnlyOffice",
         "type": "flatpak",
         "appid": "org.onlyoffice.desktopeditors",
         "emoji": "📄",
