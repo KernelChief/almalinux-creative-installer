@@ -29,6 +29,27 @@ APPS = [
     },
     {"id": "blender", "name": "Blender", "type": "dnf", "pkg": "blender", "emoji": "🧊"},
     {
+        "id": "opentoonz",
+        "name": "OpenToonz",
+        "type": "flatpak",
+        "appid": "io.github.OpenToonz",
+        "emoji": "🎬",
+    },
+    {
+        "id": "ardour",
+        "name": "Ardour",
+        "type": "flatpak",
+        "appid": "org.ardour.Ardour",
+        "emoji": "🎚️",
+    },
+    {
+        "id": "bitwig studio",
+        "name": "bitwig studio",
+        "type": "flatpak",
+        "appid": "com.bitwig.BitwigStudio",
+        "emoji": "🎚️",
+    },
+    {
         "id": "discord",
         "name": "Discord",
         "type": "flatpak",
