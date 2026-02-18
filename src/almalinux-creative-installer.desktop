@@ -3,7 +3,7 @@
 Name=AlmaLinux Creative Installer
 Comment=One-button installer for creative apps on AlmaLinux
 Exec=almalinux-creative-installer
-Icon=computer
+Icon=almalinux-creative-installer
 Terminal=false
 Type=Application
 Categories=System;Settings;
