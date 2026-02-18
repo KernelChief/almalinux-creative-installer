@@ -243,6 +243,11 @@ to enable it.
 
 ---
 
+__Major thanks to [Cristian Slavik](https://github.com/crisslavik) (NOX Visual Effects) for the icon design and production.__\
+LinkedIn: [](https://www.linkedin.com/in/crisslavik/)<https://www.linkedin.com/in/crisslavik/>
+
+---
+
 ## 📜 License
 
 This project is licensed under the **GNU General Public License v3.0 (GPLv3)**.
