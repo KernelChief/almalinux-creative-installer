@@ -30,6 +30,30 @@ body:
     validations:
       required: true
 
+  - type: dropdown
+    id: app_category
+    attributes:
+      label: App Category
+      description: Match the in-app categories used in Alma Creative Installer.
+      options:
+        - "Productivity"
+        - "Image Processing"
+        - "3D"
+        - "Animation & Video"
+        - "Audio"
+        - "Communication"
+        - "Other / New category suggestion"
+    validations:
+      required: true
+
+  - type: input
+    id: app_category_other
+    attributes:
+      label: If "Other / New category suggestion", specify it here
+      placeholder: "e.g., CAD / Engineering"
+    validations:
+      required: false
+
   - type: input
     id: official_source
     attributes:
