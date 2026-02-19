@@ -1,13 +1,13 @@
 # 🎨 AlmaLinux Creative Installer
 
-![Last Commit](https://img.shields.io/github/last-commit/KernelChief/almalinux-creative-installer)
-![Repo Size](https://img.shields.io/github/repo-size/KernelChief/almalinux-creative-installer)
-![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)
-![Python](https://img.shields.io/badge/Made%20with-Python-3776AB?logo=python&logoColor=white)
-![Shell](https://img.shields.io/badge/Script-Shell-4EAA25?logo=gnu-bash&logoColor=white)
-![AlmaLinux](https://img.shields.io/badge/Platform-AlmaLinux-blue?logo=almalinux&logoColor=white)
-[![Buy Me A Coffee](https://img.shields.io/badge/Support-Buy%20Me%20A%20Coffee-orange?logo=buy-me-a-coffee)](buymeacoffee.com/ttheroux)
-![Stars](https://img.shields.io/github/stars/KernelChief/almalinux-creative-installer?style=social)
+[![Last Commit](https://img.shields.io/github/last-commit/KernelChief/almalinux-creative-installer)](https://github.com/KernelChief/almalinux-creative-installer/commits)
+[![Repo Size](https://img.shields.io/github/repo-size/KernelChief/almalinux-creative-installer)](https://github.com/KernelChief/almalinux-creative-installer)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/Made%20with-Python-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Shell](https://img.shields.io/badge/Script-Shell-4EAA25?logo=gnu-bash&logoColor=white)](https://www.gnu.org/software/bash/)
+[![AlmaLinux](https://img.shields.io/badge/Platform-AlmaLinux-blue?logo=almalinux&logoColor=white)](https://almalinux.org/)
+[![Buy Me A Coffee](https://img.shields.io/badge/Support-Buy%20Me%20A%20Coffee-orange?logo=buy-me-a-coffee)](https://www.buymeacoffee.com/ttheroux)
+[![Stars](https://img.shields.io/github/stars/KernelChief/almalinux-creative-installer?style=social)](https://github.com/KernelChief/almalinux-creative-installer/stargazers)
 
 A small, opinionated GTK application for AlmaLinux that delivers **one-button installs**
 for creative and Media & Entertainment (M&E) workstation software — without the usual
@@ -20,6 +20,21 @@ All software is installed using **supported system methods** only.
 
 ![AlmaLinux Creative Installer – logs window](docs/screenshots/logs.png)
 *Logs window showing the live log while installing, removing apps / repos. Able to show enabled repos for debug and clear log in that window with button*
+
+---
+
+## 📚 Quick Navigation
+
+- [🚀 Quick Start](#quick-start-recommended)
+- [📦 Installation Methods](#-installation-methods-of-softwares-via-the-almalinux-creative-installer)
+- [🧩 Supported Platforms](#-supported-platforms)
+- [🎬 Target Applications](#-target-applications)
+- [🎞️ DaVinci Resolve Guided Flow](#-davinci-resolve-guided-install-flow)
+- [🔐 Privilege & Security Model](#-privilege--security-model)
+- [❓ FAQ](#-faq)
+- [🧰 Troubleshooting](#-troubleshooting)
+- [🤝 Community](#-community)
+- [📜 License](#-license)
 
 ---
 
@@ -130,12 +145,37 @@ so results may differ.
 This project focuses on real-world creative tools commonly used in studios,
 post-production, and content creation environments:
 
-- GIMP
-- Krita (Flatpak workflow, upstream-recommended on EL)
-- Blender
-- DaVinci Resolve
+- **Image Processing**
+  - GIMP
+  - Krita
 
-Additional applications may be added as the project evolves.
+- **3D**
+  - Blender
+  - MeshLab
+  - PrusaSlicer
+  - Material Maker
+
+- **Productivity**
+  - Scribus
+  - draw.io
+  - LibreOffice
+  - OnlyOffice
+
+- **Animation & Video**
+  - OpenToonz
+  - DaVinci Resolve
+
+- **Audio**
+  - Ardour
+  - Bitwig Studio
+  - Spotify
+
+- **Communication**
+  - Discord
+  - Mattermost
+  - Slack
+
+> Note: This list may evolve over time. The in-app list is the source of truth.
 
 ---
 
@@ -240,6 +280,13 @@ to enable it.
 **The RPM build script fails.**  
 `build-rpm.sh` uses the **latest git tag** for the version. Create a tag like
 `v1.0.5` before building.
+
+---
+
+## 🤝 Community
+
+- Please read our [Code of Conduct](CODE_OF_CONDUCT.md)
+- Contribution guidelines: [CONTRIBUTING.md](CONTRIBUTING.md)
 
 ---
 

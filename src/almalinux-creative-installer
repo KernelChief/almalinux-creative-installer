@@ -19,21 +19,69 @@ HELPER = "/usr/libexec/almalinux-creative-installer-helper"
 RESOLVE_URL = "https://www.blackmagicdesign.com/products/davinciresolve/"
 
 APPS = [
-    {"id": "gimp", "name": "GIMP", "type": "dnf", "pkg": "gimp", "emoji": "🖌️"},
+    {
+        "id": "gimp",
+        "name": "GIMP",
+        "type": "dnf",
+        "pkg": "gimp",
+        "emoji": "🖌️",
+        "category": "Image Processing",
+    },
     {
         "id": "krita",
         "name": "Krita",
         "type": "flatpak",
         "appid": "org.kde.krita",
         "emoji": "🎨",
+        "category": "Image Processing",
     },
-    {"id": "blender", "name": "Blender", "type": "dnf", "pkg": "blender", "emoji": "🧊"},
+    {
+        "id": "blender",
+        "name": "Blender",
+        "type": "dnf",
+        "pkg": "blender",
+        "emoji": "🧊",
+        "category": "3D",
+    },
+    {
+        "id": "meshlab",
+        "name": "MeshLab",
+        "type": "flatpak",
+        "appid": "net.meshlab.MeshLab",
+        "emoji": "🎬",
+        "category": "3D",
+    },
+    {
+        "id": "scribus",
+        "name": "Sribus",
+        "type": "flatpak",
+        "appid": "net.scribus.Scribus",
+        "emoji": "🎬",
+        "category": "Productivity",
+    },
+    {
+        "id": "prusaslicer",
+        "name": "PrusaSlicer",
+        "type": "flatpak",
+        "appid": "com.prusa3d.PrusaSlicer",
+        "emoji": "🎬",
+        "category": "3D",
+    },
+    {
+        "id": "materialmaker",
+        "name": "Material Maker",
+        "type": "flatpak",
+        "appid": "io.github.RodZill4.Material-Maker",
+        "emoji": "🎬",
+        "category": "3D",
+    },
     {
         "id": "opentoonz",
         "name": "OpenToonz",
         "type": "flatpak",
         "appid": "io.github.OpenToonz",
         "emoji": "🎬",
+        "category": "Animation & Video",
     },
     {
         "id": "ardour",
@@ -41,6 +89,7 @@ APPS = [
         "type": "flatpak",
         "appid": "org.ardour.Ardour",
         "emoji": "🎛️",
+        "category": "Audio",
     },
     {
         "id": "bitwig studio",
@@ -48,6 +97,7 @@ APPS = [
         "type": "flatpak",
         "appid": "com.bitwig.BitwigStudio",
         "emoji": "🎹",
+        "category": "Audio",
     },
     {
         "id": "discord",
@@ -55,6 +105,7 @@ APPS = [
         "type": "flatpak",
         "appid": "com.discordapp.Discord",
         "emoji": "💬",
+        "category": "Communication",
     },
     {
         "id": "drawio",
@@ -62,6 +113,7 @@ APPS = [
         "type": "flatpak",
         "appid": "com.jgraph.drawio.desktop",
         "emoji": "🧭",
+        "category": "Productivity",
     },
     {
         "id": "mattermost",
@@ -69,6 +121,7 @@ APPS = [
         "type": "flatpak",
         "appid": "com.mattermost.Desktop",
         "emoji": "🗨️",
+        "category": "Communication",
     },
     {
         "id": "slack",
@@ -76,6 +129,7 @@ APPS = [
         "type": "flatpak",
         "appid": "com.slack.Slack",
         "emoji": "💼",
+        "category": "Communication",
     },
     {
         "id": "spotify",
@@ -83,6 +137,7 @@ APPS = [
         "type": "flatpak",
         "appid": "com.spotify.Client",
         "emoji": "🎵",
+        "category": "Audio",
     },
     {
         "id": "libreoffice",
@@ -90,6 +145,7 @@ APPS = [
         "type": "flatpak",
         "appid": "org.libreoffice.LibreOffice",
         "emoji": "📄",
+        "category": "Productivity",
     },
     {
         "id": "onlyoffice",
@@ -97,11 +153,28 @@ APPS = [
         "type": "flatpak",
         "appid": "org.onlyoffice.desktopeditors",
         "emoji": "📄",
+        "category": "Productivity",
     },
-    {"id": "resolve", "name": "DaVinci Resolve", "type": "resolve", "emoji": "🎞️"},
+    {
+        "id": "resolve",
+        "name": "DaVinci Resolve",
+        "type": "resolve",
+        "emoji": "🎞️",
+        "category": "Animation & Video",
+    },
 ]
 
 VERSION_SELECTABLE_APPS = {"gimp", "krita", "blender"}
+
+CATEGORIES = [
+    "All Apps",
+    "Productivity",
+    "Image Processing",
+    "3D",
+    "Animation & Video",
+    "Audio",
+    "Communication",
+]
 
 
 class AlmaCreativeInstaller(Gtk.Window):
@@ -111,6 +184,8 @@ class AlmaCreativeInstaller(Gtk.Window):
 
         self.repo_widgets = {}
         self.app_widgets = {}
+        self.category_rows = {}
+        self.selected_category = "All Apps"
 
         self._apply_css()
 
@@ -180,15 +255,50 @@ class AlmaCreativeInstaller(Gtk.Window):
         self.listbox.set_selection_mode(Gtk.SelectionMode.NONE)
         self.listbox.get_style_context().add_class("boxed-list")
 
+        app_content = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        app_box.pack_start(app_content, True, True, 0)
+
+        category_scroller = Gtk.ScrolledWindow()
+        category_scroller.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        category_scroller.set_min_content_width(190)
+        category_scroller.set_hexpand(False)
+        category_scroller.set_vexpand(True)
+        app_content.pack_start(category_scroller, False, False, 0)
+
+        self.category_listbox = Gtk.ListBox()
+        self.category_listbox.set_selection_mode(Gtk.SelectionMode.SINGLE)
+        self.category_listbox.get_style_context().add_class("boxed-list")
+        self.category_listbox.connect("row-selected", self.on_category_selected)
+        category_scroller.add(self.category_listbox)
+
+        for category in CATEGORIES:
+            category_row = Gtk.ListBoxRow()
+            category_row.category = category
+
+            category_label = Gtk.Label(label=category)
+            category_label.set_xalign(0)
+            category_label.set_margin_start(8)
+            category_label.set_margin_end(8)
+            category_label.set_margin_top(8)
+            category_label.set_margin_bottom(8)
+            category_row.add(category_label)
+
+            self.category_rows[category] = category_row
+            self.category_listbox.add(category_row)
+
         app_scroller = Gtk.ScrolledWindow()
         app_scroller.set_hexpand(True)
         app_scroller.set_vexpand(True)
         app_scroller.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         app_scroller.add(self.listbox)
-        app_box.pack_start(app_scroller, True, True, 0)
+        app_content.pack_start(app_scroller, True, True, 0)
 
         for app in APPS:
             self.listbox.add(self._make_app_row(app))
+
+        if "All Apps" in self.category_rows:
+            self.category_listbox.select_row(self.category_rows["All Apps"])
+            self._apply_category_filter("All Apps")
 
         actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
         apps_page.pack_start(actions, False, False, 0)
@@ -362,6 +472,7 @@ class AlmaCreativeInstaller(Gtk.Window):
 
         self.app_widgets[app["id"]] = {
             "app": app,
+            "row": lbrow,
             "status": status,
             "spinner": spinner,
             "install": install_btn,
@@ -371,6 +482,24 @@ class AlmaCreativeInstaller(Gtk.Window):
             "busy": False,
         }
         return lbrow
+
+    def on_category_selected(self, _listbox, row):
+        if row is None:
+            return
+        category = getattr(row, "category", "All Apps")
+        self._apply_category_filter(category)
+
+    def _apply_category_filter(self, category):
+        self.selected_category = category
+        for app in APPS:
+            widgets = self.app_widgets.get(app["id"])
+            if not widgets:
+                continue
+            row = widgets.get("row")
+            if row is None:
+                continue
+            visible = category == "All Apps" or app.get("category") == category
+            row.set_visible(visible)
 
     def _subtitle_for_app(self, app):
         if app["id"] in VERSION_SELECTABLE_APPS:

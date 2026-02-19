@@ -4,6 +4,9 @@ Thanks for your interest in contributing! This project is friendly to new
 contributors and first‑time PRs. The goal is to keep the installer simple,
 reliable, and easy to audit.
 
+Please make sure to follow our [Code of Conduct](CODE_OF_CONDUCT.md) in all
+project interactions.
+
 ## How to contribute (issues first)
 
 1. **Open an issue** describing the bug, feature, or improvement.
