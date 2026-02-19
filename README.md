@@ -23,6 +23,21 @@ All software is installed using **supported system methods** only.
 
 ---
 
+## 📚 Quick Navigation
+
+- [🚀 Quick Start](#quick-start-recommended)
+- [📦 Installation Methods](#-installation-methods-of-softwares-via-the-almalinux-creative-installer)
+- [🧩 Supported Platforms](#-supported-platforms)
+- [🎬 Target Applications](#-target-applications)
+- [🎞️ DaVinci Resolve Guided Flow](#-davinci-resolve-guided-install-flow)
+- [🔐 Privilege & Security Model](#-privilege--security-model)
+- [❓ FAQ](#-faq)
+- [🧰 Troubleshooting](#-troubleshooting)
+- [🤝 Community](#-community)
+- [📜 License](#-license)
+
+---
+
 ## 🚀 Quick Start (Recommended)
 
 ### 1️⃣ Download the RPM
