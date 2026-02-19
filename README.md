@@ -130,12 +130,37 @@ so results may differ.
 This project focuses on real-world creative tools commonly used in studios,
 post-production, and content creation environments:
 
-- GIMP
-- Krita (Flatpak workflow, upstream-recommended on EL)
-- Blender
-- DaVinci Resolve
+- **Image Processing**
+  - GIMP
+  - Krita
 
-Additional applications may be added as the project evolves.
+- **3D**
+  - Blender
+  - MeshLab
+  - PrusaSlicer
+  - Material Maker
+
+- **Productivity**
+  - Scribus
+  - draw.io
+  - LibreOffice
+  - OnlyOffice
+
+- **Animation & Video**
+  - OpenToonz
+  - DaVinci Resolve
+
+- **Audio**
+  - Ardour
+  - Bitwig Studio
+  - Spotify
+
+- **Communication**
+  - Discord
+  - Mattermost
+  - Slack
+
+> Note: This list may evolve over time. The in-app list is the source of truth.
 
 ---
 
