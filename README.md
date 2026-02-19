@@ -243,6 +243,13 @@ to enable it.
 
 ---
 
+## 🤝 Community
+
+- Please read our [Code of Conduct](CODE_OF_CONDUCT.md)
+- Contribution guidelines: [CONTRIBUTING.md](CONTRIBUTING.md)
+
+---
+
 __Major thanks to [Cristian Slavik](https://github.com/crisslavik) (NOX Visual Effects) for the icon design and production.__\
 LinkedIn: [](https://www.linkedin.com/in/crisslavik/)<https://www.linkedin.com/in/crisslavik/>
 
