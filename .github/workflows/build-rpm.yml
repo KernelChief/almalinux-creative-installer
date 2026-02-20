@@ -12,6 +12,7 @@ on:
       - "v*"
   pull_request:
     types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
 
 permissions:
   contents: write
@@ -21,6 +22,7 @@ jobs:
   build:
     name: Build (EL${{ matrix.el }})
     runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'documentation')
     strategy:
       matrix:
         el: [9, 10]
@@ -223,6 +225,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'documentation')
 
     steps:
       - name: Add/update PR comment with beta RPM download link
@@ -238,4 +241,5 @@ jobs:
             Expected artifact names:
             - `rpm-el9-pr${{ github.event.pull_request.number }}`
             - `rpm-el10-pr${{ github.event.pull_request.number }}`
+
 
