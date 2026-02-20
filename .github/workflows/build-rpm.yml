@@ -11,7 +11,6 @@ on:
     tags:
       - "v*"
   pull_request:
-    types: [opened, synchronize, reopened]
     types: [opened, synchronize, reopened, labeled, unlabeled]
 
 permissions:
@@ -224,7 +223,6 @@ jobs:
     name: Comment beta RPM location on PR
     needs: build
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
     if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'documentation')
 
     steps:
@@ -241,5 +239,4 @@ jobs:
             Expected artifact names:
             - `rpm-el9-pr${{ github.event.pull_request.number }}`
             - `rpm-el10-pr${{ github.event.pull_request.number }}`
-
 
