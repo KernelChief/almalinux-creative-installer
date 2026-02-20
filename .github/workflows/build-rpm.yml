@@ -10,9 +10,12 @@ on:
   push:
     tags:
       - "v*"
+  pull_request:
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   build:
@@ -38,11 +41,63 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Resolve build version
+        id: resolve_version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+
+          # 1) workflow_dispatch explicit input wins
+          if [ -n "${INPUT_VERSION}" ]; then
+            VERSION="${INPUT_VERSION#v}"
+            echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+            echo "Resolved version from workflow input: ${VERSION}"
+            exit 0
+          fi
+
+          # 2) Tag pushes use tag name
+          if [ "${GITHUB_REF#refs/tags/}" != "${GITHUB_REF}" ]; then
+            VERSION="${GITHUB_REF#refs/tags/}"
+            VERSION="${VERSION#v}"
+            echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+            echo "Resolved version from tag: ${VERSION}"
+            exit 0
+          fi
+
+          # 3) PR builds create beta pre-release from latest stable tag
+          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+            git config --global --add safe.directory "$GITHUB_WORKSPACE"
+            BASE_TAG="$(git tag --list 'v*' --sort=-v:refname | head -n 1 || true)"
+            BASE_VERSION="${BASE_TAG#v}"
+            if [ -z "${BASE_VERSION}" ]; then
+              BASE_VERSION="0.0.0"
+            fi
+
+            SHORT_SHA="$(printf '%s' "$GITHUB_SHA" | cut -c1-8)"
+            VERSION="${BASE_VERSION}-beta.pr${{ github.event.pull_request.number }}.${SHORT_SHA}"
+            echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+            echo "Resolved version for PR beta build: ${VERSION}"
+            exit 0
+          fi
+
+          # 4) Fallback for branch manual runs without input
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          VERSION="$(git tag --list 'v*' --sort=-v:refname | head -n 1 || true)"
+          VERSION="${VERSION#v}"
+          if [ -z "${VERSION}" ]; then
+            echo "Could not resolve a version (no tags found)."
+            exit 1
+          fi
+
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Resolved version from latest tag fallback: ${VERSION}"
+
       - name: Build RPM
         env:
           TOPDIR: ${{ github.workspace }}/rpmbuild
           DISTDIR: ${{ github.workspace }}/dist
-          VERSION: ${{ inputs.version != '' && inputs.version || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || '' }}
+          VERSION: ${{ steps.resolve_version.outputs.version }}
           GIT_DISCOVERY_ACROSS_FILESYSTEM: 1
         run: |
           mkdir -p "$TOPDIR" "$DISTDIR"
@@ -82,7 +137,7 @@ jobs:
       - name: Upload RPM artifacts
         uses: actions/upload-artifact@v6
         with:
-          name: rpm-el${{ matrix.el }}
+          name: rpm-el${{ matrix.el }}-${{ github.event_name == 'pull_request' && format('pr{0}', github.event.pull_request.number) || 'release' }}
           path: dist/*.rpm
 
   release:
@@ -121,14 +176,14 @@ jobs:
         if: steps.resolve_tag.outputs.do_release == 'true'
         uses: actions/download-artifact@v7
         with:
-          name: rpm-el9
+          name: rpm-el9-release
           path: dist
 
       - name: Download EL10 artifacts
         if: steps.resolve_tag.outputs.do_release == 'true'
         uses: actions/download-artifact@v7
         with:
-          name: rpm-el10
+          name: rpm-el10-release
           path: dist
 
       - name: List files (debug)
@@ -161,4 +216,25 @@ jobs:
             :package: Assets
             - EL9 RPM
             - EL10 RPM (experimental)
+
+  pr-beta-comment:
+    name: Comment beta RPM location on PR
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Add/update PR comment with beta RPM download link
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: beta-rpm
+          message: |
+            ✅ Beta RPMs are ready for this PR.
+
+            Download them from this run's artifacts:
+            https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}#artifacts
+
+            Expected artifact names:
+            - `rpm-el9-pr${{ github.event.pull_request.number }}`
+            - `rpm-el10-pr${{ github.event.pull_request.number }}`
 
