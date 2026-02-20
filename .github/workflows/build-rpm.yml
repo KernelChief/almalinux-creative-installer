@@ -200,6 +200,7 @@ jobs:
           tag_name: ${{ steps.resolve_tag.outputs.tag_name }}
           target_commitish: ${{ github.sha }}
           files: dist/*.rpm
+          draft: true
           prerelease: ${{ contains(steps.resolve_tag.outputs.tag_name, '-rc') || contains(steps.resolve_tag.outputs.tag_name, '-beta') || contains(steps.resolve_tag.outputs.tag_name, '-alpha') }}
           generate_release_notes: false
           body: |
