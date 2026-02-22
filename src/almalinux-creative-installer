@@ -18,6 +18,26 @@ from collections import deque
 HELPER = "/usr/libexec/almalinux-creative-installer-helper"
 RESOLVE_URL = "https://www.blackmagicdesign.com/products/davinciresolve/"
 
+# -----------------------------------------------------------------------------
+# HOW TO ADD / EDIT APPS (quick maintainer guide)
+# -----------------------------------------------------------------------------
+# 1) Add or update an item inside APPS (below) with a unique "id".
+# 2) Pick a supported "type" so install/remove/status logic can route correctly:
+#      dnf, flatpak, resolve
+# 3) Set the metadata keys used by the UI for that type:
+#      - dnf:     pkg
+#      - flatpak: appid
+#      - resolve: no package key (guided flow)
+#    Common display keys: name, emoji, category
+# 4) Optional: add the app id to VERSION_SELECTABLE_APPS when version/branch
+#    selection should be shown.
+# 5) If adding a truly new app type or action model, update this file's type
+#    handlers and add matching helper actions in src/almalinux-creative-installer-helper.
+#
+# NOTE: Keep app changes data-driven in APPS first; avoid hardcoding per-app
+# logic unless introducing a genuinely new install/check model.
+# -----------------------------------------------------------------------------
+
 APPS = [
     {
         "id": "gimp",
