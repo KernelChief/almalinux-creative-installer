@@ -21,6 +21,26 @@ direction.
 There are no strict coding style requirements. Just keep changes readable and
 focused.
 
+## Adding or editing apps
+
+The app list is data-driven in `src/almalinux-creative-installer` via `APPS`.
+
+1. Add or update an item in `APPS` with a unique `id`.
+2. Set a supported `type`: `dnf`, `flatpak`, or `resolve`.
+3. Provide type-specific keys:
+   - `dnf`: `pkg`
+   - `flatpak`: `appid`
+   - `resolve`: guided flow (no package key)
+   Common UI keys are `name`, `emoji`, and `category`.
+4. (Optional) Add the app `id` to `VERSION_SELECTABLE_APPS` if you want
+   version/branch selection in the UI.
+5. If you introduce a new type/action model, update app type handlers in
+   `src/almalinux-creative-installer` and matching helper actions in
+   `src/almalinux-creative-installer-helper`.
+
+Keep app additions data-driven in `APPS` first; avoid hardcoding per-app logic
+unless you are adding a genuinely new install/check model.
+
 ## Testing & building
 
 Basic checks:
