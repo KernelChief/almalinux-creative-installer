@@ -7,6 +7,17 @@
 - [ ] 🎨 UI/UX improvement
 - [ ] 📝 Documentation update
 - [ ] 🧹 Refactor / cleanup
+- [ ] 🧹 GitHub Action Change
+
+## What was done ? :
+
+
+
+
+## Beta RPM / Release Draft checks
+- [ ] I confirmed this PR generated beta RPM artifacts in Actions (`rpm-el9-pr<PR#>` and `rpm-el10-pr<PR#>`)
+- [ ] I validated the sticky PR comment includes the beta RPM artifacts link
+- [ ] If this change impacts release flow, I confirmed tag builds create a **Draft** GitHub Release
 
 ## Testing Done
 - [ ] Verified on AlmaLinux Version: ______
