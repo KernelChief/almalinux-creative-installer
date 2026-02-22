@@ -163,14 +163,14 @@ APPS = [
         "emoji": "📄",
         "category": "Game Engines",
     },
-    {
-        "id": "assetmanagerstudio",
-        "name": "Asset Manager Studio",
-        "type": "flatpak",
-        "appid": "studio.assetmanager.ams",
-        "emoji": "📄",
-        "category": "Game Engines",
-    },
+    # {
+    #     "id": "assetmanagerstudio",
+    #     "name": "Asset Manager Studio",
+    #     "type": "flatpak",
+    #     "appid": "studio.assetmanager.ams",
+    #     "emoji": "📄",
+    #     "category": "Game Engines",
+    # },
     {
         "id": "godots",
         "name": "Godots",
