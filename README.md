@@ -27,6 +27,7 @@ All software is installed using **supported system methods** only.
 
 - [🚀 Quick Start](#quick-start-recommended)
 - [📦 Installation Methods](#-installation-methods-of-softwares-via-the-almalinux-creative-installer)
+- [📦 Install AppImage Apps (Beginner Guide)](#-install-appimage-apps-beginner-guide)
 - [🧩 Supported Platforms](#-supported-platforms)
 - [🎬 Target Applications](#-target-applications)
 - [🎞️ DaVinci Resolve Guided Flow](#-davinci-resolve-guided-install-flow)
@@ -126,6 +127,22 @@ AlmaLinux Creative Installer uses the following approaches, depending on the sof
 - Local .run installers (vendor-distributed software)
 - Flatpak is avoided, except when upstream strongly recommends it on EL
   (currently: Krita)
+
+---
+
+## 📦 Install AppImage Apps (Beginner Guide)
+
+If you want to use an AppImage application, this is the easiest way:
+
+1. Open **AlmaLinux Creative Installer**.
+2. Find **AppImageLauncher** in the app list.
+3. Click **Install**.
+4. Download any AppImage you want from its official website.
+5. Double-click the downloaded `.AppImage` file.
+6. If prompted, choose **Execute**.
+7. AppImageLauncher will guide you through the rest.
+
+That’s it — after this, launching AppImages is much simpler for beginners.
 
 ---
 
