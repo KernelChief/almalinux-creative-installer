@@ -590,14 +590,8 @@ class AlmaCreativeInstaller(Gtk.Window):
         if not self.search_query:
             return True
 
-        haystack = " ".join(
-            [
-                app.get("name", ""),
-                app.get("id", ""),
-                app.get("category", ""),
-                self._subtitle_for_app(app),
-            ]
-        ).lower()
+        # Name-only filtering by request (do not match id/category/subtitle).
+        haystack = app.get("name", "").lower()
         return self.search_query in haystack
 
     def _apply_filters(self):
