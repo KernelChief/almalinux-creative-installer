@@ -230,6 +230,7 @@ class AlmaCreativeInstaller(Gtk.Window):
         self.app_widgets = {}
         self.category_rows = {}
         self.selected_category = "All Apps"
+        self.search_query = ""
 
         self._apply_css()
 
@@ -298,6 +299,19 @@ class AlmaCreativeInstaller(Gtk.Window):
         self.listbox = Gtk.ListBox()
         self.listbox.set_selection_mode(Gtk.SelectionMode.NONE)
         self.listbox.get_style_context().add_class("boxed-list")
+
+        search_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        app_box.pack_start(search_box, False, False, 0)
+
+        search_label = Gtk.Label(label="Search apps:")
+        search_label.set_xalign(0)
+        search_box.pack_start(search_label, False, False, 0)
+
+        self.search_entry = Gtk.SearchEntry()
+        self.search_entry.set_placeholder_text("Type app name (e.g. blender, krita, davinci)")
+        self.search_entry.connect("search-changed", self.on_search_changed)
+        self.search_entry.set_hexpand(True)
+        search_box.pack_start(self.search_entry, True, True, 0)
 
         app_content = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
         app_box.pack_start(app_content, True, True, 0)
@@ -549,8 +563,29 @@ class AlmaCreativeInstaller(Gtk.Window):
         category = getattr(row, "category", "All Apps")
         self._apply_category_filter(category)
 
+    def on_search_changed(self, entry):
+        self.search_query = (entry.get_text() or "").strip().lower()
+        self._apply_filters()
+
     def _apply_category_filter(self, category):
         self.selected_category = category
+        self._apply_filters()
+
+    def _app_matches_search(self, app):
+        if not self.search_query:
+            return True
+
+        haystack = " ".join(
+            [
+                app.get("name", ""),
+                app.get("id", ""),
+                app.get("category", ""),
+                self._subtitle_for_app(app),
+            ]
+        ).lower()
+        return self.search_query in haystack
+
+    def _apply_filters(self):
         for app in APPS:
             widgets = self.app_widgets.get(app["id"])
             if not widgets:
@@ -558,7 +593,9 @@ class AlmaCreativeInstaller(Gtk.Window):
             row = widgets.get("row")
             if row is None:
                 continue
-            visible = category == "All Apps" or app.get("category") == category
+            category_ok = self.selected_category == "All Apps" or app.get("category") == self.selected_category
+            search_ok = self._app_matches_search(app)
+            visible = category_ok and search_ok
             row.set_visible(visible)
 
     def _subtitle_for_app(self, app):
