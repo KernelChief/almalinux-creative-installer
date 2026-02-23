@@ -530,6 +530,8 @@ class AlmaCreativeInstaller(Gtk.Window):
             "spinner": spinner,
             "progress": progress,
             "progress_pulse_id": 0,
+            "progress_value": 0.0,
+            "progress_segment": (0.0, 0.98),
             "install": install_btn,
             "remove": remove_btn,
             "version_combo": version_combo,
@@ -582,6 +584,8 @@ class AlmaCreativeInstaller(Gtk.Window):
             w["spinner"].start()
             w["progress"].set_fraction(0.0)
             w["progress"].set_show_text(False)
+            w["progress_value"] = 0.0
+            w["progress_segment"] = (0.0, 0.98)
             w["progress"].show()
             self._start_app_progress_pulse(app_id)
             if msg:
@@ -597,6 +601,8 @@ class AlmaCreativeInstaller(Gtk.Window):
             w["progress"].hide()
             w["progress"].set_show_text(False)
             w["progress"].set_fraction(0.0)
+            w["progress_value"] = 0.0
+            w["progress_segment"] = (0.0, 0.98)
             if w.get("version_combo") is not None:
                 w["version_combo"].set_sensitive(True)
 
@@ -626,15 +632,35 @@ class AlmaCreativeInstaller(Gtk.Window):
             GLib.source_remove(pulse_id)
             w["progress_pulse_id"] = 0
 
+    def _set_app_progress_segment(self, app_id, start, end):
+        w = self.app_widgets.get(app_id)
+        if not w:
+            return
+        start = max(0.0, min(1.0, start))
+        end = max(start, min(1.0, end))
+        w["progress_segment"] = (start, end)
+
     def _set_app_progress_fraction(self, app_id, fraction):
         w = self.app_widgets.get(app_id)
         if not w:
             return
         fraction = max(0.0, min(1.0, fraction))
+        # Keep progress monotonic for a smoother overall experience.
+        fraction = max(w.get("progress_value", 0.0), fraction)
+        w["progress_value"] = fraction
         self._stop_app_progress_pulse(app_id)
         w["progress"].set_show_text(True)
         w["progress"].set_text("{}%".format(int(round(fraction * 100))))
         w["progress"].set_fraction(fraction)
+
+    def _set_app_progress_local_fraction(self, app_id, local_fraction):
+        w = self.app_widgets.get(app_id)
+        if not w:
+            return
+        local_fraction = max(0.0, min(1.0, local_fraction))
+        seg_start, seg_end = w.get("progress_segment", (0.0, 0.98))
+        overall = seg_start + ((seg_end - seg_start) * local_fraction)
+        self._set_app_progress_fraction(app_id, overall)
 
     def _update_app_progress_from_output(self, app_id, line):
         if not app_id:
@@ -645,7 +671,7 @@ class AlmaCreativeInstaller(Gtk.Window):
 
         m = self.progress_percent_re.search(line)
         if m:
-            self._set_app_progress_fraction(app_id, int(m.group(1)) / 100.0)
+            self._set_app_progress_local_fraction(app_id, int(m.group(1)) / 100.0)
             return
 
         lower = line.strip().lower()
@@ -655,12 +681,12 @@ class AlmaCreativeInstaller(Gtk.Window):
             ("running transaction", 0.70),
             ("installing", 0.75),
             ("removing", 0.75),
-            ("complete!", 1.0),
-            ("done.", 1.0),
+            ("complete!", 0.98),
+            ("done.", 0.98),
         ]
         for marker, frac in stage_progress:
             if marker in lower:
-                self._set_app_progress_fraction(app_id, frac)
+                self._set_app_progress_local_fraction(app_id, frac)
                 break
 
     # ---------------- Log helpers ----------------
@@ -1149,7 +1175,12 @@ class AlmaCreativeInstaller(Gtk.Window):
             return
 
         self.set_app_busy(app_id, True, "Installing…")
-        self.run_helper_with_callback(args, on_success=lambda: self._finish_app_action(app_id), app_id=app_id)
+        self.run_helper_with_callback(
+            args,
+            on_success=lambda: self._finish_app_action(app_id),
+            app_id=app_id,
+            progress_segment=(0.0, 0.98),
+        )
 
     def remove_app(self, app_id):
         w = self.app_widgets.get(app_id)
@@ -1163,9 +1194,15 @@ class AlmaCreativeInstaller(Gtk.Window):
             return
 
         self.set_app_busy(app_id, True, "Removing…")
-        self.run_helper_with_callback(args, on_success=lambda: self._finish_app_action(app_id), app_id=app_id)
+        self.run_helper_with_callback(
+            args,
+            on_success=lambda: self._finish_app_action(app_id),
+            app_id=app_id,
+            progress_segment=(0.0, 0.98),
+        )
 
     def _finish_app_action(self, app_id):
+        self._set_app_progress_fraction(app_id, 1.0)
         self.set_app_busy(app_id, False)
         self.refresh_app_state(app_id)
 
@@ -1213,6 +1250,7 @@ class AlmaCreativeInstaller(Gtk.Window):
                     ["remove_flatpak_app_user", appid],
                     on_success=after_remove_user,
                     app_id=app_id,
+                    progress_segment=(0.0, 0.98),
                 )
             return
 
@@ -1242,13 +1280,21 @@ class AlmaCreativeInstaller(Gtk.Window):
                 self.set_app_busy(app_id, False)
                 self.refresh_app_state(app_id)
 
-            self.run_helper_with_callback(["remove_flatpak_app", appid], on_success=after_remove, app_id=app_id)
+            self.run_helper_with_callback(
+                ["remove_flatpak_app", appid],
+                on_success=after_remove,
+                app_id=app_id,
+                progress_segment=(0.0, 0.98),
+            )
 
     # ---------------- Helper runner (PRIVILEGED) ----------------
-    def run_helper_with_callback(self, args, on_success=None, app_id=None):
+    def run_helper_with_callback(self, args, on_success=None, app_id=None, progress_segment=None):
         if not Path(HELPER).exists():
             self.append_log("❌ ERROR: Helper not found: " + HELPER + "\n")
             return
+
+        if app_id and progress_segment is not None:
+            self._set_app_progress_segment(app_id, progress_segment[0], progress_segment[1])
 
         cmd = ["pkexec", HELPER] + args
         self.append_log("\n$ " + " ".join(cmd) + "\n")
@@ -1307,6 +1353,7 @@ class AlmaCreativeInstaller(Gtk.Window):
     # ---------------- DaVinci Resolve flow ----------------
     def install_resolve_flow(self):
         self.set_app_busy("resolve", True, "Preparing install…")
+        self._set_app_progress_fraction("resolve", 0.02)
         self._ensure_selinux_for_resolve()
 
     def _selinux_getenforce(self):
@@ -1328,7 +1375,13 @@ class AlmaCreativeInstaller(Gtk.Window):
     def _ensure_selinux_for_resolve(self):
         mode = self._selinux_getenforce()
         if mode in ("permissive", "disabled"):
-            self.run_helper_with_callback(["prepare_resolve_deps"], on_success=self._resolve_open_and_pick, app_id="resolve")
+            self._set_app_progress_fraction("resolve", 0.12)
+            self.run_helper_with_callback(
+                ["prepare_resolve_deps"],
+                on_success=self._resolve_open_and_pick,
+                app_id="resolve",
+                progress_segment=(0.12, 0.55),
+            )
             return
 
         dialog = Gtk.MessageDialog(
@@ -1364,11 +1417,14 @@ class AlmaCreativeInstaller(Gtk.Window):
                 ["prepare_resolve_deps"],
                 on_success=self._resolve_open_and_pick,
                 app_id="resolve",
+                progress_segment=(0.12, 0.55),
             ),
             app_id="resolve",
+            progress_segment=(0.02, 0.12),
         )
 
     def _resolve_open_and_pick(self):
+        self._set_app_progress_fraction("resolve", 0.60)
         if shutil.which("xdg-open"):
             subprocess.Popen(["xdg-open", RESOLVE_URL])
             self.append_log("Opened download page: {}\n".format(RESOLVE_URL))
@@ -1403,9 +1459,11 @@ class AlmaCreativeInstaller(Gtk.Window):
                 if path.endswith(".run"):
                     self.run_local_run_installer(path)
                 else:
+                    self._set_app_progress_fraction("resolve", 0.65)
                     self.run_helper_with_callback(["install_local_file", path],
                                                   on_success=lambda: self._finish_app_action("resolve"),
-                                                  app_id="resolve")
+                                                  app_id="resolve",
+                                                  progress_segment=(0.65, 0.98))
             else:
                 self.set_app_busy("resolve", False)
         else:
@@ -1450,6 +1508,7 @@ class AlmaCreativeInstaller(Gtk.Window):
 
         if resp == Gtk.ResponseType.OK:
             self.set_app_busy("resolve", True, "Running uninstaller…")
+            self._set_app_progress_fraction("resolve", 0.02)
             self.run_resolve_uninstaller()
 
     def run_resolve_uninstaller(self):
