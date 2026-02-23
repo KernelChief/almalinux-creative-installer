@@ -17,6 +17,12 @@ from collections import deque
 
 HELPER = "/usr/libexec/almalinux-creative-installer-helper"
 RESOLVE_URL = "https://www.blackmagicdesign.com/products/davinciresolve/"
+APPIMAGELAUNCHER_VERSION = "3.0.0-beta-2-gha287.96cb937"
+APPIMAGELAUNCHER_RPM_URL = (
+    "https://github.com/TheAssassin/AppImageLauncher/releases/download/"
+    "v3.0.0-beta-3/"
+    "appimagelauncher_{}_x86_64.rpm".format(APPIMAGELAUNCHER_VERSION)
+)
 
 # -----------------------------------------------------------------------------
 # HOW TO ADD / EDIT APPS (quick maintainer guide)
@@ -198,6 +204,15 @@ APPS = [
         "appid": "io.github.MakovWait.Godots",
         "emoji": "📄",
         "category": "Game Engines",
+    },
+    {
+        "id": "appimagelauncher",
+        "name": "AppImageLauncher",
+        "type": "dnf",
+        "pkg": "appimagelauncher",
+        "install_target": APPIMAGELAUNCHER_RPM_URL,
+        "emoji": "📦",
+        "category": "Productivity",
     },
     {
         "id": "resolve",
@@ -546,6 +561,8 @@ class AlmaCreativeInstaller(Gtk.Window):
             row.set_visible(visible)
 
     def _subtitle_for_app(self, app):
+        if app.get("install_target"):
+            return "Installs a vendor RPM from a pinned URL"
         if app["id"] in VERSION_SELECTABLE_APPS:
             if app["type"] == "dnf":
                 return "Installed via DNF repositories (version selectable)"
@@ -1042,7 +1059,7 @@ class AlmaCreativeInstaller(Gtk.Window):
             if selected and selected.get("mode") == "specific":
                 args = ["install_pkg_version", selected.get("install_arg", app["pkg"])]
             else:
-                args = ["install_pkg", app["pkg"]]
+                args = ["install_pkg", app.get("install_target", app["pkg"])]
         elif app["type"] == "flatpak":
             scope = self._flatpak_install_scope(app["appid"])
             if scope is None:
