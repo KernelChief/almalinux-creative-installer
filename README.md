@@ -132,6 +132,9 @@ AlmaLinux Creative Installer uses the following approaches, depending on the sof
 
 ## 📦 Install AppImage Apps (Beginner Guide)
 
+> ⚠️ **Current limitation:** AppImageLauncher is currently supported on **AlmaLinux 10 only**.
+> On AlmaLinux 9, AppImageLauncher may fail to run due to upstream glibc version requirements.
+
 If you want to use an AppImage application, this is the easiest way:
 
 1. Open **AlmaLinux Creative Installer**.
@@ -150,6 +153,11 @@ That’s it — after this, launching AppImages is much simpler for beginners.
 
 - AlmaLinux 9 — officially supported
 - AlmaLinux 10 — experimental
+
+### AppImageLauncher support
+
+- AlmaLinux 10 — supported (current beta package target)
+- AlmaLinux 9 — currently unsupported for AppImageLauncher due to binary compatibility constraints
 
 Some creative applications are not yet available (or not yet complete) in AlmaLinux 10 /
 EPEL repositories at this time (for example: Blender and GIMP availability varies),
