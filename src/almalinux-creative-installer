@@ -207,7 +207,7 @@ APPS = [
     },
     {
         "id": "appimagelauncher",
-        "name": "AppImageLauncher",
+        "name": "AppImageLauncher (Alma 10 ONLY)",
         "type": "dnf",
         "pkg": "appimagelauncher",
         "install_target": APPIMAGELAUNCHER_RPM_URL,
