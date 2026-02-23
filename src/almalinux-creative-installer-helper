@@ -39,6 +39,15 @@ repo_status() {
 install_pkg() {
   local pkg="${1:-}"
   [[ -n "${pkg}" ]] || { echo "ERROR: missing package name" >&2; exit 2; }
+
+  # AppImageLauncher prerequisite: ensure FUSE runtime is present.
+  # AppImages commonly require libfuse/libfuse2 compatibility on EL systems.
+  if [[ "${pkg}" == *appimagelauncher* ]]; then
+    log "Installing AppImageLauncher prerequisite: fuse/fuse-libs..."
+    dnf -y install fuse fuse-libs || dnf -y install fuse-libs || dnf -y install fuse
+    log "Prerequisite ready: fuse/fuse-libs"
+  fi
+
   log "Installing: ${pkg}"
   dnf -y install "${pkg}"
   log "Done."
