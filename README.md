@@ -1,4 +1,4 @@
-#  <img src="src/icons/hicolor/scalable/apps/almalinux-creative-installer.svg" alt="AlmaLinux Creative Installer icon" width="28" valign="middle"> AlmaLinux Creative Installer AlmaLinux Creative Installer
+#  <img src="src/icons/hicolor/256x256/apps/almalinux-creative-installer.png" alt="AlmaLinux Creative Installer icon" width="28" valign="middle"> AlmaLinux Creative Installer AlmaLinux Creative Installer
 ## Lowering the barrier between enterprise Linux and creative professionals.
 
 [![Last Commit](https://img.shields.io/github/last-commit/KernelChief/almalinux-creative-installer)](https://github.com/KernelChief/almalinux-creative-installer/commits)
@@ -10,11 +10,11 @@
 [![Buy Me A Coffee](https://img.shields.io/badge/Support-Buy%20Me%20A%20Coffee-orange?logo=buy-me-a-coffee)](https://www.buymeacoffee.com/ttheroux)
 [![Stars](https://img.shields.io/github/stars/KernelChief/almalinux-creative-installer?style=social)](https://github.com/KernelChief/almalinux-creative-installer/stargazers)
 
-AlmaLinux is stable, secure, and production-ready — but setting it up for design, animation, video editing, or digital art can feel overwhelming. AlmaLinux Creative Installer bridges that gap.
+AlmaLinux is stable, secure, and production-ready but setting it up for design, animation, video editing, or digital art can feel overwhelming. AlmaLinux Creative Installer bridges that gap.
 
 This small, opinionated GTK application provides a clean graphical interface for freelancers, students, and beginners to install essential creative software with one click. No deep Linux knowledge required. No dependency headaches. No intimidating terminal sessions.
 
-All applications are installed using supported system methods only, keeping your workstation stable, secure, and production-ready. It’s the easiest way to focus on creativity — not configuration.
+All applications are installed using supported system methods only, keeping your workstation stable, secure, and production-ready. It’s the easiest way to focus on creativity, not configuration.
 
 ![AlmaLinux Creative Installer – main window](docs/screenshots/main.png)
 *Main window showing system requirements, install status, and guided workflows.*
