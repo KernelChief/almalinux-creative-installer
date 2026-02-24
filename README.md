@@ -10,11 +10,11 @@
 [![Buy Me A Coffee](https://img.shields.io/badge/Support-Buy%20Me%20A%20Coffee-orange?logo=buy-me-a-coffee)](https://www.buymeacoffee.com/ttheroux)
 [![Stars](https://img.shields.io/github/stars/KernelChief/almalinux-creative-installer?style=social)](https://github.com/KernelChief/almalinux-creative-installer/stargazers)
 
-AlmaLinux is stable, secure, and production-ready — but setting it up for design, animation, video editing, or digital art can feel overwhelming. AlmaLinux Creative Installer bridges that gap.
+AlmaLinux is stable, secure, and production-ready but setting it up for design, animation, video editing, or digital art can feel overwhelming. AlmaLinux Creative Installer bridges that gap.
 
 This small, opinionated GTK application provides a clean graphical interface for freelancers, students, and beginners to install essential creative software with one click. No deep Linux knowledge required. No dependency headaches. No intimidating terminal sessions.
 
-All applications are installed using supported system methods only, keeping your workstation stable, secure, and production-ready. It’s the easiest way to focus on creativity — not configuration.
+All applications are installed using supported system methods only, keeping your workstation stable, secure, and production-ready. It’s the easiest way to focus on creativity, not configuration.
 
 ![AlmaLinux Creative Installer – main window](docs/screenshots/main.png)
 *Main window showing system requirements, install status, and guided workflows.*
