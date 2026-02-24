@@ -1,4 +1,4 @@
-#  <img src="src/icons/hicolor/256x256/apps/almalinux-creative-installer.png" alt="AlmaLinux Creative Installer icon" width="28" valign="middle"> AlmaLinux Creative Installer AlmaLinux Creative Installer
+#  <img src="src/icons/hicolor/256x256/apps/almalinux-creative-installer.png" alt="AlmaLinux Creative Installer icon" width="28" valign="middle"> AlmaLinux Creative Installer
 ## Lowering the barrier between enterprise Linux and creative professionals.
 
 [![Last Commit](https://img.shields.io/github/last-commit/KernelChief/almalinux-creative-installer)](https://github.com/KernelChief/almalinux-creative-installer/commits)
