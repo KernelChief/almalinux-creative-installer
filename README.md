@@ -7,6 +7,8 @@
 [![Python](https://img.shields.io/badge/Made%20with-Python-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Shell](https://img.shields.io/badge/Script-Shell-4EAA25?logo=gnu-bash&logoColor=white)](https://www.gnu.org/software/bash/)
 [![AlmaLinux](https://img.shields.io/badge/Platform-AlmaLinux-blue?logo=almalinux&logoColor=white)](https://almalinux.org/)
+[![Discussed in AlmaLinux M&E SIG](https://img.shields.io/badge/Discussed%20in-AlmaLinux%20M%26E%20SIG-0E3A6D?logo=almalinux&logoColor=white)](https://wiki.almalinux.org/sigs/MediaAndEntertainmentSIG.html)
+[![Join the AlmaLinux M&E SIG](https://img.shields.io/badge/Join-AlmaLinux%20M%26E%20SIG-2EA44F?logo=almalinux&logoColor=white)](https://chat.almalinux.org/almalinux/channels/sig-media-entertainment)
 [![Buy Me A Coffee](https://img.shields.io/badge/Support-Buy%20Me%20A%20Coffee-orange?logo=buy-me-a-coffee)](https://www.buymeacoffee.com/ttheroux)
 [![Stars](https://img.shields.io/github/stars/KernelChief/almalinux-creative-installer?style=social)](https://github.com/KernelChief/almalinux-creative-installer/stargazers)
 
@@ -15,6 +17,11 @@ AlmaLinux is stable, secure, and production-ready but setting it up for design, 
 This small, opinionated GTK application provides a clean graphical interface for freelancers, students, and beginners to install essential creative software with one click. No deep Linux knowledge required. No dependency headaches. No intimidating terminal sessions.
 
 All applications are installed using supported system methods only, keeping your workstation stable, secure, and production-ready. It’s the easiest way to focus on creativity, not configuration.
+
+This project was created by the maintainer and was requested/discussed in the
+**AlmaLinux Media & Entertainment SIG (M&E SIG)**.
+If this mission resonates with you, please consider joining the SIG:
+https://chat.almalinux.org/almalinux/channels/sig-media-entertainment
 
 ![AlmaLinux Creative Installer – main window](docs/screenshots/main.png)
 *Main window showing system requirements, install status, and guided workflows.*
@@ -313,6 +320,8 @@ to enable it.
 
 - Please read our [Code of Conduct](CODE_OF_CONDUCT.md)
 - Contribution guidelines: [CONTRIBUTING.md](CONTRIBUTING.md)
+- Project context: Requested and discussed in the [AlmaLinux Media & Entertainment SIG (M&E SIG)](https://wiki.almalinux.org/sigs/MediaAndEntertainmentSIG.html)
+- Want to help shape this space? **Join the SIG**: https://chat.almalinux.org/almalinux/channels/sig-media-entertainment
 
 ---
 
