@@ -136,7 +136,7 @@ jobs:
           find "$HOME/rpmbuild/RPMS" -type f -name "*.rpm" -exec cp -v {} "$DISTDIR/" \;
 
       - name: Upload RPM artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: rpm-el${{ matrix.el }}-${{ github.event_name == 'pull_request' && format('pr{0}', github.event.pull_request.number) || 'release' }}
           path: dist/*.rpm
@@ -175,14 +175,14 @@ jobs:
 
       - name: Download EL9 artifacts
         if: steps.resolve_tag.outputs.do_release == 'true'
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: rpm-el9-release
           path: dist
 
       - name: Download EL10 artifacts
         if: steps.resolve_tag.outputs.do_release == 'true'
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: rpm-el10-release
           path: dist
