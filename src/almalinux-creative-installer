@@ -1525,6 +1525,21 @@ class AlmaCreativeInstaller(Gtk.Window):
 
         self.pick_resolve_installer()
 
+    def _resolve_finalize_install(self):
+        self.append_log("Applying post-install DaVinci Resolve fixes...\n")
+
+        if not Path(HELPER).exists():
+            self.append_log("⚠️ Helper not found, skipping post-install fixes.\n")
+            self._finish_app_action("resolve")
+            return
+
+        self.run_helper_with_callback(
+            ["resolve_post_install_fixes"],
+            on_success=lambda: self._finish_app_action("resolve"),
+            app_id="resolve",
+            progress_segment=(0.98, 1.0),
+        )
+
     def pick_resolve_installer(self):
         dialog = Gtk.FileChooserDialog(
             title="Select DaVinci Resolve installer (.run preferred)",
@@ -1553,7 +1568,7 @@ class AlmaCreativeInstaller(Gtk.Window):
                 else:
                     self._set_app_progress_fraction("resolve", 0.65)
                     self.run_helper_with_callback(["install_local_file", path],
-                                                  on_success=lambda: self._finish_app_action("resolve"),
+                                                  on_success=self._resolve_finalize_install,
                                                   app_id="resolve",
                                                   progress_segment=(0.65, 0.98))
             else:
@@ -1741,7 +1756,7 @@ class AlmaCreativeInstaller(Gtk.Window):
                 if rc == 0:
                     GLib.idle_add(self.append_log, "✅ Successful\n")
                     GLib.idle_add(self.append_log, "[exit code: {}]\n".format(rc))
-                    GLib.idle_add(self._finish_app_action, "resolve")
+                    GLib.idle_add(self._resolve_finalize_install)
                 else:
                     reason = summarize_failure(rc)
                     GLib.idle_add(self.append_log, "❌ Failed: {}\n".format(reason))
