@@ -229,7 +229,6 @@ prepare_resolve_deps() {
 
   dnf -y install \
     apr apr-util \
-    alsa-lib pulseaudio-libs \
     libxcrypt-compat \
     libX11 libXcursor libXext libXfixes libXi libXinerama libXrandr libXrender libXtst \
     libxcb xcb-util xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm \
