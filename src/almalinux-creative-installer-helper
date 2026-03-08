@@ -222,6 +222,7 @@ remove_flatpak_app_user() {
 prepare_resolve_deps() {
   log "Installing DaVinci Resolve dependencies (baseline set)..."
   dnf -y install \
+    apr apr-util \
     alsa-lib pulseaudio-libs \
     libxcrypt-compat \
     libX11 libXcursor libXext libXfixes libXi libXinerama libXrandr libXrender libXtst \
@@ -230,7 +231,89 @@ prepare_resolve_deps() {
     mesa-libGLU fontconfig freetype \
     libcurl --allowerasing \
     || exit 1
+
+  # Resolve's package check still expects legacy "zlib" in some installer builds.
+  # AlmaLinux 10 provides zlib-ng-compat; ensure one compatible provider exists.
+  if ! rpm -q zlib >/dev/null 2>&1 && ! rpm -q zlib-ng-compat >/dev/null 2>&1; then
+    log "Ensuring zlib compatibility package is present..."
+    dnf -y install zlib || dnf -y install zlib-ng-compat || true
+  fi
+
   log "Dependencies installed."
+}
+
+resolve_post_install_fixes() {
+  local libs_dir="/opt/resolve/libs"
+  local desktop_file="/usr/share/applications/com.blackmagicdesign.resolve.desktop"
+  local icon_dest="/usr/share/icons/hicolor/256x256/apps/com.blackmagicdesign.resolve.png"
+  local icon_src=""
+
+  log "Applying DaVinci Resolve post-install compatibility fixes..."
+
+  # 1) Prefer system GLib on newer EL releases by backing up bundled GLib libs.
+  if [[ -d "${libs_dir}" ]]; then
+    local glib_libs=(
+      libglib-2.0.so libglib-2.0.so.0 libglib-2.0.so.0.6800.4
+      libgobject-2.0.so libgobject-2.0.so.0 libgobject-2.0.so.0.6800.4
+      libgio-2.0.so libgio-2.0.so.0 libgio-2.0.so.0.6800.4
+      libgmodule-2.0.so libgmodule-2.0.so.0 libgmodule-2.0.so.0.6800.4
+      libgthread-2.0.so libgthread-2.0.so.0
+    )
+    local lib
+    for lib in "${glib_libs[@]}"; do
+      if [[ -f "${libs_dir}/${lib}" && ! -f "${libs_dir}/${lib}.bak" ]]; then
+        mv "${libs_dir}/${lib}" "${libs_dir}/${lib}.bak"
+        log "Backed up bundled library: ${lib} -> ${lib}.bak"
+      fi
+    done
+  else
+    log "Resolve libs dir not found (${libs_dir}); skipping GLib compatibility step."
+  fi
+
+  # 2) Normalize desktop icon integration.
+  if [[ -f "/opt/resolve/graphics/DV_Resolve.png" ]]; then
+    icon_src="/opt/resolve/graphics/DV_Resolve.png"
+  elif [[ -f "/opt/resolve/graphics/resolve.png" ]]; then
+    icon_src="/opt/resolve/graphics/resolve.png"
+  fi
+
+  if [[ -n "${icon_src}" ]]; then
+    install -Dm0644 "${icon_src}" "${icon_dest}"
+    log "Installed Resolve icon to hicolor theme."
+  else
+    log "Resolve icon source not found under /opt/resolve/graphics; skipping icon copy."
+  fi
+
+  # 3) Keep desktop entry stable for icon and WMClass mapping.
+  if [[ -f "${desktop_file}" ]]; then
+    sed -i 's|^Icon=.*|Icon=com.blackmagicdesign.resolve|' "${desktop_file}"
+
+    if grep -q '^StartupNotify=' "${desktop_file}"; then
+      sed -i 's|^StartupNotify=.*|StartupNotify=true|' "${desktop_file}"
+    else
+      printf '\nStartupNotify=true\n' >> "${desktop_file}"
+    fi
+
+    if grep -q '^StartupWMClass=' "${desktop_file}"; then
+      sed -i 's|^StartupWMClass=.*|StartupWMClass=resolve|' "${desktop_file}"
+    else
+      printf 'StartupWMClass=resolve\n' >> "${desktop_file}"
+    fi
+
+    log "Normalized desktop entry metadata (Icon + StartupWMClass)."
+  else
+    log "Desktop entry not found (${desktop_file}); skipping desktop metadata step."
+  fi
+
+  # 4) Refresh caches (best-effort).
+  if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+    gtk-update-icon-cache -f /usr/share/icons/hicolor/ || true
+  fi
+  if command -v update-desktop-database >/dev/null 2>&1; then
+    update-desktop-database /usr/share/applications || true
+  fi
+
+  log "Resolve post-install fixes completed."
 }
 
 set_selinux_mode() {
@@ -343,6 +426,7 @@ case "${action}" in
 
   # Resolve
   prepare_resolve_deps)  prepare_resolve_deps;;
+  resolve_post_install_fixes) resolve_post_install_fixes;;
   set_selinux_mode)      set_selinux_mode "${2:-}";;
   install_local_file)    install_local_file "${2:-}";;
 
@@ -374,6 +458,7 @@ Flatpak:
 
 Local installers:
   prepare_resolve_deps
+  resolve_post_install_fixes
   set_selinux_mode <permissive-temp|permissive|disabled|enforcing>
   install_local_file <path_to_.rpm_or_.run>
 EOF
