@@ -54,6 +54,14 @@ APPS = [
         "category": "Image Processing",
     },
     {
+        "id": "krusader",
+        "name": "Krusader",
+        "type": "dnf",
+        "pkg": "krusader",
+        "emoji": "🖌️",
+        "category": "Productivity",
+    },
+    {
         "id": "kdenlive",
         "name": "Kdenlive",
         "type": "dnf",
