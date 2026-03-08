@@ -189,7 +189,7 @@ post-production, and content creation environments:
   - Material Maker
 
 - **Animation & Video**
-  - Kdenlive (AlmaLinux 9 or AlmaLinux 10.2 (will not work Alma 10.1 and less))
+  - Kdenlive (AlmaLinux 9 or AlmaLinux 10.2 (will not work AlmaLinux 10.1 and less))
   - OpenToonz
   - DaVinci Resolve
 
