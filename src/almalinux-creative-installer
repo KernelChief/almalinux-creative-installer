@@ -33,7 +33,7 @@ APPIMAGELAUNCHER_RPM_URL = (
 # 3) Set the metadata keys used by the UI for that type:
 #      - dnf:     pkg
 #      - flatpak: appid
-#      - resolve: no package key (guided flow)
+#      - guided flow: no package key
 #    Common display keys: name, emoji, category
 # 4) Optional: add the app id to VERSION_SELECTABLE_APPS when version/branch
 #    selection should be shown.
