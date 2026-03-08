@@ -230,7 +230,9 @@ prepare_resolve_deps() {
   dnf -y install \
     apr apr-util \
     libxcrypt-compat \
-    libX11 libXcursor libXext libXfixes libXi libXinerama libXrandr libXrender libXtst \
+    ocl-icd \
+    libXt \
+    libX11 libXcursor libXext libXfixes libXi libXinerama libXrandr libXrender libXt libXtst \
     libxcb xcb-util xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm \
     libxkbcommon libxkbcommon-x11 \
     mesa-libGLU fontconfig freetype \
