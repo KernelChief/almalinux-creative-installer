@@ -221,6 +221,12 @@ remove_flatpak_app_user() {
 # -------------------------------------------------
 prepare_resolve_deps() {
   log "Installing DaVinci Resolve dependencies (baseline set)..."
+
+  # Resolve installers/payloads on EL commonly require FUSE userspace runtime.
+  # Keep this in Resolve deps (not only AppImageLauncher deps).
+  log "Ensuring FUSE runtime for DaVinci Resolve..."
+  dnf -y install fuse fuse-libs || dnf -y install fuse-libs || dnf -y install fuse || true
+
   dnf -y install \
     apr apr-util \
     alsa-lib pulseaudio-libs \
