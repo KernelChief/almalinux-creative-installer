@@ -33,7 +33,7 @@ APPIMAGELAUNCHER_RPM_URL = (
 # 3) Set the metadata keys used by the UI for that type:
 #      - dnf:     pkg
 #      - flatpak: appid
-#      - resolve: no package key (guided flow)
+#      - guided flow: no package key
 #    Common display keys: name, emoji, category
 # 4) Optional: add the app id to VERSION_SELECTABLE_APPS when version/branch
 #    selection should be shown.
@@ -52,6 +52,22 @@ APPS = [
         "pkg": "gimp",
         "emoji": "🖌️",
         "category": "Image Processing",
+    },
+    {
+        "id": "krusader",
+        "name": "Krusader",
+        "type": "dnf",
+        "pkg": "krusader",
+        "emoji": "📁",
+        "category": "Productivity",
+    },
+    {
+        "id": "kdenlive",
+        "name": "Kdenlive",
+        "type": "dnf",
+        "pkg": "kdenlive",
+        "emoji": "🎥",
+        "category": "Animation & Video",
     },
     {
         "id": "krita",
@@ -79,7 +95,7 @@ APPS = [
     },
     {
         "id": "scribus",
-        "name": "Sribus",
+        "name": "Scribus",
         "type": "flatpak",
         "appid": "net.scribus.Scribus",
         "emoji": "🎬",
@@ -186,7 +202,7 @@ APPS = [
         "name": "Epic Asset Manager",
         "type": "flatpak",
         "appid": "io.github.achetagames.epic_asset_manager",
-        "emoji": "📄",
+        "emoji": "🕹️",
         "category": "Game Engines",
     },
     {
@@ -194,7 +210,7 @@ APPS = [
         "name": "Asset Manager Studio",
         "type": "flatpak",
         "appid": "studio.assetmanager.ams",
-        "emoji": "📄",
+        "emoji": "🧩",
         "category": "Game Engines",
     },
     {
@@ -202,7 +218,7 @@ APPS = [
         "name": "Godots",
         "type": "flatpak",
         "appid": "io.github.MakovWait.Godots",
-        "emoji": "📄",
+        "emoji": "🎮",
         "category": "Game Engines",
     },
     {
@@ -233,6 +249,7 @@ CATEGORIES = [
     "Animation & Video",
     "Audio",
     "Communication",
+    "Game Engines",
 ]
 
 
@@ -299,6 +316,10 @@ class AlmaCreativeInstaller(Gtk.Window):
                 subtitle="Community packages used by many creative tools.",
                 enable_action=["enable_epel"],
             ),
+            False, False, 0
+        )
+        req_box.pack_start(
+            self._make_selinux_row(),
             False, False, 0
         )
 
@@ -488,6 +509,100 @@ class AlmaCreativeInstaller(Gtk.Window):
         self.repo_widgets[key] = {"icon": icon, "status": status_lbl, "button": btn}
         self._set_requirement_state(key, None)
         return row
+
+    def _make_selinux_row(self):
+        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+
+        icon = Gtk.Label(label="…")
+        icon.set_width_chars(2)
+        row.pack_start(icon, False, False, 0)
+
+        text_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        row.pack_start(text_box, True, True, 0)
+
+        title_lbl = Gtk.Label(label="SELinux mode (DaVinci Resolve)")
+        title_lbl.set_xalign(0)
+        title_lbl.set_hexpand(True)
+        text_box.pack_start(title_lbl, False, False, 0)
+
+        subtitle_lbl = Gtk.Label(label="Resolve needs permissive/disabled. Display and quick mode switch.")
+        subtitle_lbl.set_xalign(0)
+        subtitle_lbl.set_hexpand(True)
+        subtitle_lbl.get_style_context().add_class("subtle")
+        text_box.pack_start(subtitle_lbl, False, False, 0)
+
+        status_lbl = Gtk.Label(label="Checking…")
+        row.pack_start(status_lbl, False, False, 0)
+
+        btn = Gtk.Button(label="Set")
+        btn.connect("clicked", lambda *_: self.prompt_set_selinux_mode())
+        row.pack_start(btn, False, False, 0)
+
+        self.repo_widgets["SELINUX"] = {"icon": icon, "status": status_lbl, "button": btn}
+        self._set_selinux_requirement_state(None)
+        return row
+
+    def _set_selinux_requirement_state(self, mode):
+        w = self.repo_widgets.get("SELINUX")
+        if not w:
+            return
+
+        if mode is None:
+            w["icon"].set_text("…")
+            w["status"].set_text("Checking…")
+        else:
+            m = (mode or "unknown").lower()
+            if m == "enforcing":
+                w["icon"].set_text("⚠️")
+                w["status"].set_text("Enforcing")
+            elif m == "permissive":
+                w["icon"].set_text("ℹ️")
+                w["status"].set_text("Permissive")
+            elif m == "disabled":
+                w["icon"].set_text("ℹ️")
+                w["status"].set_text("Disabled")
+            else:
+                w["icon"].set_text("❓")
+                w["status"].set_text("Unknown")
+
+        w["button"].set_sensitive(True)
+
+    def prompt_set_selinux_mode(self):
+        dialog = Gtk.MessageDialog(
+            parent=self,
+            flags=0,
+            message_type=Gtk.MessageType.WARNING,
+            buttons=Gtk.ButtonsType.NONE,
+            text="Set SELinux mode",
+        )
+        dialog.format_secondary_text(
+            "Choose the SELinux mode to apply.\n\n"
+            "Temporary permissive avoids reboot and resets after reboot.\n"
+            "Permanent mode changes may require reboot for full effect."
+        )
+        dialog.add_button("Cancel", Gtk.ResponseType.CANCEL)
+        dialog.add_button("Enforcing", 10)
+        dialog.add_button("Permissive", 11)
+        dialog.add_button("Disabled", 12)
+        dialog.add_button("Permissive (temporary)", 13)
+
+        resp = dialog.run()
+        dialog.destroy()
+
+        mode_map = {
+            10: "enforcing",
+            11: "permissive",
+            12: "disabled",
+            13: "permissive-temp",
+        }
+        mode_arg = mode_map.get(resp)
+        if not mode_arg:
+            return
+
+        self.run_helper_with_callback(
+            ["set_selinux_mode", mode_arg],
+            on_success=self.refresh_repo_state,
+        )
 
     def _make_app_row(self, app):
         lbrow = Gtk.ListBoxRow()
@@ -1077,14 +1192,17 @@ class AlmaCreativeInstaller(Gtk.Window):
     def refresh_repo_state(self):
         self._set_requirement_state("CRB", None)
         self._set_requirement_state("EPEL", None)
+        self._set_selinux_requirement_state(None)
 
         def worker():
             repos = self._dnf_enabled_repo_ids()
             crb = self._detect_crb(repos)
             epel = self._detect_epel(repos)
+            selinux_mode = self._selinux_getenforce()
 
             GLib.idle_add(self._set_requirement_state, "CRB", crb)
             GLib.idle_add(self._set_requirement_state, "EPEL", epel)
+            GLib.idle_add(self._set_selinux_requirement_state, selinux_mode)
             GLib.idle_add(self.append_log, "✅ Requirements refreshed\n")
 
         threading.Thread(target=worker, daemon=True).start()
@@ -1484,10 +1602,11 @@ class AlmaCreativeInstaller(Gtk.Window):
         )
         dialog.format_secondary_text(
             "Choose how you want to proceed before installing Resolve.\n\n"
-            "A reboot is required for the SELinux change to be fully applied "
-            "before launching DaVinci Resolve."
+            "Permissive (temporary) applies now and avoids reboot.\n"
+            "Permanent mode changes may require reboot to fully apply."
         )
         dialog.add_button("Cancel", Gtk.ResponseType.CANCEL)
+        dialog.add_button("Permissive (temporary)", Gtk.ResponseType.ACCEPT)
         dialog.add_button("Permissive (permanent)", Gtk.ResponseType.APPLY)
         dialog.add_button("Disable SELinux (permanent)", Gtk.ResponseType.YES)
 
@@ -1497,7 +1616,9 @@ class AlmaCreativeInstaller(Gtk.Window):
         if resp == Gtk.ResponseType.CANCEL:
             self.set_app_busy("resolve", False)
             return
-        if resp == Gtk.ResponseType.APPLY:
+        if resp == Gtk.ResponseType.ACCEPT:
+            mode_arg = "permissive-temp"
+        elif resp == Gtk.ResponseType.APPLY:
             mode_arg = "permissive"
         else:
             mode_arg = "disabled"
@@ -1523,6 +1644,21 @@ class AlmaCreativeInstaller(Gtk.Window):
             self.append_log("Please open this URL manually: {}\n".format(RESOLVE_URL))
 
         self.pick_resolve_installer()
+
+    def _resolve_finalize_install(self):
+        self.append_log("Applying post-install DaVinci Resolve fixes...\n")
+
+        if not Path(HELPER).exists():
+            self.append_log("⚠️ Helper not found, skipping post-install fixes.\n")
+            self._finish_app_action("resolve")
+            return
+
+        self.run_helper_with_callback(
+            ["resolve_post_install_fixes"],
+            on_success=lambda: self._finish_app_action("resolve"),
+            app_id="resolve",
+            progress_segment=(0.98, 1.0),
+        )
 
     def pick_resolve_installer(self):
         dialog = Gtk.FileChooserDialog(
@@ -1552,7 +1688,7 @@ class AlmaCreativeInstaller(Gtk.Window):
                 else:
                     self._set_app_progress_fraction("resolve", 0.65)
                     self.run_helper_with_callback(["install_local_file", path],
-                                                  on_success=lambda: self._finish_app_action("resolve"),
+                                                  on_success=self._resolve_finalize_install,
                                                   app_id="resolve",
                                                   progress_segment=(0.65, 0.98))
             else:
@@ -1740,7 +1876,7 @@ class AlmaCreativeInstaller(Gtk.Window):
                 if rc == 0:
                     GLib.idle_add(self.append_log, "✅ Successful\n")
                     GLib.idle_add(self.append_log, "[exit code: {}]\n".format(rc))
-                    GLib.idle_add(self._finish_app_action, "resolve")
+                    GLib.idle_add(self._resolve_finalize_install)
                 else:
                     reason = summarize_failure(rc)
                     GLib.idle_add(self.append_log, "❌ Failed: {}\n".format(reason))

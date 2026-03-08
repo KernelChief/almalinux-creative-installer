@@ -181,22 +181,30 @@ post-production, and content creation environments:
 - **Image Processing**
   - GIMP
   - Krita
-
+ 
 - **3D**
   - Blender
   - MeshLab
   - PrusaSlicer
   - Material Maker
 
+- **Animation & Video**
+  - Kdenlive (AlmaLinux 9 or AlmaLinux 10.2 (will not work AlmaLinux 10.1 and less))
+  - OpenToonz
+  - DaVinci Resolve
+
 - **Productivity**
+  - Krusader (Works on AlmaLinux 9, currently being compiled for AlmaLinux 10+ may not be available yet)
   - Scribus
   - draw.io
   - LibreOffice
   - OnlyOffice
+  - AppImageLauncher (AlmaLinux 10+ only)
 
-- **Animation & Video**
-  - OpenToonz
-  - DaVinci Resolve
+- **Game Engines**
+  - Epic Asset Manager
+  - Asset Manager Studio
+  - Godots
 
 - **Audio**
   - Ardour
