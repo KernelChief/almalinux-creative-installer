@@ -79,7 +79,7 @@ APPS = [
     },
     {
         "id": "scribus",
-        "name": "Sribus",
+        "name": "Scribus",
         "type": "flatpak",
         "appid": "net.scribus.Scribus",
         "emoji": "🎬",
