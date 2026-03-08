@@ -202,7 +202,7 @@ APPS = [
         "name": "Epic Asset Manager",
         "type": "flatpak",
         "appid": "io.github.achetagames.epic_asset_manager",
-        "emoji": "📄",
+        "emoji": "🕹️",
         "category": "Game Engines",
     },
     {
@@ -210,7 +210,7 @@ APPS = [
         "name": "Asset Manager Studio",
         "type": "flatpak",
         "appid": "studio.assetmanager.ams",
-        "emoji": "📄",
+        "emoji": "🧩",
         "category": "Game Engines",
     },
     {
@@ -218,7 +218,7 @@ APPS = [
         "name": "Godots",
         "type": "flatpak",
         "appid": "io.github.MakovWait.Godots",
-        "emoji": "📄",
+        "emoji": "🎮",
         "category": "Game Engines",
     },
     {
