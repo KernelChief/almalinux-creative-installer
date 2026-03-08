@@ -577,12 +577,14 @@ class AlmaCreativeInstaller(Gtk.Window):
         )
         dialog.format_secondary_text(
             "Choose the SELinux mode to apply.\n\n"
-            "A reboot may be required for full effect."
+            "Temporary permissive avoids reboot and resets after reboot.\n"
+            "Permanent mode changes may require reboot for full effect."
         )
         dialog.add_button("Cancel", Gtk.ResponseType.CANCEL)
         dialog.add_button("Enforcing", 10)
         dialog.add_button("Permissive", 11)
         dialog.add_button("Disabled", 12)
+        dialog.add_button("Permissive (temporary)", 13)
 
         resp = dialog.run()
         dialog.destroy()
@@ -591,6 +593,7 @@ class AlmaCreativeInstaller(Gtk.Window):
             10: "enforcing",
             11: "permissive",
             12: "disabled",
+            13: "permissive-temp",
         }
         mode_arg = mode_map.get(resp)
         if not mode_arg:
@@ -1599,10 +1602,11 @@ class AlmaCreativeInstaller(Gtk.Window):
         )
         dialog.format_secondary_text(
             "Choose how you want to proceed before installing Resolve.\n\n"
-            "A reboot is required for the SELinux change to be fully applied "
-            "before launching DaVinci Resolve."
+            "Permissive (temporary) applies now and avoids reboot.\n"
+            "Permanent mode changes may require reboot to fully apply."
         )
         dialog.add_button("Cancel", Gtk.ResponseType.CANCEL)
+        dialog.add_button("Permissive (temporary)", Gtk.ResponseType.ACCEPT)
         dialog.add_button("Permissive (permanent)", Gtk.ResponseType.APPLY)
         dialog.add_button("Disable SELinux (permanent)", Gtk.ResponseType.YES)
 
@@ -1612,7 +1616,9 @@ class AlmaCreativeInstaller(Gtk.Window):
         if resp == Gtk.ResponseType.CANCEL:
             self.set_app_busy("resolve", False)
             return
-        if resp == Gtk.ResponseType.APPLY:
+        if resp == Gtk.ResponseType.ACCEPT:
+            mode_arg = "permissive-temp"
+        elif resp == Gtk.ResponseType.APPLY:
             mode_arg = "permissive"
         else:
             mode_arg = "disabled"
