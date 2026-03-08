@@ -233,6 +233,7 @@ CATEGORIES = [
     "Animation & Video",
     "Audio",
     "Communication",
+    "Game Engines",
 ]
 
 
