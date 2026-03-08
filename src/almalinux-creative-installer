@@ -58,7 +58,7 @@ APPS = [
         "name": "Krusader",
         "type": "dnf",
         "pkg": "krusader",
-        "emoji": "🖌️",
+        "emoji": "📁",
         "category": "Productivity",
     },
     {
@@ -66,7 +66,7 @@ APPS = [
         "name": "Kdenlive",
         "type": "dnf",
         "pkg": "kdenlive",
-        "emoji": "🖌️",
+        "emoji": "🎥",
         "category": "Animation & Video",
     },
     {
