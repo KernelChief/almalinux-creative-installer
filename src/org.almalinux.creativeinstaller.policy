@@ -5,7 +5,7 @@
  "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
 <policyconfig>
   <action id="org.almalinux.creativeinstaller">
-    <description>Alma Creative Installer</description>
+    <description>AlmaLinux Creative Installer</description>
     <message>Authentication is required to install or remove software</message>
     <defaults>
       <allow_any>no</allow_any>
