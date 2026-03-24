@@ -227,7 +227,7 @@ jobs:
 
     steps:
       - name: Add/update PR comment with beta RPM download link
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@v3
         with:
           header: beta-rpm
           message: |
