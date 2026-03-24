@@ -34,7 +34,7 @@ body:
     id: app_category
     attributes:
       label: App Category
-      description: Match the in-app categories used in Alma Creative Installer.
+      description: Match the in-app categories used in AlmaLinux Creative Installer.
       options:
         - "Productivity"
         - "Image Processing"
