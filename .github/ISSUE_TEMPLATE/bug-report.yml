@@ -48,7 +48,7 @@ body:
       label: Steps to Reproduce
       description: Tell us exactly what you clicked/ran.
       placeholder: |
-        1) Open Alma Creative Installer
+        1) Open AlmaLinux Creative Installer
         2) Click “Install” on Blender
         3) Authentication prompt appears…
         4) It fails with…

@@ -223,7 +223,7 @@ APPS = [
     },
     {
         "id": "appimagelauncher",
-        "name": "AppImageLauncher (Alma 10 ONLY)",
+        "name": "AppImageLauncher (AlmaLinux 10 ONLY)",
         "type": "dnf",
         "pkg": "appimagelauncher",
         "install_target": APPIMAGELAUNCHER_RPM_URL,
@@ -255,7 +255,7 @@ CATEGORIES = [
 
 class AlmaCreativeInstaller(Gtk.Window):
     def __init__(self):
-        super().__init__(title="Alma Creative Installer")
+        super().__init__(title="AlmaLinux Creative Installer")
         self.set_default_size(980, 640)
 
         self.repo_widgets = {}
@@ -270,7 +270,7 @@ class AlmaCreativeInstaller(Gtk.Window):
 
         hb = Gtk.HeaderBar()
         hb.set_show_close_button(True)
-        hb.props.title = "Alma Creative Installer"
+        hb.props.title = "AlmaLinux Creative Installer"
         hb.props.subtitle = "Creative & M&E workstation installs • v{}".format(self.app_version)
         self.set_titlebar(hb)
 
@@ -429,7 +429,7 @@ class AlmaCreativeInstaller(Gtk.Window):
         scroller.add(self.textview)
         logs_page.pack_start(scroller, True, True, 0)
 
-        self.append_log("Alma Creative Installer v{}\n".format(self.app_version))
+        self.append_log("AlmaLinux Creative Installer v{}\n".format(self.app_version))
         self.append_log("Ready.\n")
 
         if not Path(HELPER).exists():
@@ -1157,7 +1157,7 @@ class AlmaCreativeInstaller(Gtk.Window):
         return repos
 
     def _detect_crb(self, repos):
-        # Alma 9/10: crb; older naming: powertools
+        # AlmaLinux 9/10: crb; older naming: powertools
         for r in repos:
             if r == "crb" or r.startswith("crb"):
                 return True
