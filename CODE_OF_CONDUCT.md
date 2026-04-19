@@ -58,9 +58,9 @@ reported to the project maintainer via GitHub:
 
 - [https://github.com/KernelChief](https://github.com/KernelChief)
 
-or via email :
+or via email:
 
-- [kernelchief.github@proton.me](kernelchief.github@proton.me)
+- [kernelchief.github@proton.me](mailto:kernelchief.github@proton.me)
 
 All complaints will be reviewed and investigated promptly and fairly.
 All community leaders are obligated to respect the privacy and security of the

@@ -34,7 +34,7 @@ https://chat.almalinux.org/almalinux/channels/sig-media-entertainment
 ## 📚 Quick Navigation
 
 - [🚀 Quick Start](#quick-start-recommended)
-- [📦 Installation Methods](#-installation-methods-of-softwares-via-the-almalinux-creative-installer)
+- [📦 Installation Methods](#-installation-methods-of-software-via-the-almalinux-creative-installer)
 - [📦 Install AppImage Apps (Beginner Guide)](#-install-appimage-apps-beginner-guide)
 - [🧩 Supported Platforms](#-supported-platforms)
 - [🎬 Target Applications](#-target-applications)
@@ -126,7 +126,7 @@ You can launch the application:
 
 ---
 
-## 📦 Installation Methods of softwares via the AlmaLinux Creative Installer
+## 📦 Installation Methods of software via the AlmaLinux Creative Installer
 
 AlmaLinux Creative Installer uses the following approaches, depending on the software:
 
@@ -189,12 +189,12 @@ post-production, and content creation environments:
   - Material Maker
 
 - **Animation & Video**
-  - Kdenlive (AlmaLinux 9 or AlmaLinux 10.2 (will not work AlmaLinux 10.1 and less))
+  - Kdenlive (AlmaLinux 9 or AlmaLinux 10.2; does not work on AlmaLinux 10.1 and earlier)
   - OpenToonz
   - DaVinci Resolve
 
 - **Productivity**
-  - Krusader (Works on AlmaLinux 9, currently being compiled for AlmaLinux 10+ may not be available yet)
+  - Krusader (works on AlmaLinux 9; AlmaLinux 10+ builds may not be available yet)
   - Scribus
   - draw.io
   - LibreOffice
@@ -204,7 +204,7 @@ post-production, and content creation environments:
 - **Game Engines**
   - Epic Asset Manager
   - Asset Manager Studio
-  - Godots
+  - Godot Engine
 
 - **Audio**
   - Ardour
@@ -334,7 +334,7 @@ to enable it.
 ---
 
 __Major thanks to [Cristian Slavik](https://github.com/crisslavik) (NOX Visual Effects) for the icon design and production.__\
-LinkedIn: [](https://www.linkedin.com/in/crisslavik/)<https://www.linkedin.com/in/crisslavik/>
+LinkedIn: <https://www.linkedin.com/in/crisslavik/>
 
 ---
 
