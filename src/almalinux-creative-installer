@@ -319,6 +319,36 @@ class AlmaCreativeInstaller(Gtk.Window):
             False, False, 0
         )
         req_box.pack_start(
+            self._make_requirement_row(
+                key="RPMFUSION_FREE",
+                title="RPM Fusion Free (Recommended)",
+                subtitle="Multimedia codecs (H.264, MP3, AAC) — essential for video editors.",
+                enable_action=["enable_rpmfusion_free"],
+            ),
+            False, False, 0
+        )
+        req_box.pack_start(
+            self._make_requirement_row(
+                key="RPMFUSION_NONFREE",
+                title="RPM Fusion Non-Free (Optional)",
+                subtitle="Proprietary codecs and non-redistributable software. Also enables RPM Fusion Free.",
+                enable_action=["enable_rpmfusion_nonfree"],
+            ),
+            False, False, 0
+        )
+        req_box.pack_start(
+            self._make_requirement_row(
+                key="NVIDIA",
+                title="NVIDIA Drivers — AlmaLinux Native (Optional)",
+                subtitle="Open-kernel NVIDIA drivers via AlmaLinux official repo. Requires reboot after install.",
+                enable_action=["enable_nvidia_drivers"],
+                button_label="Install",
+                status_enabled="Installed",
+                status_disabled="Not installed",
+            ),
+            False, False, 0
+        )
+        req_box.pack_start(
             self._make_selinux_row(),
             False, False, 0
         )
@@ -478,7 +508,10 @@ class AlmaCreativeInstaller(Gtk.Window):
         return "dev"
 
     # ---------------- UI builders ----------------
-    def _make_requirement_row(self, key, title, subtitle, enable_action):
+    def _make_requirement_row(self, key, title, subtitle, enable_action,
+                              button_label="Enable",
+                              status_enabled="Enabled",
+                              status_disabled="Not enabled"):
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
 
         icon = Gtk.Label(label="…")
@@ -502,11 +535,17 @@ class AlmaCreativeInstaller(Gtk.Window):
         status_lbl = Gtk.Label(label="Checking…")
         row.pack_start(status_lbl, False, False, 0)
 
-        btn = Gtk.Button(label="Enable")
+        btn = Gtk.Button(label=button_label)
         btn.connect("clicked", lambda *_: self.run_helper_with_callback(enable_action, on_success=self.refresh_repo_state))
         row.pack_start(btn, False, False, 0)
 
-        self.repo_widgets[key] = {"icon": icon, "status": status_lbl, "button": btn}
+        self.repo_widgets[key] = {
+            "icon": icon,
+            "status": status_lbl,
+            "button": btn,
+            "status_enabled": status_enabled,
+            "status_disabled": status_disabled,
+        }
         self._set_requirement_state(key, None)
         return row
 
@@ -1172,6 +1211,19 @@ class AlmaCreativeInstaller(Gtk.Window):
                 return True
         return False
 
+    def _detect_rpmfusion_free(self, repos):
+        return any(r.startswith("rpmfusion-free") for r in repos)
+
+    def _detect_rpmfusion_nonfree(self, repos):
+        return any(r.startswith("rpmfusion-nonfree") for r in repos)
+
+    def _detect_nvidia_drivers(self):
+        return subprocess.run(
+            ["rpm", "-q", "nvidia-driver"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        ).returncode == 0
+
     def _set_requirement_state(self, key, state):
         w = self.repo_widgets.get(key)
         if not w:
@@ -1182,26 +1234,35 @@ class AlmaCreativeInstaller(Gtk.Window):
             w["button"].set_sensitive(False)
         elif state is True:
             w["icon"].set_text("✅")
-            w["status"].set_text("Enabled")
+            w["status"].set_text(w.get("status_enabled", "Enabled"))
             w["button"].set_sensitive(False)
         else:
             w["icon"].set_text("❌")
-            w["status"].set_text("Not enabled")
+            w["status"].set_text(w.get("status_disabled", "Not enabled"))
             w["button"].set_sensitive(True)
 
     def refresh_repo_state(self):
         self._set_requirement_state("CRB", None)
         self._set_requirement_state("EPEL", None)
+        self._set_requirement_state("RPMFUSION_FREE", None)
+        self._set_requirement_state("RPMFUSION_NONFREE", None)
+        self._set_requirement_state("NVIDIA", None)
         self._set_selinux_requirement_state(None)
 
         def worker():
             repos = self._dnf_enabled_repo_ids()
             crb = self._detect_crb(repos)
             epel = self._detect_epel(repos)
+            rpmfusion_free = self._detect_rpmfusion_free(repos)
+            rpmfusion_nonfree = self._detect_rpmfusion_nonfree(repos)
+            nvidia = self._detect_nvidia_drivers()
             selinux_mode = self._selinux_getenforce()
 
             GLib.idle_add(self._set_requirement_state, "CRB", crb)
             GLib.idle_add(self._set_requirement_state, "EPEL", epel)
+            GLib.idle_add(self._set_requirement_state, "RPMFUSION_FREE", rpmfusion_free)
+            GLib.idle_add(self._set_requirement_state, "RPMFUSION_NONFREE", rpmfusion_nonfree)
+            GLib.idle_add(self._set_requirement_state, "NVIDIA", nvidia)
             GLib.idle_add(self._set_selinux_requirement_state, selinux_mode)
             GLib.idle_add(self.append_log, "✅ Requirements refreshed\n")
 

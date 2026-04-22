@@ -131,10 +131,21 @@ You can launch the application:
 AlmaLinux Creative Installer uses the following approaches, depending on the software:
 
 - DNF packages from system repositories
+- Flatpak (Flathub) for apps where upstream recommends it on EL or where DNF packages are unavailable/outdated
 - Local RPM installers
 - Local .run installers (vendor-distributed software)
-- Flatpak is avoided, except when upstream strongly recommends it on EL
-  (currently: Krita)
+
+### System Requirements managed by the installer
+
+The **System Requirements** panel lets you enable the following repositories with one click:
+
+| Repository          | Purpose                                                          | Required?   |
+| ------------------- | ---------------------------------------------------------------- | ----------- |
+| CRB / PowerTools    | Extra build dependencies for workstation apps                    | Required    |
+| EPEL                | Community packages used by many creative tools                   | Required    |
+| RPM Fusion Free     | Multimedia codecs (H.264, MP3, AAC) for video editors            | Recommended |
+| RPM Fusion Non-Free | Proprietary codecs and non-redistributable software              | Optional    |
+| NVIDIA Drivers      | AlmaLinux native open-kernel NVIDIA drivers (AL9, AL10, Kitten)  | Optional    |
 
 ---
 
@@ -272,6 +283,15 @@ To remove the application, run:
 ---
 
 ## ❓ FAQ
+
+**Why should I enable RPM Fusion Free?**
+RPM Fusion Free provides multimedia codecs (H.264, AAC, MP3) that are absent from
+AlmaLinux base and EPEL due to patent/licensing restrictions. Without it, many video
+files will not play back correctly in media players and editors.
+
+**Why does enabling RPM Fusion Non-Free also enable Free?**
+RPM Fusion Non-Free depends on RPM Fusion Free. The installer enables both at once
+to satisfy the dependency automatically.
 
 **Why does DaVinci Resolve require SELinux permissive or disabled?**  
 Resolve’s vendor installer and runtime expect permissive/disabled on EL.

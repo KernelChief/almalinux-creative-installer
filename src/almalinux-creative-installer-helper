@@ -15,6 +15,40 @@ enable_epel() {
   log "Done."
 }
 
+enable_rpmfusion_free() {
+  log "Enabling RPM Fusion Free..."
+  local el_version
+  el_version="$(rpm -E %rhel)"
+  if [[ -z "${el_version}" || "${el_version}" == "%rhel" ]]; then
+    echo "ERROR: Could not detect EL version." >&2
+    exit 4
+  fi
+  dnf -y install "https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-${el_version}.noarch.rpm"
+  log "RPM Fusion Free enabled."
+}
+
+enable_rpmfusion_nonfree() {
+  log "Enabling RPM Fusion Free + Non-Free..."
+  local el_version
+  el_version="$(rpm -E %rhel)"
+  if [[ -z "${el_version}" || "${el_version}" == "%rhel" ]]; then
+    echo "ERROR: Could not detect EL version." >&2
+    exit 4
+  fi
+  dnf -y install \
+    "https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-${el_version}.noarch.rpm" \
+    "https://mirrors.rpmfusion.org/nonfree/el/rpmfusion-nonfree-release-${el_version}.noarch.rpm"
+  log "RPM Fusion Free + Non-Free enabled."
+}
+
+enable_nvidia_drivers() {
+  log "Installing AlmaLinux native NVIDIA drivers..."
+  dnf -y install almalinux-release-nvidia-driver
+  log "NVIDIA driver repository configured."
+  dnf -y install nvidia-open-kmod nvidia-driver
+  log "NVIDIA drivers installed. A reboot is required to load the kernel module."
+}
+
 enable_crb() {
   log "Enabling CRB / PowerTools..."
   if dnf -y config-manager --set-enabled crb >/dev/null 2>&1; then
@@ -410,9 +444,12 @@ install_local_file() {
 # -------------------------------------------------
 case "${action}" in
   # Repo
-  enable_crb)          enable_crb;;
-  enable_epel)         enable_epel;;
-  repo_status)         repo_status;;
+  enable_crb)             enable_crb;;
+  enable_epel)            enable_epel;;
+  enable_rpmfusion_free)    enable_rpmfusion_free;;
+  enable_rpmfusion_nonfree) enable_rpmfusion_nonfree;;
+  enable_nvidia_drivers)    enable_nvidia_drivers;;
+  repo_status)              repo_status;;
 
   # DNF apps
   install_pkg)         install_pkg "${2:-}";;
@@ -444,6 +481,9 @@ Usage: almalinux-creative-installer-helper <action>
 Repo actions:
   enable_crb
   enable_epel
+  enable_rpmfusion_free
+  enable_rpmfusion_nonfree
+  enable_nvidia_drivers
   repo_status
 
 DNF apps:
