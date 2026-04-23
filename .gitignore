@@ -1,13 +1,35 @@
-# IDEs
+# --- IDEs ---
 .idea/
 .vscode/
+*.iml
 
-# Python
+# --- Python ---
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
+venv/
+.venv/
+*.egg-info/
 
-# RPM build output
+# --- RPM & Build Output ---
 rpmbuild/
 *.rpm
+*.spec
+dist/
+build/
 
+# --- AI Configuration & Privacy ---
+.claude/
+.claudeignore
+CLAUDE.md
+docs/INDEX.md
+docs/QUICK_REFERENCE.md
+docs/learnings*
+docs/archive/*
+
+# --- OS & System ---
+.DS_Store
+.directory
+*~
+*.swp
