@@ -3,7 +3,7 @@
 
 import gi
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, GLib, Gdk
+from gi.repository import Gtk, GLib, Gdk, GdkPixbuf
 
 import subprocess
 import threading
@@ -256,7 +256,7 @@ CATEGORIES = [
 class AlmaCreativeInstaller(Gtk.Window):
     def __init__(self):
         super().__init__(title="AlmaLinux Creative Installer")
-        self.set_default_size(980, 640)
+        self.set_default_size(1020, 860)
 
         self.repo_widgets = {}
         self.app_widgets = {}
@@ -484,12 +484,12 @@ class AlmaCreativeInstaller(Gtk.Window):
         }
         .hero-title {
             color: #ffffff;
-            font-size: 22px;
+            font-size: 20px;
             font-weight: bold;
         }
         .hero-subtitle {
-            color: rgba(255, 255, 255, 0.80);
-            font-size: 13px;
+            color: rgba(255, 255, 255, 0.78);
+            font-size: 12px;
         }
 
         /* === App Cards === */
@@ -643,7 +643,7 @@ class AlmaCreativeInstaller(Gtk.Window):
         }
 
         /* === Misc === */
-        .subtle { opacity: 0.70; }
+        .subtle { opacity: 0.70; font-size: 11px; }
         """
         provider = Gtk.CssProvider()
         provider.load_from_data(css)
@@ -657,12 +657,20 @@ class AlmaCreativeInstaller(Gtk.Window):
         eb = Gtk.EventBox()
         eb.get_style_context().add_class("hero-banner")
 
-        inner = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=18)
-        inner.set_border_width(20)
+        inner = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=16)
+        inner.set_border_width(14)
         eb.add(inner)
 
-        logo = Gtk.Image.new_from_icon_name("almalinux-creative-installer", Gtk.IconSize.INVALID)
-        logo.set_pixel_size(72)
+        logo = Gtk.Image()
+        _script_dir = os.path.dirname(os.path.abspath(__file__))
+        _logo_png = os.path.join(_script_dir, "icons", "hicolor", "256x256",
+                                 "apps", "almalinux-creative-installer.png")
+        try:
+            pb = GdkPixbuf.Pixbuf.new_from_file_at_scale(_logo_png, 56, 56, True)
+            logo.set_from_pixbuf(pb)
+        except Exception:
+            logo.set_from_icon_name("almalinux-creative-installer", Gtk.IconSize.INVALID)
+            logo.set_pixel_size(56)
         inner.pack_start(logo, False, False, 0)
 
         text_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
