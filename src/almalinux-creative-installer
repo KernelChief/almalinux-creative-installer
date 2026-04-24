@@ -253,6 +253,40 @@ CATEGORIES = [
 ]
 
 
+_EMOJI_ICON = {
+    "🎨": "applications-graphics-symbolic",
+    "🖌️": "applications-graphics-symbolic",
+    "🎬": "video-x-generic-symbolic",
+    "🎞️": "video-x-generic-symbolic",
+    "🎥": "camera-video-symbolic",
+    "🎵": "audio-x-generic-symbolic",
+    "🎹": "audio-x-generic-symbolic",
+    "🎛️": "multimedia-volume-control-symbolic",
+    "🎮": "input-gaming-symbolic",
+    "🕹️": "input-gaming-symbolic",
+    "🧩": "applications-games-symbolic",
+    "🧊": "applications-engineering-symbolic",
+    "🧭": "applications-engineering-symbolic",
+    "📐": "applications-engineering-symbolic",
+    "📦": "system-software-install-symbolic",
+    "📄": "text-x-generic-symbolic",
+    "📁": "folder-symbolic",
+    "💬": "user-available-symbolic",
+    "🗨️": "user-available-symbolic",
+    "💼": "text-x-generic-symbolic",
+}
+
+_CATEGORY_ICON = {
+    "3D":               "applications-engineering-symbolic",
+    "Image Processing": "applications-graphics-symbolic",
+    "Animation & Video":"video-x-generic-symbolic",
+    "Audio":            "audio-x-generic-symbolic",
+    "Game Engines":     "input-gaming-symbolic",
+    "Communication":    "user-available-symbolic",
+    "Productivity":     "text-x-generic-symbolic",
+}
+
+
 class AlmaCreativeInstaller(Gtk.Window):
     def __init__(self):
         super().__init__(title="AlmaLinux Creative Installer")
@@ -877,10 +911,20 @@ class AlmaCreativeInstaller(Gtk.Window):
         row.set_border_width(10)
         lbrow.add(row)
 
+        app_icon = Gtk.Image()
+        icon_name = (
+            _EMOJI_ICON.get(app.get("emoji", ""))
+            or _CATEGORY_ICON.get(app.get("category", ""))
+            or "application-x-executable-symbolic"
+        )
+        app_icon.set_from_icon_name(icon_name, Gtk.IconSize.INVALID)
+        app_icon.set_pixel_size(24)
+        row.pack_start(app_icon, False, False, 0)
+
         left = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
         row.pack_start(left, True, True, 0)
 
-        title = Gtk.Label(label="{}  {}".format(app.get("emoji", ""), app["name"]).strip())
+        title = Gtk.Label(label=app["name"])
         title.set_xalign(0)
         title.set_hexpand(True)
         left.pack_start(title, False, False, 0)
