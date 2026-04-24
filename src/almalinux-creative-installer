@@ -553,8 +553,8 @@ class AlmaCreativeInstaller(Gtk.Window):
             border-radius: 8px;
             border-color: rgba(41, 121, 208, 0.30);
         }
-        frame label {
-            color: #2979d0;
+        frame > label {
+            color: #444444;
             font-weight: bold;
             padding: 0 4px;
         }
