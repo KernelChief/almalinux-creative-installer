@@ -15,7 +15,6 @@ venv/
 # --- RPM & Build Output ---
 rpmbuild/
 *.rpm
-*.spec
 dist/
 build/
 
