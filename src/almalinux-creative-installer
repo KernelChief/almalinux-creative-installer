@@ -536,7 +536,17 @@ class AlmaCreativeInstaller(Gtk.Window):
         row.pack_start(status_lbl, False, False, 0)
 
         btn = Gtk.Button(label=button_label)
-        btn.connect("clicked", lambda *_: self.run_helper_with_callback(enable_action, on_success=self.refresh_repo_state))
+
+        def _on_req_clicked(*_):
+            btn.set_sensitive(False)
+            status_lbl.set_text("Working…")
+            self.run_helper_with_callback(
+                enable_action,
+                on_success=self.refresh_repo_state,
+                on_failure=self.refresh_repo_state,
+            )
+
+        btn.connect("clicked", _on_req_clicked)
         row.pack_start(btn, False, False, 0)
 
         self.repo_widgets[key] = {
@@ -1550,7 +1560,7 @@ class AlmaCreativeInstaller(Gtk.Window):
             )
 
     # ---------------- Helper runner (PRIVILEGED) ----------------
-    def run_helper_with_callback(self, args, on_success=None, app_id=None, progress_segment=None):
+    def run_helper_with_callback(self, args, on_success=None, on_failure=None, app_id=None, progress_segment=None):
         if not Path(HELPER).exists():
             self.append_log("❌ ERROR: Helper not found: " + HELPER + "\n")
             return
@@ -1606,10 +1616,14 @@ class AlmaCreativeInstaller(Gtk.Window):
                     GLib.idle_add(self.append_log, "❌ Failed: {}\n".format(reason))
                     GLib.idle_add(self.append_log, "[exit code: {}]\n".format(rc))
                     GLib.idle_add(self._stop_all_busy)
+                    if on_failure:
+                        GLib.idle_add(on_failure)
 
             except Exception as e:
                 GLib.idle_add(self.append_log, "❌ ERROR: {}\n".format(e))
                 GLib.idle_add(self._stop_all_busy)
+                if on_failure:
+                    GLib.idle_add(on_failure)
 
         threading.Thread(target=worker, daemon=True).start()
 
