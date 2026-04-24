@@ -256,7 +256,7 @@ CATEGORIES = [
 class AlmaCreativeInstaller(Gtk.Window):
     def __init__(self):
         super().__init__(title="AlmaLinux Creative Installer")
-        self.set_default_size(1020, 860)
+        self.set_default_size(1100, 940)
 
         self.repo_widgets = {}
         self.app_widgets = {}
