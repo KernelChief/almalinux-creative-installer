@@ -648,10 +648,9 @@ class AlmaCreativeInstaller(Gtk.Window):
             opacity: 0;
         }
 
-        /* === Requirement row icons === */
-        .req-icon { font-size: 15px; font-weight: bold; min-width: 22px; }
-        .req-icon-ok   { color: #2e7d32; }
-        .req-icon-warn { color: #e65100; }
+        /* === Requirement row icons (symbolic icon color) === */
+        .req-icon-ok    { color: #2e7d32; }
+        .req-icon-warn  { color: #e65100; }
         .req-icon-error { color: #c62828; }
         .req-icon-info  { color: #1565c0; }
 
@@ -731,9 +730,9 @@ class AlmaCreativeInstaller(Gtk.Window):
                               status_disabled="Not enabled"):
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
 
-        icon = Gtk.Label(label="○")
-        icon.set_width_chars(2)
-        icon.get_style_context().add_class("req-icon")
+        icon = Gtk.Image()
+        icon.set_pixel_size(18)
+        icon.set_size_request(24, 24)
         row.pack_start(icon, False, False, 0)
 
         text_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
@@ -780,9 +779,9 @@ class AlmaCreativeInstaller(Gtk.Window):
     def _make_selinux_row(self):
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
 
-        icon = Gtk.Label(label="○")
-        icon.set_width_chars(2)
-        icon.get_style_context().add_class("req-icon")
+        icon = Gtk.Image()
+        icon.set_pixel_size(18)
+        icon.set_size_request(24, 24)
         row.pack_start(icon, False, False, 0)
 
         text_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
@@ -1454,24 +1453,22 @@ class AlmaCreativeInstaller(Gtk.Window):
             stderr=subprocess.DEVNULL,
         ).returncode == 0
 
-    def _set_req_icon(self, label, state):
-        ctx = label.get_style_context()
+    def _set_req_icon(self, image, state):
+        ctx = image.get_style_context()
         for cls in ("req-icon-ok", "req-icon-warn", "req-icon-error", "req-icon-info"):
             ctx.remove_class(cls)
-        if state == "ok":
-            ctx.add_class("req-icon-ok")
-            label.set_text("✓")
-        elif state == "warn":
-            ctx.add_class("req-icon-warn")
-            label.set_text("▲")
-        elif state == "error":
-            ctx.add_class("req-icon-error")
-            label.set_text("✗")
-        elif state == "info":
-            ctx.add_class("req-icon-info")
-            label.set_text("i")
-        else:
-            label.set_text("○")
+        _icons = {
+            "ok":       ("object-select-symbolic",      "req-icon-ok"),
+            "warn":     ("dialog-warning-symbolic",     "req-icon-warn"),
+            "error":    ("dialog-error-symbolic",       "req-icon-error"),
+            "info":     ("dialog-information-symbolic", "req-icon-info"),
+            "checking": ("content-loading-symbolic",    None),
+        }
+        icon_name, css_class = _icons.get(state, ("content-loading-symbolic", None))
+        image.set_from_icon_name(icon_name, Gtk.IconSize.INVALID)
+        image.set_pixel_size(18)
+        if css_class:
+            ctx.add_class(css_class)
 
     def _set_requirement_state(self, key, state):
         w = self.repo_widgets.get(key)
