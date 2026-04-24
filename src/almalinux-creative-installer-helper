@@ -43,9 +43,13 @@ enable_rpmfusion_nonfree() {
 
 enable_nvidia_drivers() {
   log "Installing AlmaLinux native NVIDIA drivers..."
+  if ! lspci 2>/dev/null | grep -qi nvidia; then
+    echo "ERROR: No NVIDIA GPU detected on this system. Aborting driver install." >&2
+    exit 5
+  fi
   dnf -y install almalinux-release-nvidia-driver
   log "NVIDIA driver repository configured."
-  dnf -y install nvidia-open-kmod nvidia-driver
+  dnf -y install --allowerasing nvidia-open-kmod nvidia-driver
   log "NVIDIA drivers installed. A reboot is required to load the kernel module."
 }
 
