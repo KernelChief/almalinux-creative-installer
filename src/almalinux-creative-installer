@@ -161,7 +161,7 @@ APPS = [
         "id": "freecad",
         "name": "FreeCAD",
         "type": "flatpak",
-        "appid": "org.freecadweb.FreeCAD",
+        "appid": "org.freecad.FreeCAD",
         "emoji": "📐",
         "category": "3D",
     },
