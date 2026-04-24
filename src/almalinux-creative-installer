@@ -298,9 +298,15 @@ class AlmaCreativeInstaller(Gtk.Window):
         req_frame.set_shadow_type(Gtk.ShadowType.IN)
         apps_page.pack_start(req_frame, False, False, 0)
 
-        req_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-        req_box.set_border_width(10)
-        req_frame.add(req_box)
+        req_scroll = Gtk.ScrolledWindow()
+        req_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        req_scroll.set_max_content_height(220)
+        req_scroll.set_propagate_natural_height(True)
+        req_frame.add(req_scroll)
+
+        req_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        req_box.set_border_width(8)
+        req_scroll.add(req_box)
 
         req_box.pack_start(
             self._make_requirement_row(
@@ -642,6 +648,13 @@ class AlmaCreativeInstaller(Gtk.Window):
             opacity: 0;
         }
 
+        /* === Requirement row icons === */
+        .req-icon { font-size: 15px; font-weight: bold; min-width: 22px; }
+        .req-icon-ok   { color: #2e7d32; }
+        .req-icon-warn { color: #e65100; }
+        .req-icon-error { color: #c62828; }
+        .req-icon-info  { color: #1565c0; }
+
         /* === Misc === */
         .subtle { opacity: 0.70; font-size: 11px; }
         """
@@ -718,8 +731,9 @@ class AlmaCreativeInstaller(Gtk.Window):
                               status_disabled="Not enabled"):
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
 
-        icon = Gtk.Label(label="…")
+        icon = Gtk.Label(label="○")
         icon.set_width_chars(2)
+        icon.get_style_context().add_class("req-icon")
         row.pack_start(icon, False, False, 0)
 
         text_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
@@ -766,8 +780,9 @@ class AlmaCreativeInstaller(Gtk.Window):
     def _make_selinux_row(self):
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
 
-        icon = Gtk.Label(label="…")
+        icon = Gtk.Label(label="○")
         icon.set_width_chars(2)
+        icon.get_style_context().add_class("req-icon")
         row.pack_start(icon, False, False, 0)
 
         text_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
@@ -801,21 +816,21 @@ class AlmaCreativeInstaller(Gtk.Window):
             return
 
         if mode is None:
-            w["icon"].set_text("…")
+            self._set_req_icon(w["icon"], "checking")
             w["status"].set_text("Checking…")
         else:
             m = (mode or "unknown").lower()
             if m == "enforcing":
-                w["icon"].set_text("⚠️")
+                self._set_req_icon(w["icon"], "warn")
                 w["status"].set_text("Enforcing")
             elif m == "permissive":
-                w["icon"].set_text("ℹ️")
+                self._set_req_icon(w["icon"], "info")
                 w["status"].set_text("Permissive")
             elif m == "disabled":
-                w["icon"].set_text("ℹ️")
+                self._set_req_icon(w["icon"], "info")
                 w["status"].set_text("Disabled")
             else:
-                w["icon"].set_text("❓")
+                self._set_req_icon(w["icon"], "checking")
                 w["status"].set_text("Unknown")
 
         w["button"].set_sensitive(True)
@@ -1439,20 +1454,39 @@ class AlmaCreativeInstaller(Gtk.Window):
             stderr=subprocess.DEVNULL,
         ).returncode == 0
 
+    def _set_req_icon(self, label, state):
+        ctx = label.get_style_context()
+        for cls in ("req-icon-ok", "req-icon-warn", "req-icon-error", "req-icon-info"):
+            ctx.remove_class(cls)
+        if state == "ok":
+            ctx.add_class("req-icon-ok")
+            label.set_text("✓")
+        elif state == "warn":
+            ctx.add_class("req-icon-warn")
+            label.set_text("▲")
+        elif state == "error":
+            ctx.add_class("req-icon-error")
+            label.set_text("✗")
+        elif state == "info":
+            ctx.add_class("req-icon-info")
+            label.set_text("i")
+        else:
+            label.set_text("○")
+
     def _set_requirement_state(self, key, state):
         w = self.repo_widgets.get(key)
         if not w:
             return
         if state is None:
-            w["icon"].set_text("…")
+            self._set_req_icon(w["icon"], "checking")
             w["status"].set_text("Checking…")
             w["button"].set_sensitive(False)
         elif state is True:
-            w["icon"].set_text("✅")
+            self._set_req_icon(w["icon"], "ok")
             w["status"].set_text(w.get("status_enabled", "Enabled"))
             w["button"].set_sensitive(False)
         else:
-            w["icon"].set_text("❌")
+            self._set_req_icon(w["icon"], "error")
             w["status"].set_text(w.get("status_disabled", "Not enabled"))
             w["button"].set_sensitive(True)
 
