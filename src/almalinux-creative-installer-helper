@@ -35,14 +35,26 @@ enable_rpmfusion_nonfree() {
     echo "ERROR: Could not detect EL version." >&2
     exit 4
   fi
-  dnf -y install \
-    "https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-${el_version}.noarch.rpm" \
-    "https://mirrors.rpmfusion.org/nonfree/el/rpmfusion-nonfree-release-${el_version}.noarch.rpm"
+  local pkgs=("https://mirrors.rpmfusion.org/nonfree/el/rpmfusion-nonfree-release-${el_version}.noarch.rpm")
+  if ! dnf repolist --enabled 2>/dev/null | grep -q "^rpmfusion-free"; then
+    pkgs=("https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-${el_version}.noarch.rpm" "${pkgs[@]}")
+  fi
+  dnf -y install "${pkgs[@]}"
   log "RPM Fusion Free + Non-Free enabled."
 }
 
 enable_nvidia_drivers() {
   log "Installing AlmaLinux native NVIDIA drivers..."
+  if ! rpm -q almalinux-release >/dev/null 2>&1; then
+    echo "ERROR: AlmaLinux native NVIDIA driver repo is only supported on AlmaLinux." >&2
+    exit 6
+  fi
+  local el_version
+  el_version="$(rpm -E %rhel)"
+  if [[ -z "${el_version}" || "${el_version}" == "%rhel" || "${el_version}" -lt 9 ]]; then
+    echo "ERROR: AlmaLinux native NVIDIA driver repo requires EL9 or newer (detected: EL${el_version})." >&2
+    exit 6
+  fi
   if ! lspci 2>/dev/null | grep -qi nvidia; then
     echo "ERROR: No NVIDIA GPU detected on this system. Aborting driver install." >&2
     exit 5

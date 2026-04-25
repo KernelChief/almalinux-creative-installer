@@ -402,7 +402,7 @@ _CATEGORY_ICON = {
 class AlmaCreativeInstaller(Gtk.Window):
     def __init__(self):
         super().__init__(title="AlmaLinux Creative Installer")
-        self.set_default_size(1100, 940)
+        self.set_default_size(1100, 760)
 
         self.repo_widgets = {}
         self.app_widgets = {}
@@ -499,6 +499,7 @@ class AlmaCreativeInstaller(Gtk.Window):
                 button_label="Install",
                 status_enabled="Installed",
                 status_disabled="Not installed",
+                post_install_msg="NVIDIA drivers installed. A reboot is required to load the kernel module.",
             ),
             False, False, 0
         )
@@ -873,7 +874,8 @@ class AlmaCreativeInstaller(Gtk.Window):
     def _make_requirement_row(self, key, title, subtitle, enable_action,
                               button_label="Enable",
                               status_enabled="Enabled",
-                              status_disabled="Not enabled"):
+                              status_disabled="Not enabled",
+                              post_install_msg=None):
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
 
         icon = Gtk.Image()
@@ -903,9 +905,23 @@ class AlmaCreativeInstaller(Gtk.Window):
         def _on_req_clicked(*_):
             btn.set_sensitive(False)
             status_lbl.set_text("Working…")
+
+            def on_success():
+                self.refresh_repo_state()
+                if post_install_msg:
+                    dlg = Gtk.MessageDialog(
+                        parent=self,
+                        flags=0,
+                        message_type=Gtk.MessageType.INFO,
+                        buttons=Gtk.ButtonsType.OK,
+                        text=post_install_msg,
+                    )
+                    dlg.run()
+                    dlg.destroy()
+
             self.run_helper_with_callback(
                 enable_action,
-                on_success=self.refresh_repo_state,
+                on_success=on_success,
                 on_failure=self.refresh_repo_state,
             )
 
@@ -1621,6 +1637,8 @@ class AlmaCreativeInstaller(Gtk.Window):
             "checking": ("content-loading-symbolic",    None),
         }
         icon_name, css_class = _icons.get(state, ("content-loading-symbolic", None))
+        if not Gtk.IconTheme.get_default().has_icon(icon_name):
+            icon_name = "emblem-synchronizing-symbolic"
         image.set_from_icon_name(icon_name, Gtk.IconSize.INVALID)
         image.set_pixel_size(18)
         if css_class:
