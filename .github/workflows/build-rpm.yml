@@ -24,7 +24,11 @@ jobs:
     if: github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'documentation')
     strategy:
       matrix:
-        el: [9, 10]
+        include:
+          - el: 9
+            qt_pkg: python3-qt5
+          - el: 10
+            qt_pkg: python3-qt6
 
     container:
       image: almalinux:${{ matrix.el }}
@@ -32,11 +36,14 @@ jobs:
     steps:
       - name: Install build dependencies
         run: |
+          dnf -y install epel-release
           dnf -y install \
             rpm-build rpmdevtools git bash \
-            python3 python3-gobject gtk3 \
+            python3 \
+            ${{ matrix.qt_pkg }} \
             polkit xdg-utils \
             rsync tar findutils
+
       - name: Checkout source
         uses: actions/checkout@v6
         with:
@@ -102,7 +109,6 @@ jobs:
           GIT_DISCOVERY_ACROSS_FILESYSTEM: 1
         run: |
           mkdir -p "$TOPDIR" "$DISTDIR"
-          # Ensure rpmbuild writes inside the shared workspace (not ~)
           export HOME="${{ github.workspace }}"
           mkdir -p "$HOME"/rpmbuild
           echo "GITHUB_REF=$GITHUB_REF"
@@ -110,11 +116,8 @@ jobs:
           echo "GITHUB_REF_TYPE=$GITHUB_REF_TYPE"
           echo "VERSION (env)=$VERSION"
 
-          # Needed in containerized GitHub Actions runs to allow git commands.
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-          # workflow_dispatch on branches may have empty VERSION.
-          # Fallback to latest v* tag so manual runs still work without input.
           if [ -z "$VERSION" ]; then
             VERSION="$(git tag --list 'v*' --sort=-v:refname | head -n 1 || true)"
             VERSION="${VERSION#v}"
@@ -132,7 +135,6 @@ jobs:
           chmod +x src/packaging/build-rpm.sh
           ./src/packaging/build-rpm.sh
 
-          # Collect RPMs into dist/
           find "$HOME/rpmbuild/RPMS" -type f -name "*.rpm" -exec cp -v {} "$DISTDIR/" \;
 
       - name: Upload RPM artifacts
@@ -206,18 +208,18 @@ jobs:
           generate_release_notes: false
           body: |
             ## :tada: AlmaLinux Creative Installer ${{ steps.resolve_tag.outputs.tag_name }}
-            
+
             :white_check_mark: Highlights
             - (fill me in)
-            
+
             ❤️ Special Thanks
             - Major thanks for the icon design to **Cristian Slavik** from **NOX Visual Effects**
               - GitHub: https://github.com/crisslavik
               - LinkedIn: https://www.linkedin.com/in/crisslavik/
 
             :package: Assets
-            - EL9 RPM
-            - EL10 RPM (experimental)
+            - EL9 RPM (Qt5 / PyQt5)
+            - EL10 RPM (Qt6 / PyQt6)
 
   pr-beta-comment:
     name: Comment beta RPM location on PR
@@ -239,4 +241,3 @@ jobs:
             Expected artifact names:
             - `rpm-el9-pr${{ github.event.pull_request.number }}`
             - `rpm-el10-pr${{ github.event.pull_request.number }}`
-
