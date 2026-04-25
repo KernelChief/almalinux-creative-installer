@@ -34,7 +34,7 @@ https://chat.almalinux.org/almalinux/channels/sig-media-entertainment
 ## 📚 Quick Navigation
 
 - [🚀 Quick Start](#quick-start-recommended)
-- [📦 Installation Methods](#-installation-methods-of-softwares-via-the-almalinux-creative-installer)
+- [📦 Installation Methods](#-installation-methods-of-software-via-the-almalinux-creative-installer)
 - [📦 Install AppImage Apps (Beginner Guide)](#-install-appimage-apps-beginner-guide)
 - [🧩 Supported Platforms](#-supported-platforms)
 - [🎬 Target Applications](#-target-applications)
@@ -126,7 +126,7 @@ You can launch the application:
 
 ---
 
-## 📦 Installation Methods of softwares via the AlmaLinux Creative Installer
+## 📦 Installation Methods of software via the AlmaLinux Creative Installer
 
 AlmaLinux Creative Installer uses the following approaches, depending on the software:
 
@@ -192,20 +192,30 @@ post-production, and content creation environments:
 - **Image Processing**
   - GIMP
   - Krita
- 
+  - Inkscape
+  - darktable
+  - RawTherapee
+  - digiKam
+  - FontForge
+
 - **3D**
   - Blender
   - MeshLab
   - PrusaSlicer
   - Material Maker
+  - FreeCAD
 
 - **Animation & Video**
-  - Kdenlive (AlmaLinux 9 or AlmaLinux 10.2 (will not work AlmaLinux 10.1 and less))
+  - Kdenlive (AlmaLinux 9 or AlmaLinux 10.2+)
   - OpenToonz
+  - VLC
+  - OBS Studio
+  - HandBrake
+  - Shotcut
   - DaVinci Resolve
 
 - **Productivity**
-  - Krusader (Works on AlmaLinux 9, currently being compiled for AlmaLinux 10+ may not be available yet)
+  - Krusader (AlmaLinux 9; may not be available yet on AL10)
   - Scribus
   - draw.io
   - LibreOffice
@@ -215,11 +225,15 @@ post-production, and content creation environments:
 - **Game Engines**
   - Epic Asset Manager
   - Asset Manager Studio
-  - Godots
+  - Godot Engine
 
 - **Audio**
   - Ardour
   - Bitwig Studio
+  - LMMS
+  - Audacity
+  - Carla
+  - Hydrogen
   - Spotify
 
 - **Communication**
@@ -309,9 +323,10 @@ Check `/etc/selinux/config`. If it contains an invalid value like
 **Why does the Resolve `.run` installer/uninstaller run as a normal user?**  
 Blackmagic’s installer explicitly refuses to run as root. The UI enforces this.
 
-**Why is Krita installed via Flatpak?**  
-Krita’s upstream recommends Flatpak for Enterprise Linux to ensure current
-features and dependencies that may lag in EL repositories.
+**Why are many apps installed via Flatpak?**  
+Several upstreams (Krita, Inkscape, darktable, OBS Studio, etc.) recommend
+Flatpak for Enterprise Linux to ensure up-to-date features and dependencies
+that may lag or be absent in EL/EPEL repositories.
 
 **Where is the Resolve uninstaller?**  
 It is located at `/opt/resolve/installer` and must be run as a normal user.
@@ -335,8 +350,8 @@ The UI calls the installed helper at `/usr/libexec/almalinux-creative-installer-
 If you’re running from source, make sure the system package is updated too.
 
 **Flathub was added to my system. Is that expected?**  
-Yes. Krita is installed via Flatpak, and the installer adds Flathub system‑wide
-to enable it.
+Yes. Many apps (Krita, Inkscape, darktable, OBS Studio, and others) are installed
+via Flatpak, and the installer adds Flathub system-wide to enable them.
 
 **The RPM build script fails.**  
 `build-rpm.sh` uses the **latest git tag** for the version. Create a tag like
@@ -354,7 +369,7 @@ to enable it.
 ---
 
 __Major thanks to [Cristian Slavik](https://github.com/crisslavik) (NOX Visual Effects) for the icon design and production.__\
-LinkedIn: [](https://www.linkedin.com/in/crisslavik/)<https://www.linkedin.com/in/crisslavik/>
+LinkedIn: <https://www.linkedin.com/in/crisslavik/>
 
 ---
 
@@ -368,4 +383,3 @@ This means:
 - Source code must be made available when distributing binaries
 
 See the `LICENSE` file for full terms.
-

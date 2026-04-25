@@ -9,7 +9,7 @@
 - [ ] 🧹 Refactor / cleanup
 - [ ] 🧹 GitHub Action Change
 
-## What was done ? :
+## What was done?
 
 
 
