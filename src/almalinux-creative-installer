@@ -17,6 +17,7 @@ from collections import deque
 
 HELPER = "/usr/libexec/almalinux-creative-installer-helper"
 RESOLVE_URL = "https://www.blackmagicdesign.com/products/davinciresolve/"
+THREEDC_URL = "https://3dcoat.com/#auth"
 APPIMAGELAUNCHER_VERSION = "3.0.0-beta-2-gha287.96cb937"
 APPIMAGELAUNCHER_RPM_URL = (
     "https://github.com/TheAssassin/AppImageLauncher/releases/download/"
@@ -163,6 +164,13 @@ APPS = [
         "type": "flatpak",
         "appid": "org.freecad.FreeCAD",
         "emoji": "📐",
+        "category": "3D",
+    },
+    {
+        "id": "3dcoat",
+        "name": "3DCoat",
+        "type": "3dcoat",
+        "emoji": "🗿",
         "category": "3D",
     },
     {
@@ -1108,6 +1116,9 @@ class AlmaCreativeInstaller(Gtk.Window):
         elif app["type"] == "resolve":
             install_btn.connect("clicked", lambda *_: self.install_resolve_flow())
             remove_btn.connect("clicked", lambda *_: self.remove_resolve_flow())
+        elif app["type"] == "3dcoat":
+            install_btn.connect("clicked", lambda *_: self.install_3dcoat_flow())
+            remove_btn.connect("clicked", lambda *_: self.remove_3dcoat_flow())
 
         self.app_widgets[app["id"]] = {
             "app": app,
@@ -1177,6 +1188,8 @@ class AlmaCreativeInstaller(Gtk.Window):
             return "Installed via Flatpak (recommended upstream for EL)"
         if app["type"] == "resolve":
             return "Guided install: deps → open download page → pick .run/.rpm"
+        if app["type"] == "3dcoat":
+            return "Guided install: log in → download Linux tarball → pick .tar archive"
         return ""
 
     # ---------------- Busy UI helpers ----------------
@@ -1800,6 +1813,18 @@ class AlmaCreativeInstaller(Gtk.Window):
                 w["remove"].set_sensitive(False)
             return
 
+        if app["type"] == "3dcoat":
+            installed = self._3dcoat_installed()
+            if installed:
+                w["status"].set_text("✅ Installed")
+                w["install"].set_sensitive(False)
+                w["remove"].set_sensitive(True)
+            else:
+                w["status"].set_text("ℹ️ Guided install")
+                w["install"].set_sensitive(True)
+                w["remove"].set_sensitive(False)
+            return
+
         if app["type"] == "dnf":
             installed = subprocess.run(
                 ["rpm", "-q", app["pkg"]],
@@ -2382,6 +2407,96 @@ class AlmaCreativeInstaller(Gtk.Window):
                 GLib.idle_add(self.set_app_busy, "resolve", False)
 
         threading.Thread(target=worker, daemon=True).start()
+
+
+    # ---------------- 3DCoat flow ----------------
+    def _3dcoat_installed(self):
+        if Path("/usr/bin/3dcoat").exists():
+            return True
+        opt_dir = Path("/opt/3DCoat")
+        if opt_dir.is_dir() and any(opt_dir.iterdir()):
+            return True
+        return shutil.which("3dcoat") is not None
+
+    def install_3dcoat_flow(self):
+        self.set_app_busy("3dcoat", True, "Waiting for file…")
+        self._set_app_progress_fraction("3dcoat", 0.02)
+
+        if shutil.which("xdg-open"):
+            subprocess.Popen(["xdg-open", THREEDC_URL])
+            self.append_log("Opened 3DCoat download page.\n")
+
+        self.append_log(
+            "Log in, download the Linux tarball, then select it below to continue.\n"
+        )
+        self.pick_3dcoat_installer()
+
+    def pick_3dcoat_installer(self):
+        dialog = Gtk.FileChooserDialog(
+            title="Select 3DCoat Linux tarball",
+            parent=self,
+            action=Gtk.FileChooserAction.OPEN,
+        )
+        dialog.add_buttons(
+            Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+            Gtk.STOCK_OPEN, Gtk.ResponseType.OK,
+        )
+
+        f = Gtk.FileFilter()
+        f.set_name("Tarballs (*.tar, *.tar.bz2, *.tar.gz, *.tar.xz, *.tar.zst)")
+        for pat in ("*.tar", "*.tar.bz2", "*.tar.gz", "*.tar.xz", "*.tar.zst", "*.tgz"):
+            f.add_pattern(pat)
+        dialog.add_filter(f)
+
+        resp = dialog.run()
+        if resp == Gtk.ResponseType.OK:
+            path = dialog.get_filename()
+            if path:
+                self._set_app_progress_fraction("3dcoat", 0.05)
+                self.run_helper_with_callback(
+                    ["install_3dcoat", path],
+                    on_success=lambda: self._finish_app_action("3dcoat"),
+                    app_id="3dcoat",
+                    progress_segment=(0.05, 0.98),
+                )
+            else:
+                self.set_app_busy("3dcoat", False)
+        else:
+            self.set_app_busy("3dcoat", False)
+        dialog.destroy()
+
+    def remove_3dcoat_flow(self):
+        if not self._3dcoat_installed():
+            self.append_log("ℹ️ 3DCoat does not appear to be installed.\n")
+            self.refresh_app_state("3dcoat")
+            return
+
+        dialog = Gtk.MessageDialog(
+            parent=self,
+            flags=0,
+            message_type=Gtk.MessageType.WARNING,
+            buttons=Gtk.ButtonsType.NONE,
+            text="Uninstall 3DCoat?",
+        )
+        dialog.format_secondary_text(
+            "This will remove /opt/3DCoat, the /usr/bin/3dcoat symlink, "
+            "and the desktop entry."
+        )
+        dialog.add_button("Cancel", Gtk.ResponseType.CANCEL)
+        dialog.add_button("Uninstall", Gtk.ResponseType.OK)
+
+        resp = dialog.run()
+        dialog.destroy()
+
+        if resp == Gtk.ResponseType.OK:
+            self.set_app_busy("3dcoat", True, "Removing…")
+            self._set_app_progress_fraction("3dcoat", 0.02)
+            self.run_helper_with_callback(
+                ["remove_3dcoat"],
+                on_success=lambda: self._finish_app_action("3dcoat"),
+                app_id="3dcoat",
+                progress_segment=(0.02, 0.98),
+            )
 
 
 def main():
