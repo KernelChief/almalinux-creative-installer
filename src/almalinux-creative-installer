@@ -1474,7 +1474,7 @@ class AlmaCreativeInstaller(QMainWindow):
             "Tarballs (*.tar *.tar.bz2 *.tar.gz *.tar.xz *.tar.zst *.tgz);;All files (*)",
         )
         if not path:
-            self.set_app_busy("3dcoat", False)
+            self._finish_app_action("3dcoat")
             return
         self._set_app_progress_fraction("3dcoat", 0.05)
         self.run_helper_with_callback(
