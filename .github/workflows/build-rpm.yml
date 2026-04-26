@@ -26,9 +26,9 @@ jobs:
       matrix:
         include:
           - el: 9
-            qt_pkg: python3-qt5
+            qt_pkg: python3-pyqt5
           - el: 10
-            qt_pkg: python3-qt6
+            qt_pkg: python3-pyqt6
 
     container:
       image: almalinux:${{ matrix.el }}

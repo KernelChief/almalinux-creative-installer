@@ -86,14 +86,17 @@ except ImportError:
     # QFrame.Shape / QFrame.Shadow
     _alias(QFrame, "Shape", "Shadow")
 
-    # QMessageBox.StandardButton  etc.
-    _alias(QMessageBox, "StandardButton", "Icon")
+    # QMessageBox.StandardButton / ButtonRole  etc.
+    _alias(QMessageBox, "StandardButton", "Icon", "ButtonRole")
 
     # QFileDialog.Option  etc.
     _alias(QFileDialog, "Option", "FileMode", "AcceptMode")
 
     # QListWidgetItem.ItemType
     _alias(QListWidgetItem, "ItemType")
+
+    # QTextCursor.MoveOperation.End  etc.
+    _alias(QTextCursor, "MoveOperation")
 
     # exec_() → exec() shim for dialogs/app (Qt5 has both but Qt6 dropped exec_)
     for _cls in (QDialog, QMessageBox, QFileDialog, QApplication):
