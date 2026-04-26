@@ -1816,11 +1816,11 @@ class AlmaCreativeInstaller(Gtk.Window):
         if app["type"] == "3dcoat":
             installed = self._3dcoat_installed()
             if installed:
-                w["status"].set_text("✅ Installed")
+                self._set_status_badge(w["status"], "Installed", "installed")
                 w["install"].set_sensitive(False)
                 w["remove"].set_sensitive(True)
             else:
-                w["status"].set_text("ℹ️ Guided install")
+                self._set_status_badge(w["status"], "Guided install", "available")
                 w["install"].set_sensitive(True)
                 w["remove"].set_sensitive(False)
             return
