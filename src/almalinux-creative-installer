@@ -3,7 +3,7 @@
 
 import gi
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, GLib, Gdk
+from gi.repository import Gtk, GLib, Gdk, GdkPixbuf
 
 import subprocess
 import threading
@@ -17,6 +17,7 @@ from collections import deque
 
 HELPER = "/usr/libexec/almalinux-creative-installer-helper"
 RESOLVE_URL = "https://www.blackmagicdesign.com/products/davinciresolve/"
+THREEDC_URL = "https://3dcoat.com/#auth"
 APPIMAGELAUNCHER_VERSION = "3.0.0-beta-2-gha287.96cb937"
 APPIMAGELAUNCHER_RPM_URL = (
     "https://github.com/TheAssassin/AppImageLauncher/releases/download/"
@@ -163,6 +164,13 @@ APPS = [
         "type": "flatpak",
         "appid": "org.freecad.FreeCAD",
         "emoji": "📐",
+        "category": "3D",
+    },
+    {
+        "id": "3dcoat",
+        "name": "3DCoat",
+        "type": "3dcoat",
+        "emoji": "🗿",
         "category": "3D",
     },
     {
@@ -365,10 +373,44 @@ CATEGORIES = [
 ]
 
 
+_EMOJI_ICON = {
+    "🎨": "applications-graphics-symbolic",
+    "🖌️": "applications-graphics-symbolic",
+    "🎬": "video-x-generic-symbolic",
+    "🎞️": "video-x-generic-symbolic",
+    "🎥": "camera-video-symbolic",
+    "🎵": "audio-x-generic-symbolic",
+    "🎹": "audio-x-generic-symbolic",
+    "🎛️": "multimedia-volume-control-symbolic",
+    "🎮": "input-gaming-symbolic",
+    "🕹️": "input-gaming-symbolic",
+    "🧩": "applications-games-symbolic",
+    "🧊": "applications-engineering-symbolic",
+    "🧭": "applications-engineering-symbolic",
+    "📐": "applications-engineering-symbolic",
+    "📦": "system-software-install-symbolic",
+    "📄": "text-x-generic-symbolic",
+    "📁": "folder-symbolic",
+    "💬": "user-available-symbolic",
+    "🗨️": "user-available-symbolic",
+    "💼": "text-x-generic-symbolic",
+}
+
+_CATEGORY_ICON = {
+    "3D":               "applications-engineering-symbolic",
+    "Image Processing": "applications-graphics-symbolic",
+    "Animation & Video":"video-x-generic-symbolic",
+    "Audio":            "audio-x-generic-symbolic",
+    "Game Engines":     "input-gaming-symbolic",
+    "Communication":    "user-available-symbolic",
+    "Productivity":     "text-x-generic-symbolic",
+}
+
+
 class AlmaCreativeInstaller(Gtk.Window):
     def __init__(self):
         super().__init__(title="AlmaLinux Creative Installer")
-        self.set_default_size(980, 640)
+        self.set_default_size(1100, 760)
 
         self.repo_widgets = {}
         self.app_widgets = {}
@@ -403,14 +445,22 @@ class AlmaCreativeInstaller(Gtk.Window):
         apps_page.set_border_width(6)
         self.notebook.append_page(apps_page, Gtk.Label(label="Apps"))
 
+        apps_page.pack_start(self._make_hero_banner(), False, False, 0)
+
         # System Requirements
         req_frame = Gtk.Frame(label="System Requirements")
         req_frame.set_shadow_type(Gtk.ShadowType.IN)
         apps_page.pack_start(req_frame, False, False, 0)
 
-        req_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-        req_box.set_border_width(10)
-        req_frame.add(req_box)
+        req_scroll = Gtk.ScrolledWindow()
+        req_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        req_scroll.set_max_content_height(220)
+        req_scroll.set_propagate_natural_height(True)
+        req_frame.add(req_scroll)
+
+        req_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        req_box.set_border_width(8)
+        req_scroll.add(req_box)
 
         req_box.pack_start(
             self._make_requirement_row(
@@ -427,6 +477,37 @@ class AlmaCreativeInstaller(Gtk.Window):
                 title="Extra Packages for Enterprise Linux (EPEL)(Required)",
                 subtitle="Community packages used by many creative tools.",
                 enable_action=["enable_epel"],
+            ),
+            False, False, 0
+        )
+        req_box.pack_start(
+            self._make_requirement_row(
+                key="RPMFUSION_FREE",
+                title="RPM Fusion Free (Recommended)",
+                subtitle="Multimedia codecs (H.264, MP3, AAC) — essential for video editors.",
+                enable_action=["enable_rpmfusion_free"],
+            ),
+            False, False, 0
+        )
+        req_box.pack_start(
+            self._make_requirement_row(
+                key="RPMFUSION_NONFREE",
+                title="RPM Fusion Non-Free (Optional)",
+                subtitle="Proprietary codecs and non-redistributable software. Also enables RPM Fusion Free.",
+                enable_action=["enable_rpmfusion_nonfree"],
+            ),
+            False, False, 0
+        )
+        req_box.pack_start(
+            self._make_requirement_row(
+                key="NVIDIA",
+                title="NVIDIA Drivers — AlmaLinux Native (Optional)",
+                subtitle="Open-kernel NVIDIA drivers via AlmaLinux official repo. Requires reboot after install.",
+                enable_action=["enable_nvidia_drivers"],
+                button_label="Install",
+                status_enabled="Installed",
+                status_disabled="Not installed",
+                post_install_msg="NVIDIA drivers installed. A reboot is required to load the kernel module.",
             ),
             False, False, 0
         )
@@ -459,6 +540,7 @@ class AlmaCreativeInstaller(Gtk.Window):
         self.search_entry.set_placeholder_text("Type app name (e.g. blender, krita, davinci)")
         self.search_entry.connect("search-changed", self.on_search_changed)
         self.search_entry.set_hexpand(True)
+        self.search_entry.get_style_context().add_class("pill-search")
         search_box.pack_start(self.search_entry, True, True, 0)
 
         app_content = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
@@ -473,7 +555,7 @@ class AlmaCreativeInstaller(Gtk.Window):
 
         self.category_listbox = Gtk.ListBox()
         self.category_listbox.set_selection_mode(Gtk.SelectionMode.SINGLE)
-        self.category_listbox.get_style_context().add_class("boxed-list")
+        self.category_listbox.get_style_context().add_class("category-list")
         self.category_listbox.connect("row-selected", self.on_category_selected)
         category_scroller.add(self.category_listbox)
 
@@ -556,8 +638,179 @@ class AlmaCreativeInstaller(Gtk.Window):
     # ---------------- CSS ----------------
     def _apply_css(self):
         css = b"""
-        .boxed-list row { padding: 10px; }
-        .subtle { opacity: 0.75; }
+        /* === Hero Banner === */
+        .hero-banner {
+            background-image: linear-gradient(135deg, #1a4c8c, #2979d0);
+            border-radius: 10px;
+        }
+        .hero-title {
+            color: #ffffff;
+            font-size: 20px;
+            font-weight: bold;
+        }
+        .hero-subtitle {
+            color: rgba(255, 255, 255, 0.78);
+            font-size: 12px;
+        }
+
+        /* === App Cards === */
+        .boxed-list row {
+            padding: 12px 14px;
+            border-radius: 10px;
+            border: 1px solid rgba(128, 128, 128, 0.25);
+            margin: 3px 6px;
+            transition: background-color 150ms, border-color 150ms;
+        }
+        .boxed-list row:hover {
+            background-color: rgba(41, 121, 208, 0.08);
+            border-color: #2979d0;
+        }
+
+        /* === Section Frames === */
+        frame {
+            border-radius: 8px;
+        }
+        frame > border {
+            border-radius: 8px;
+            border-color: rgba(41, 121, 208, 0.30);
+        }
+        frame > label {
+            color: #444444;
+            font-weight: bold;
+            padding: 0 4px;
+        }
+
+        /* === Status Badges === */
+        .badge-installed {
+            background-color: #2e7d32;
+            color: #ffffff;
+            border-radius: 999px;
+            padding: 2px 10px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .badge-available {
+            background-color: #555555;
+            color: #ffffff;
+            border-radius: 999px;
+            padding: 2px 10px;
+            font-size: 12px;
+        }
+        .badge-busy {
+            background-color: #e65100;
+            color: #ffffff;
+            border-radius: 999px;
+            padding: 2px 10px;
+            font-size: 12px;
+        }
+
+        /* === Action Buttons === */
+        .btn-install {
+            background-image: none;
+            background-color: #2e7d32;
+            color: #ffffff;
+            border: none;
+            border-radius: 6px;
+            padding: 4px 14px;
+            font-weight: bold;
+        }
+        .btn-install:hover {
+            background-color: #1b5e20;
+        }
+        .btn-install:disabled {
+            background-color: rgba(46, 125, 50, 0.40);
+            color: rgba(255, 255, 255, 0.60);
+        }
+        .btn-remove {
+            background-image: none;
+            background-color: #c62828;
+            color: #ffffff;
+            border: none;
+            border-radius: 6px;
+            padding: 4px 14px;
+        }
+        .btn-remove:hover {
+            background-color: #8e0000;
+        }
+        .btn-remove:disabled {
+            background-color: rgba(198, 40, 40, 0.40);
+            color: rgba(255, 255, 255, 0.60);
+        }
+
+        /* === Notebook Tabs === */
+        notebook tab {
+            padding: 8px 20px;
+            border-radius: 6px 6px 0 0;
+        }
+        notebook tab:checked {
+            background-color: #2979d0;
+        }
+        notebook tab:checked label {
+            color: #ffffff;
+            font-weight: bold;
+        }
+        notebook tab:hover:not(:checked) {
+            background-color: rgba(41, 121, 208, 0.12);
+        }
+
+        /* === Search Entry === */
+        entry.pill-search {
+            border-radius: 999px;
+            padding: 6px 14px;
+        }
+        entry.pill-search:focus {
+            border-color: #2979d0;
+        }
+
+        /* === Category Sidebar === */
+        .category-list row {
+            padding: 9px 12px;
+            border-radius: 6px;
+            margin: 2px 4px;
+        }
+        .category-list row:selected {
+            background-color: #2979d0;
+        }
+        .category-list row:selected label {
+            color: #ffffff;
+            font-weight: bold;
+        }
+        .category-list row:hover:not(:selected) {
+            background-color: rgba(41, 121, 208, 0.10);
+        }
+
+        /* === Scrollbars === */
+        scrollbar {
+            background-color: transparent;
+            border: none;
+        }
+        scrollbar slider {
+            border-radius: 4px;
+            background-color: rgba(136, 136, 136, 0.50);
+            min-width: 8px;
+            min-height: 8px;
+        }
+        scrollbar.vertical slider {
+            min-width: 8px;
+        }
+        scrollbar.horizontal slider {
+            min-height: 8px;
+        }
+        scrollbar button {
+            min-height: 0;
+            min-width: 0;
+            padding: 0;
+            opacity: 0;
+        }
+
+        /* === Requirement row icons (symbolic icon color) === */
+        .req-icon-ok    { color: #2e7d32; }
+        .req-icon-warn  { color: #e65100; }
+        .req-icon-error { color: #c62828; }
+        .req-icon-info  { color: #1565c0; }
+
+        /* === Misc === */
+        .subtle { opacity: 0.70; font-size: 11px; }
         """
         provider = Gtk.CssProvider()
         provider.load_from_data(css)
@@ -566,6 +819,42 @@ class AlmaCreativeInstaller(Gtk.Window):
             provider,
             Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
         )
+
+    def _make_hero_banner(self):
+        eb = Gtk.EventBox()
+        eb.get_style_context().add_class("hero-banner")
+
+        inner = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=16)
+        inner.set_border_width(14)
+        eb.add(inner)
+
+        logo = Gtk.Image()
+        _script_dir = os.path.dirname(os.path.abspath(__file__))
+        _logo_png = os.path.join(_script_dir, "icons", "hicolor", "256x256",
+                                 "apps", "almalinux-creative-installer.png")
+        try:
+            pb = GdkPixbuf.Pixbuf.new_from_file_at_scale(_logo_png, 56, 56, True)
+            logo.set_from_pixbuf(pb)
+        except Exception:
+            logo.set_from_icon_name("almalinux-creative-installer", Gtk.IconSize.INVALID)
+            logo.set_pixel_size(56)
+        inner.pack_start(logo, False, False, 0)
+
+        text_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        text_box.set_valign(Gtk.Align.CENTER)
+        inner.pack_start(text_box, True, True, 0)
+
+        title_lbl = Gtk.Label(label="AlmaLinux Creative Installer")
+        title_lbl.set_xalign(0)
+        title_lbl.get_style_context().add_class("hero-title")
+        text_box.pack_start(title_lbl, False, False, 0)
+
+        subtitle_lbl = Gtk.Label(label="Creative & M&E workstation setup • v{}".format(self.app_version))
+        subtitle_lbl.set_xalign(0)
+        subtitle_lbl.get_style_context().add_class("hero-subtitle")
+        text_box.pack_start(subtitle_lbl, False, False, 0)
+
+        return eb
 
     def _get_app_version(self):
         try:
@@ -590,11 +879,16 @@ class AlmaCreativeInstaller(Gtk.Window):
         return "dev"
 
     # ---------------- UI builders ----------------
-    def _make_requirement_row(self, key, title, subtitle, enable_action):
+    def _make_requirement_row(self, key, title, subtitle, enable_action,
+                              button_label="Enable",
+                              status_enabled="Enabled",
+                              status_disabled="Not enabled",
+                              post_install_msg=None):
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
 
-        icon = Gtk.Label(label="…")
-        icon.set_width_chars(2)
+        icon = Gtk.Image()
+        icon.set_pixel_size(18)
+        icon.set_size_request(24, 24)
         row.pack_start(icon, False, False, 0)
 
         text_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
@@ -614,19 +908,50 @@ class AlmaCreativeInstaller(Gtk.Window):
         status_lbl = Gtk.Label(label="Checking…")
         row.pack_start(status_lbl, False, False, 0)
 
-        btn = Gtk.Button(label="Enable")
-        btn.connect("clicked", lambda *_: self.run_helper_with_callback(enable_action, on_success=self.refresh_repo_state))
+        btn = Gtk.Button(label=button_label)
+
+        def _on_req_clicked(*_):
+            btn.set_sensitive(False)
+            status_lbl.set_text("Working…")
+
+            def on_success():
+                self.refresh_repo_state()
+                if post_install_msg:
+                    dlg = Gtk.MessageDialog(
+                        parent=self,
+                        flags=0,
+                        message_type=Gtk.MessageType.INFO,
+                        buttons=Gtk.ButtonsType.OK,
+                        text=post_install_msg,
+                    )
+                    dlg.run()
+                    dlg.destroy()
+
+            self.run_helper_with_callback(
+                enable_action,
+                on_success=on_success,
+                on_failure=self.refresh_repo_state,
+            )
+
+        btn.connect("clicked", _on_req_clicked)
         row.pack_start(btn, False, False, 0)
 
-        self.repo_widgets[key] = {"icon": icon, "status": status_lbl, "button": btn}
+        self.repo_widgets[key] = {
+            "icon": icon,
+            "status": status_lbl,
+            "button": btn,
+            "status_enabled": status_enabled,
+            "status_disabled": status_disabled,
+        }
         self._set_requirement_state(key, None)
         return row
 
     def _make_selinux_row(self):
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
 
-        icon = Gtk.Label(label="…")
-        icon.set_width_chars(2)
+        icon = Gtk.Image()
+        icon.set_pixel_size(18)
+        icon.set_size_request(24, 24)
         row.pack_start(icon, False, False, 0)
 
         text_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
@@ -660,21 +985,21 @@ class AlmaCreativeInstaller(Gtk.Window):
             return
 
         if mode is None:
-            w["icon"].set_text("…")
+            self._set_req_icon(w["icon"], "checking")
             w["status"].set_text("Checking…")
         else:
             m = (mode or "unknown").lower()
             if m == "enforcing":
-                w["icon"].set_text("⚠️")
+                self._set_req_icon(w["icon"], "warn")
                 w["status"].set_text("Enforcing")
             elif m == "permissive":
-                w["icon"].set_text("ℹ️")
+                self._set_req_icon(w["icon"], "info")
                 w["status"].set_text("Permissive")
             elif m == "disabled":
-                w["icon"].set_text("ℹ️")
+                self._set_req_icon(w["icon"], "info")
                 w["status"].set_text("Disabled")
             else:
-                w["icon"].set_text("❓")
+                self._set_req_icon(w["icon"], "checking")
                 w["status"].set_text("Unknown")
 
         w["button"].set_sensitive(True)
@@ -722,10 +1047,20 @@ class AlmaCreativeInstaller(Gtk.Window):
         row.set_border_width(10)
         lbrow.add(row)
 
+        app_icon = Gtk.Image()
+        icon_name = (
+            _EMOJI_ICON.get(app.get("emoji", ""))
+            or _CATEGORY_ICON.get(app.get("category", ""))
+            or "application-x-executable-symbolic"
+        )
+        app_icon.set_from_icon_name(icon_name, Gtk.IconSize.INVALID)
+        app_icon.set_pixel_size(24)
+        row.pack_start(app_icon, False, False, 0)
+
         left = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
         row.pack_start(left, True, True, 0)
 
-        title = Gtk.Label(label="{}  {}".format(app.get("emoji", ""), app["name"]).strip())
+        title = Gtk.Label(label=app["name"])
         title.set_xalign(0)
         title.set_hexpand(True)
         left.pack_start(title, False, False, 0)
@@ -765,9 +1100,11 @@ class AlmaCreativeInstaller(Gtk.Window):
             btn_box.pack_start(version_combo, False, False, 0)
 
         install_btn = Gtk.Button(label="Install")
+        install_btn.get_style_context().add_class("btn-install")
         btn_box.pack_start(install_btn, False, False, 0)
 
         remove_btn = Gtk.Button(label="Remove")
+        remove_btn.get_style_context().add_class("btn-remove")
         btn_box.pack_start(remove_btn, False, False, 0)
 
         if app["type"] == "dnf":
@@ -779,6 +1116,9 @@ class AlmaCreativeInstaller(Gtk.Window):
         elif app["type"] == "resolve":
             install_btn.connect("clicked", lambda *_: self.install_resolve_flow())
             remove_btn.connect("clicked", lambda *_: self.remove_resolve_flow())
+        elif app["type"] == "3dcoat":
+            install_btn.connect("clicked", lambda *_: self.install_3dcoat_flow())
+            remove_btn.connect("clicked", lambda *_: self.remove_3dcoat_flow())
 
         self.app_widgets[app["id"]] = {
             "app": app,
@@ -848,6 +1188,8 @@ class AlmaCreativeInstaller(Gtk.Window):
             return "Installed via Flatpak (recommended upstream for EL)"
         if app["type"] == "resolve":
             return "Guided install: deps → open download page → pick .run/.rpm"
+        if app["type"] == "3dcoat":
+            return "Guided install: log in → download Linux tarball → pick .tar archive"
         return ""
 
     # ---------------- Busy UI helpers ----------------
@@ -868,8 +1210,7 @@ class AlmaCreativeInstaller(Gtk.Window):
             w["progress_flatpak_step_seen"] = False
             w["progress"].show()
             self._start_app_progress_pulse(app_id)
-            if msg:
-                w["status"].set_text(msg)
+            self._set_status_badge(w["status"], msg or "Installing…", "busy")
             w["install"].set_sensitive(False)
             w["remove"].set_sensitive(False)
             if w.get("version_combo") is not None:
@@ -1284,36 +1625,77 @@ class AlmaCreativeInstaller(Gtk.Window):
                 return True
         return False
 
+    def _detect_rpmfusion_free(self, repos):
+        return any(r.startswith("rpmfusion-free") for r in repos)
+
+    def _detect_rpmfusion_nonfree(self, repos):
+        return any(r.startswith("rpmfusion-nonfree") for r in repos)
+
+    def _detect_nvidia_drivers(self):
+        return subprocess.run(
+            ["rpm", "-q", "nvidia-driver"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        ).returncode == 0
+
+    def _set_req_icon(self, image, state):
+        ctx = image.get_style_context()
+        for cls in ("req-icon-ok", "req-icon-warn", "req-icon-error", "req-icon-info"):
+            ctx.remove_class(cls)
+        _icons = {
+            "ok":       ("object-select-symbolic",      "req-icon-ok"),
+            "warn":     ("dialog-warning-symbolic",     "req-icon-warn"),
+            "error":    ("dialog-error-symbolic",       "req-icon-error"),
+            "info":     ("dialog-information-symbolic", "req-icon-info"),
+            "checking": ("content-loading-symbolic",    None),
+        }
+        icon_name, css_class = _icons.get(state, ("content-loading-symbolic", None))
+        if not Gtk.IconTheme.get_default().has_icon(icon_name):
+            icon_name = "emblem-synchronizing-symbolic"
+        image.set_from_icon_name(icon_name, Gtk.IconSize.INVALID)
+        image.set_pixel_size(18)
+        if css_class:
+            ctx.add_class(css_class)
+
     def _set_requirement_state(self, key, state):
         w = self.repo_widgets.get(key)
         if not w:
             return
         if state is None:
-            w["icon"].set_text("…")
+            self._set_req_icon(w["icon"], "checking")
             w["status"].set_text("Checking…")
             w["button"].set_sensitive(False)
         elif state is True:
-            w["icon"].set_text("✅")
-            w["status"].set_text("Enabled")
+            self._set_req_icon(w["icon"], "ok")
+            w["status"].set_text(w.get("status_enabled", "Enabled"))
             w["button"].set_sensitive(False)
         else:
-            w["icon"].set_text("❌")
-            w["status"].set_text("Not enabled")
+            self._set_req_icon(w["icon"], "error")
+            w["status"].set_text(w.get("status_disabled", "Not enabled"))
             w["button"].set_sensitive(True)
 
     def refresh_repo_state(self):
         self._set_requirement_state("CRB", None)
         self._set_requirement_state("EPEL", None)
+        self._set_requirement_state("RPMFUSION_FREE", None)
+        self._set_requirement_state("RPMFUSION_NONFREE", None)
+        self._set_requirement_state("NVIDIA", None)
         self._set_selinux_requirement_state(None)
 
         def worker():
             repos = self._dnf_enabled_repo_ids()
             crb = self._detect_crb(repos)
             epel = self._detect_epel(repos)
+            rpmfusion_free = self._detect_rpmfusion_free(repos)
+            rpmfusion_nonfree = self._detect_rpmfusion_nonfree(repos)
+            nvidia = self._detect_nvidia_drivers()
             selinux_mode = self._selinux_getenforce()
 
             GLib.idle_add(self._set_requirement_state, "CRB", crb)
             GLib.idle_add(self._set_requirement_state, "EPEL", epel)
+            GLib.idle_add(self._set_requirement_state, "RPMFUSION_FREE", rpmfusion_free)
+            GLib.idle_add(self._set_requirement_state, "RPMFUSION_NONFREE", rpmfusion_nonfree)
+            GLib.idle_add(self._set_requirement_state, "NVIDIA", nvidia)
             GLib.idle_add(self._set_selinux_requirement_state, selinux_mode)
             GLib.idle_add(self.append_log, "✅ Requirements refreshed\n")
 
@@ -1401,6 +1783,18 @@ class AlmaCreativeInstaller(Gtk.Window):
         user_repo_dir = Path.home() / ".local/share/flatpak/repo"
         return user_repo_dir.is_dir()
 
+    def _set_status_badge(self, label, text, state):
+        ctx = label.get_style_context()
+        for cls in ("badge-installed", "badge-available", "badge-busy"):
+            ctx.remove_class(cls)
+        if state == "installed":
+            ctx.add_class("badge-installed")
+        elif state == "available":
+            ctx.add_class("badge-available")
+        elif state == "busy":
+            ctx.add_class("badge-busy")
+        label.set_text(text)
+
     def refresh_app_state(self, app_id):
         w = self.app_widgets.get(app_id)
         if not w:
@@ -1410,11 +1804,23 @@ class AlmaCreativeInstaller(Gtk.Window):
         if app["type"] == "resolve":
             installed = self._resolve_installed()
             if installed:
-                w["status"].set_text("✅ Installed")
+                self._set_status_badge(w["status"], "Installed", "installed")
                 w["install"].set_sensitive(False)
                 w["remove"].set_sensitive(True)
             else:
-                w["status"].set_text("ℹ️ Guided install")
+                self._set_status_badge(w["status"], "Guided install", "available")
+                w["install"].set_sensitive(True)
+                w["remove"].set_sensitive(False)
+            return
+
+        if app["type"] == "3dcoat":
+            installed = self._3dcoat_installed()
+            if installed:
+                self._set_status_badge(w["status"], "Installed", "installed")
+                w["install"].set_sensitive(False)
+                w["remove"].set_sensitive(True)
+            else:
+                self._set_status_badge(w["status"], "Guided install", "available")
                 w["install"].set_sensitive(True)
                 w["remove"].set_sensitive(False)
             return
@@ -1428,7 +1834,7 @@ class AlmaCreativeInstaller(Gtk.Window):
 
         elif app["type"] == "flatpak":
             if not shutil.which("flatpak"):
-                w["status"].set_text("ℹ️ Flatpak not installed")
+                self._set_status_badge(w["status"], "Flatpak not installed", "available")
                 w["install"].set_sensitive(True)
                 w["remove"].set_sensitive(False)
                 return
@@ -1439,15 +1845,13 @@ class AlmaCreativeInstaller(Gtk.Window):
 
         if installed:
             if app["type"] == "flatpak" and scope == "user":
-                w["status"].set_text("✅ Installed (user)")
-                w["install"].set_sensitive(False)
-                w["remove"].set_sensitive(True)
+                self._set_status_badge(w["status"], "Installed (user)", "installed")
             else:
-                w["status"].set_text("✅ Installed")
-                w["install"].set_sensitive(False)
-                w["remove"].set_sensitive(True)
+                self._set_status_badge(w["status"], "Installed", "installed")
+            w["install"].set_sensitive(False)
+            w["remove"].set_sensitive(True)
         else:
-            w["status"].set_text("❌ Not installed")
+            self._set_status_badge(w["status"], "Available", "available")
             w["install"].set_sensitive(True)
             w["remove"].set_sensitive(False)
 
@@ -1601,7 +2005,7 @@ class AlmaCreativeInstaller(Gtk.Window):
             )
 
     # ---------------- Helper runner (PRIVILEGED) ----------------
-    def run_helper_with_callback(self, args, on_success=None, app_id=None, progress_segment=None):
+    def run_helper_with_callback(self, args, on_success=None, on_failure=None, app_id=None, progress_segment=None):
         if not Path(HELPER).exists():
             self.append_log("❌ ERROR: Helper not found: " + HELPER + "\n")
             return
@@ -1657,10 +2061,14 @@ class AlmaCreativeInstaller(Gtk.Window):
                     GLib.idle_add(self.append_log, "❌ Failed: {}\n".format(reason))
                     GLib.idle_add(self.append_log, "[exit code: {}]\n".format(rc))
                     GLib.idle_add(self._stop_all_busy)
+                    if on_failure:
+                        GLib.idle_add(on_failure)
 
             except Exception as e:
                 GLib.idle_add(self.append_log, "❌ ERROR: {}\n".format(e))
                 GLib.idle_add(self._stop_all_busy)
+                if on_failure:
+                    GLib.idle_add(on_failure)
 
         threading.Thread(target=worker, daemon=True).start()
 
@@ -1999,6 +2407,96 @@ class AlmaCreativeInstaller(Gtk.Window):
                 GLib.idle_add(self.set_app_busy, "resolve", False)
 
         threading.Thread(target=worker, daemon=True).start()
+
+
+    # ---------------- 3DCoat flow ----------------
+    def _3dcoat_installed(self):
+        if Path("/usr/bin/3dcoat").exists():
+            return True
+        opt_dir = Path("/opt/3DCoat")
+        if opt_dir.is_dir() and any(opt_dir.iterdir()):
+            return True
+        return shutil.which("3dcoat") is not None
+
+    def install_3dcoat_flow(self):
+        self.set_app_busy("3dcoat", True, "Waiting for file…")
+        self._set_app_progress_fraction("3dcoat", 0.02)
+
+        if shutil.which("xdg-open"):
+            subprocess.Popen(["xdg-open", THREEDC_URL])
+            self.append_log("Opened 3DCoat download page.\n")
+
+        self.append_log(
+            "Log in, download the Linux tarball, then select it below to continue.\n"
+        )
+        self.pick_3dcoat_installer()
+
+    def pick_3dcoat_installer(self):
+        dialog = Gtk.FileChooserDialog(
+            title="Select 3DCoat Linux tarball",
+            parent=self,
+            action=Gtk.FileChooserAction.OPEN,
+        )
+        dialog.add_buttons(
+            Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+            Gtk.STOCK_OPEN, Gtk.ResponseType.OK,
+        )
+
+        f = Gtk.FileFilter()
+        f.set_name("Tarballs (*.tar, *.tar.bz2, *.tar.gz, *.tar.xz, *.tar.zst)")
+        for pat in ("*.tar", "*.tar.bz2", "*.tar.gz", "*.tar.xz", "*.tar.zst", "*.tgz"):
+            f.add_pattern(pat)
+        dialog.add_filter(f)
+
+        resp = dialog.run()
+        if resp == Gtk.ResponseType.OK:
+            path = dialog.get_filename()
+            if path:
+                self._set_app_progress_fraction("3dcoat", 0.05)
+                self.run_helper_with_callback(
+                    ["install_3dcoat", path],
+                    on_success=lambda: self._finish_app_action("3dcoat"),
+                    app_id="3dcoat",
+                    progress_segment=(0.05, 0.98),
+                )
+            else:
+                self._finish_app_action("3dcoat")
+        else:
+            self._finish_app_action("3dcoat")
+        dialog.destroy()
+
+    def remove_3dcoat_flow(self):
+        if not self._3dcoat_installed():
+            self.append_log("ℹ️ 3DCoat does not appear to be installed.\n")
+            self.refresh_app_state("3dcoat")
+            return
+
+        dialog = Gtk.MessageDialog(
+            parent=self,
+            flags=0,
+            message_type=Gtk.MessageType.WARNING,
+            buttons=Gtk.ButtonsType.NONE,
+            text="Uninstall 3DCoat?",
+        )
+        dialog.format_secondary_text(
+            "This will remove /opt/3DCoat, the /usr/bin/3dcoat symlink, "
+            "and the desktop entry."
+        )
+        dialog.add_button("Cancel", Gtk.ResponseType.CANCEL)
+        dialog.add_button("Uninstall", Gtk.ResponseType.OK)
+
+        resp = dialog.run()
+        dialog.destroy()
+
+        if resp == Gtk.ResponseType.OK:
+            self.set_app_busy("3dcoat", True, "Removing…")
+            self._set_app_progress_fraction("3dcoat", 0.02)
+            self.run_helper_with_callback(
+                ["remove_3dcoat"],
+                on_success=lambda: self._finish_app_action("3dcoat"),
+                app_id="3dcoat",
+                progress_segment=(0.02, 0.98),
+            )
 
 
 def main():

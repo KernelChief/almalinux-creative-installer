@@ -15,7 +15,6 @@ venv/
 # --- RPM & Build Output ---
 rpmbuild/
 *.rpm
-*.spec
 dist/
 build/
 
@@ -25,7 +24,7 @@ build/
 CLAUDE.md
 docs/INDEX.md
 docs/QUICK_REFERENCE.md
-docs/learnings*
+docs/learnings/*
 docs/archive/*
 
 # --- OS & System ---
