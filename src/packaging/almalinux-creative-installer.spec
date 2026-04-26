@@ -1,25 +1,30 @@
 # SPDX-License-Identifier: GPL-3.0-only
 
-
 Name:           almalinux-creative-installer
 Version:        %{version}
 Release:        %{?prerelease:0.%{prerelease}.1}%{!?prerelease:1}%{?dist}
 Summary:        One-button creative app installer UI for AlmaLinux
-License:        MIT
+License:        GPL-3.0-only
 URL:            https://github.com/KernelChief/almalinux-creative-installer
 BuildArch:      noarch
 
 Requires:       python3
-Requires:       python3-gobject
-Requires:       gtk3
 Requires:       polkit
 Requires:       xdg-utils
+
+# Qt binding — PyQt6 on EL10+, PyQt5 on EL9
+%if 0%{?rhel} >= 10
+Requires:       python3-pyqt6
+%else
+Requires:       python3-pyqt5
+%endif
 
 Source0:        almalinux-creative-installer-%{version}.tar.gz
 
 %description
-A small GTK UI to install creative applications via DNF or local installers,
+A Qt-based UI to install creative applications via DNF or local installers,
 using pkexec + polkit for privileged operations.
+Uses PyQt5 on EL9 and PyQt6 on EL10.
 
 %prep
 %setup -q
@@ -28,6 +33,7 @@ using pkexec + polkit for privileged operations.
 rm -rf %{buildroot}
 
 install -D -m 0755 src/almalinux-creative-installer %{buildroot}%{_bindir}/almalinux-creative-installer
+install -D -m 0644 src/qtcompat.py %{buildroot}%{_datadir}/%{name}/qtcompat.py
 install -D -m 0755 src/almalinux-creative-installer-helper %{buildroot}%{_libexecdir}/almalinux-creative-installer-helper
 install -D -m 0644 src/org.almalinux.creativeinstaller.policy \
   %{buildroot}%{_datadir}/polkit-1/actions/org.almalinux.creativeinstaller.policy
@@ -43,6 +49,7 @@ fi
 
 %files
 %{_bindir}/almalinux-creative-installer
+%{_datadir}/%{name}/qtcompat.py
 %{_libexecdir}/almalinux-creative-installer-helper
 %{_datadir}/polkit-1/actions/org.almalinux.creativeinstaller.policy
 %{_datadir}/applications/almalinux-creative-installer.desktop
@@ -52,4 +59,3 @@ fi
 
 %changelog
 * Tue Feb 10 2026 KernelChief
-
