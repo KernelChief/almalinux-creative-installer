@@ -14,9 +14,9 @@ Requires:       xdg-utils
 
 # Qt binding — PyQt6 on EL10+, PyQt5 on EL9
 %if 0%{?rhel} >= 10
-Requires:       python3-qt6
+Requires:       python3-pyqt6
 %else
-Requires:       python3-qt5
+Requires:       python3-pyqt5
 %endif
 
 Source0:        almalinux-creative-installer-%{version}.tar.gz

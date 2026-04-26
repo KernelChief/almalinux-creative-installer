@@ -406,6 +406,132 @@ install_local_file() {
 }
 
 # -------------------------------------------------
+# 3DCoat
+# -------------------------------------------------
+install_3dcoat() {
+  local tar_path="${1:-}"
+  local install_base="/opt/3DCoat"
+
+  [[ -n "${tar_path}" ]] || { echo "ERROR: missing tarball path" >&2; exit 2; }
+  [[ -f "${tar_path}" ]] || { echo "ERROR: tarball not found: ${tar_path}" >&2; exit 2; }
+
+  local user home
+  user="$(require_invoking_user)"
+  home="$(require_invoking_user_home)"
+
+  local file_name soft soft_dir
+  file_name="$(basename "${tar_path}")"
+  soft="${file_name%%.*}"
+  soft_dir="${install_base}/${soft}"
+
+  log "Creating installation directory ${soft_dir}..."
+  mkdir -p "${soft_dir}"
+
+  log "Extracting archive (this may take several minutes)..."
+  tar -xf "${tar_path}" -C "${soft_dir}" --strip-components=1
+  log "Extraction complete."
+
+  local exe exe_name
+  exe="$(find "${soft_dir}" -maxdepth 1 -type f -iname '3dcoat' -print -quit 2>/dev/null)"
+  if [[ -z "${exe}" ]]; then
+    exe="$(find "${soft_dir}" -maxdepth 1 -type f -iname '3dcoat*' -print -quit 2>/dev/null)"
+  fi
+  if [[ -z "${exe}" ]]; then
+    echo "ERROR: 3DCoat executable not found in ${soft_dir}" >&2
+    exit 1
+  fi
+  exe_name="$(basename "${exe}")"
+  chmod +x "${exe}"
+  log "Executable: ${exe}"
+
+  local sh_path="${install_base}/3dcoat.sh"
+  printf '#!/bin/bash\ncd "%s" && ./%s "$@"\n' "${soft_dir}" "${exe_name}" > "${sh_path}"
+  chmod +x "${sh_path}"
+  chown "${user}:${user}" "${sh_path}"
+
+  [[ -L /usr/bin/3dcoat ]] && unlink /usr/bin/3dcoat || true
+  ln -s "${sh_path}" /usr/bin/3dcoat
+  log "Created /usr/bin/3dcoat -> ${sh_path}"
+
+  local icon_path="${soft_dir}/data/Icon/3DCoat.png"
+  [[ -f "${icon_path}" ]] || icon_path="${sh_path}"
+
+  local desktop_dir="${home}/.local/share/applications"
+  mkdir -p "${desktop_dir}"
+  chown "${user}:${user}" "${desktop_dir}"
+
+  cat > "${desktop_dir}/3DCoat.desktop" <<EOF
+[Desktop Entry]
+Comment=3D modeling and sculpting software
+Encoding=UTF-8
+Version=1.0
+Type=Application
+Terminal=false
+Exec=${sh_path}
+Name=3DCoat
+Icon=${icon_path}
+Categories=Graphics;3DGraphics;
+StartupWMClass=3dcoat
+EOF
+  chown "${user}:${user}" "${desktop_dir}/3DCoat.desktop"
+  log "Desktop entry created."
+
+  log "Installing ImageMagick for PNG profile normalization..."
+  dnf -y install ImageMagick || true
+  if command -v mogrify >/dev/null 2>&1; then
+    local png_files=()
+    while IFS= read -r f; do
+      png_files+=("${f}")
+    done < <(find "${soft_dir}" -type f -name '*.png' 2>/dev/null)
+    local total="${#png_files[@]}"
+    if (( total > 0 )); then
+      log "Fixing PNG color profiles: ${total} files found..."
+      local i=0
+      for f in "${png_files[@]}"; do
+        mogrify "${f}" 2>/dev/null || true
+        i=$(( i + 1 ))
+        if (( i % 100 == 0 || i == total )); then
+          log "PNG fix: ${i}/${total} ($(( i * 100 / total ))%)"
+        fi
+      done
+      log "PNG profile fix complete."
+    else
+      log "No PNG files found; skipping PNG color profile fix."
+    fi
+  else
+    log "mogrify not available; skipping PNG color profile fix."
+  fi
+
+  log "3DCoat installation complete."
+}
+
+remove_3dcoat() {
+  local user home
+  user="$(require_invoking_user)"
+  home="$(require_invoking_user_home)"
+
+  log "Removing 3DCoat..."
+
+  if [[ -L /usr/bin/3dcoat ]]; then
+    unlink /usr/bin/3dcoat
+    log "Removed /usr/bin/3dcoat symlink."
+  fi
+
+  if [[ -d /opt/3DCoat ]]; then
+    rm -rf /opt/3DCoat
+    log "Removed /opt/3DCoat."
+  fi
+
+  local desktop="${home}/.local/share/applications/3DCoat.desktop"
+  if [[ -f "${desktop}" ]]; then
+    rm -f "${desktop}"
+    log "Removed desktop entry."
+  fi
+
+  log "3DCoat removed."
+}
+
+# -------------------------------------------------
 # Dispatcher
 # -------------------------------------------------
 case "${action}" in
@@ -436,6 +562,10 @@ case "${action}" in
   resolve_post_install_fixes) resolve_post_install_fixes;;
   set_selinux_mode)      set_selinux_mode "${2:-}";;
   install_local_file)    install_local_file "${2:-}";;
+
+  # 3DCoat
+  install_3dcoat)        install_3dcoat "${2:-}";;
+  remove_3dcoat)         remove_3dcoat;;
 
   *)
     cat >&2 <<'EOF'
@@ -468,6 +598,10 @@ Local installers:
   resolve_post_install_fixes
   set_selinux_mode <permissive-temp|permissive|disabled|enforcing>
   install_local_file <path_to_.rpm_or_.run>
+
+3DCoat:
+  install_3dcoat <path_to_tarball>
+  remove_3dcoat
 EOF
     exit 1
     ;;
