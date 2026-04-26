@@ -15,6 +15,56 @@ enable_epel() {
   log "Done."
 }
 
+enable_rpmfusion_free() {
+  log "Enabling RPM Fusion Free..."
+  local el_version
+  el_version="$(rpm -E %rhel)"
+  if [[ -z "${el_version}" || "${el_version}" == "%rhel" ]]; then
+    echo "ERROR: Could not detect EL version." >&2
+    exit 4
+  fi
+  dnf -y install "https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-${el_version}.noarch.rpm"
+  log "RPM Fusion Free enabled."
+}
+
+enable_rpmfusion_nonfree() {
+  log "Enabling RPM Fusion Free + Non-Free..."
+  local el_version
+  el_version="$(rpm -E %rhel)"
+  if [[ -z "${el_version}" || "${el_version}" == "%rhel" ]]; then
+    echo "ERROR: Could not detect EL version." >&2
+    exit 4
+  fi
+  local pkgs=("https://mirrors.rpmfusion.org/nonfree/el/rpmfusion-nonfree-release-${el_version}.noarch.rpm")
+  if ! dnf repolist --enabled 2>/dev/null | grep -q "^rpmfusion-free"; then
+    pkgs=("https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-${el_version}.noarch.rpm" "${pkgs[@]}")
+  fi
+  dnf -y install "${pkgs[@]}"
+  log "RPM Fusion Free + Non-Free enabled."
+}
+
+enable_nvidia_drivers() {
+  log "Installing AlmaLinux native NVIDIA drivers..."
+  if ! rpm -q almalinux-release >/dev/null 2>&1; then
+    echo "ERROR: AlmaLinux native NVIDIA driver repo is only supported on AlmaLinux." >&2
+    exit 6
+  fi
+  local el_version
+  el_version="$(rpm -E %rhel)"
+  if [[ -z "${el_version}" || "${el_version}" == "%rhel" || "${el_version}" -lt 9 ]]; then
+    echo "ERROR: AlmaLinux native NVIDIA driver repo requires EL9 or newer (detected: EL${el_version})." >&2
+    exit 6
+  fi
+  if ! lspci 2>/dev/null | grep -qi nvidia; then
+    echo "ERROR: No NVIDIA GPU detected on this system. Aborting driver install." >&2
+    exit 5
+  fi
+  dnf -y install almalinux-release-nvidia-driver
+  log "NVIDIA driver repository configured."
+  dnf -y install --allowerasing nvidia-open-kmod nvidia-driver
+  log "NVIDIA drivers installed. A reboot is required to load the kernel module."
+}
+
 enable_crb() {
   log "Enabling CRB / PowerTools..."
   if dnf -y config-manager --set-enabled crb >/dev/null 2>&1; then
@@ -419,6 +469,7 @@ install_3dcoat() {
   user="$(require_invoking_user)"
   home="$(require_invoking_user_home)"
 
+  # Derive install dir from tarball filename (e.g. 3DCoat-2025.12.tar.bz2 -> 3DCoat-2025)
   local file_name soft soft_dir
   file_name="$(basename "${tar_path}")"
   soft="${file_name%%.*}"
@@ -431,6 +482,7 @@ install_3dcoat() {
   tar -xf "${tar_path}" -C "${soft_dir}" --strip-components=1
   log "Extraction complete."
 
+  # Find the main executable (-print -quit avoids SIGPIPE with pipefail)
   local exe exe_name
   exe="$(find "${soft_dir}" -maxdepth 1 -type f -iname '3dcoat' -print -quit 2>/dev/null)"
   if [[ -z "${exe}" ]]; then
@@ -444,15 +496,18 @@ install_3dcoat() {
   chmod +x "${exe}"
   log "Executable: ${exe}"
 
+  # Create launcher shell script using the actual detected exe name
   local sh_path="${install_base}/3dcoat.sh"
   printf '#!/bin/bash\ncd "%s" && ./%s "$@"\n' "${soft_dir}" "${exe_name}" > "${sh_path}"
   chmod +x "${sh_path}"
   chown "${user}:${user}" "${sh_path}"
 
+  # Symlink to /usr/bin
   [[ -L /usr/bin/3dcoat ]] && unlink /usr/bin/3dcoat || true
   ln -s "${sh_path}" /usr/bin/3dcoat
   log "Created /usr/bin/3dcoat -> ${sh_path}"
 
+  # Desktop entry
   local icon_path="${soft_dir}/data/Icon/3DCoat.png"
   [[ -f "${icon_path}" ]] || icon_path="${sh_path}"
 
@@ -476,6 +531,7 @@ EOF
   chown "${user}:${user}" "${desktop_dir}/3DCoat.desktop"
   log "Desktop entry created."
 
+  # Fix PNG color profiles (best-effort — suppresses rendering warnings)
   log "Installing ImageMagick for PNG profile normalization..."
   dnf -y install ImageMagick || true
   if command -v mogrify >/dev/null 2>&1; then
@@ -536,9 +592,12 @@ remove_3dcoat() {
 # -------------------------------------------------
 case "${action}" in
   # Repo
-  enable_crb)          enable_crb;;
-  enable_epel)         enable_epel;;
-  repo_status)         repo_status;;
+  enable_crb)             enable_crb;;
+  enable_epel)            enable_epel;;
+  enable_rpmfusion_free)    enable_rpmfusion_free;;
+  enable_rpmfusion_nonfree) enable_rpmfusion_nonfree;;
+  enable_nvidia_drivers)    enable_nvidia_drivers;;
+  repo_status)              repo_status;;
 
   # DNF apps
   install_pkg)         install_pkg "${2:-}";;
@@ -574,6 +633,9 @@ Usage: almalinux-creative-installer-helper <action>
 Repo actions:
   enable_crb
   enable_epel
+  enable_rpmfusion_free
+  enable_rpmfusion_nonfree
+  enable_nvidia_drivers
   repo_status
 
 DNF apps:
