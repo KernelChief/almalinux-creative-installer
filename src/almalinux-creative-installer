@@ -2460,9 +2460,9 @@ class AlmaCreativeInstaller(Gtk.Window):
                     progress_segment=(0.05, 0.98),
                 )
             else:
-                self.set_app_busy("3dcoat", False)
+                self._finish_app_action("3dcoat")
         else:
-            self.set_app_busy("3dcoat", False)
+            self._finish_app_action("3dcoat")
         dialog.destroy()
 
     def remove_3dcoat_flow(self):
