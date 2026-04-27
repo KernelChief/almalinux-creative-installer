@@ -5,7 +5,7 @@
 [![Repo Size](https://img.shields.io/github/repo-size/KernelChief/almalinux-creative-installer)](https://github.com/KernelChief/almalinux-creative-installer)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Made%20with-Python-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![Shell](https://img.shields.io/badge/Script-Shell-4EAA25?logo=gnu-bash&logoColor=white)](https://www.gnu.org/software/bash/)
+[![Qt](https://img.shields.io/badge/Framework-Qt-41CD52?logo=qt&logoColor=white)](https://www.qt.io/)
 [![AlmaLinux](https://img.shields.io/badge/Platform-AlmaLinux-blue?logo=almalinux&logoColor=white)](https://almalinux.org/)
 [![Discussed in AlmaLinux M&E SIG](https://img.shields.io/badge/Discussed%20in-AlmaLinux%20M%26E%20SIG-0E3A6D?logo=almalinux&logoColor=white)](https://wiki.almalinux.org/sigs/MediaAndEntertainmentSIG.html)
 [![Join the AlmaLinux M&E SIG](https://img.shields.io/badge/Join-AlmaLinux%20M%26E%20SIG-2EA44F?logo=almalinux&logoColor=white)](https://chat.almalinux.org/almalinux/channels/sig-media-entertainment)
@@ -14,7 +14,7 @@
 
 AlmaLinux is stable, secure, and production-ready but setting it up for design, animation, video editing, or digital art can feel overwhelming. AlmaLinux Creative Installer bridges that gap.
 
-This small, opinionated GTK application provides a clean graphical interface for freelancers, students, and beginners to install essential creative software with one click. No deep Linux knowledge required. No dependency headaches. No intimidating terminal sessions.
+This small, opinionated Qt-based application provides a clean graphical interface for freelancers, students, and beginners to install essential creative software with one click. No deep Linux knowledge required. No dependency headaches. No intimidating terminal sessions.
 
 All applications are installed using supported system methods only, keeping your workstation stable, secure, and production-ready. It’s the easiest way to focus on creativity, not configuration.
 
@@ -101,7 +101,7 @@ Example for AlmaLinux 9: sudo dnf install ./almalinux-creative-installer-1.0.1-1
 Example for AlmaLinux 10 (experimental): sudo dnf install ./almalinux-creative-installer-1.0.1-1.el10.noarch.rpm
 
 This will:
-- install the application
+- install the application (and its Qt dependencies)
 - register the polkit helper
 - add a desktop entry
 
@@ -170,8 +170,8 @@ That’s it — after this, launching AppImages is much simpler for beginners.
 
 ## 🧩 Supported Platforms
 
-- AlmaLinux 9 — officially supported
-- AlmaLinux 10 — experimental
+- AlmaLinux 9 — officially supported (uses PyQt5)
+- AlmaLinux 10 — experimental (uses PyQt6)
 
 ### AppImageLauncher support
 
@@ -204,6 +204,7 @@ post-production, and content creation environments:
   - PrusaSlicer
   - Material Maker
   - FreeCAD
+  - 3DCoat
 
 - **Animation & Video**
   - Kdenlive (AlmaLinux 9 or AlmaLinux 10.2+)
@@ -245,7 +246,7 @@ post-production, and content creation environments:
 
 ---
 
-## 🎞️ DaVinci Resolve: Guided Install Flow
+## 🎞️ DaVinci Resolve Guided Flow
 
 DaVinci Resolve follows a guided workflow designed for AlmaLinux:
 
