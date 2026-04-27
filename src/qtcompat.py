@@ -27,7 +27,7 @@ try:
         QSize, QPoint, QRect,
     )
     from PyQt6.QtGui import (
-        QFont, QIcon, QColor, QPalette,
+        QFont, QIcon, QPixmap, QColor, QPalette,
         QAction, QMovie,
         QTextCursor,
     )
@@ -51,7 +51,7 @@ except ImportError:
         QSize, QPoint, QRect,
     )
     from PyQt5.QtGui import (
-        QFont, QIcon, QColor, QPalette,
+        QFont, QIcon, QPixmap, QColor, QPalette,
         QMovie,
         QTextCursor,
     )
@@ -117,6 +117,6 @@ __all__ = [
     "QAbstractItemView", "QAction",
     "Qt", "QTimer", "QThread", "QObject", "Signal",
     "QSize", "QPoint", "QRect",
-    "QFont", "QIcon", "QColor", "QPalette", "QMovie",
+    "QFont", "QIcon", "QPixmap", "QColor", "QPalette", "QMovie",
     "QTextCursor",
 ]
