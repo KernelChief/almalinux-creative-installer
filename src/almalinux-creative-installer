@@ -45,13 +45,15 @@ APPIMAGELAUNCHER_RPM_URL = (
 #      - flatpak: appid
 #      - guided flow: no package key
 # 4) Optional: add the app id to VERSION_SELECTABLE_APPS.
-# 5) If adding a truly new app type, update type handlers here and in the helper.
+# 5) Optional: add "el": [9] or "el": [10] if the app only works on one EL
+#    version. Omit (or use [9, 10]) for apps that work on both.
+# 6) If adding a truly new app type, update type handlers here and in the helper.
 # -----------------------------------------------------------------------------
 
 APPS = [
-    {"id": "gimp",              "name": "GIMP",             "type": "dnf",     "pkg": "gimp",     "icon_appid": "org.gimp.GIMP",        "category": "Image Processing"},
+    {"id": "gimp",              "name": "GIMP",             "type": "dnf",     "pkg": "gimp",     "icon_appid": "org.gimp.GIMP",        "category": "Image Processing",    "el": [9]},
     {"id": "krusader",          "name": "Krusader",         "type": "dnf",     "pkg": "krusader",                                       "category": "Productivity"},
-    {"id": "kdenlive",          "name": "Kdenlive",         "type": "dnf",     "pkg": "kdenlive", "icon_appid": "org.kde.kdenlive",     "category": "Animation & Video"},
+    {"id": "kdenlive",          "name": "Kdenlive",         "type": "dnf",     "pkg": "kdenlive", "icon_appid": "org.kde.kdenlive",     "category": "Animation & Video",   "el": [9]},
     {"id": "krita",             "name": "Krita",            "type": "flatpak", "appid": "org.kde.krita",                                "category": "Image Processing"},
     {"id": "inkscape",          "name": "Inkscape",         "type": "flatpak", "appid": "org.inkscape.Inkscape",                        "category": "Image Processing"},
     {"id": "darktable",         "name": "darktable",        "type": "flatpak", "appid": "org.darktable.Darktable",                      "category": "Image Processing"},
@@ -86,8 +88,8 @@ APPS = [
     {"id": "epicassetmanager",  "name": "Epic Asset Manager","type": "flatpak", "appid": "io.github.achetagames.epic_asset_manager",    "category": "Game Engines"},
     {"id": "assetmanagerstudio","name": "Asset Manager Studio","type": "flatpak","appid": "studio.assetmanager.ams",                    "category": "Game Engines"},
     {"id": "godots",            "name": "Godots",           "type": "flatpak", "appid": "io.github.MakovWait.Godots",                   "category": "Game Engines"},
-    {"id": "appimagelauncher",  "name": "AppImageLauncher (AlmaLinux 10 ONLY)", "type": "dnf", "pkg": "appimagelauncher",
-     "install_target": APPIMAGELAUNCHER_RPM_URL,                                                                                        "category": "Productivity"},
+    {"id": "appimagelauncher",  "name": "AppImageLauncher", "type": "dnf", "pkg": "appimagelauncher",
+     "install_target": APPIMAGELAUNCHER_RPM_URL,                                                                                        "category": "Productivity",        "el": [10]},
     {"id": "resolve",           "name": "DaVinci Resolve",  "type": "resolve",                                                          "category": "Animation & Video"},
 ]
 
@@ -1047,12 +1049,26 @@ class AlmaCreativeInstaller(QMainWindow):
         left = QVBoxLayout()
         left.setSpacing(2)
 
+        name_row = QHBoxLayout()
+        name_row.setSpacing(6)
         title_lbl = QLabel(app["name"])
         title_lbl.setObjectName("rowTitle")
         title_lbl.setStyleSheet(
             "color: {}; font-weight: 600; font-size: 13px;".format(self._c["text"])
         )
-        left.addWidget(title_lbl)
+        name_row.addWidget(title_lbl)
+
+        el_versions = app.get("el")
+        if el_versions and len(el_versions) == 1:
+            el_chip = QLabel("EL{}".format(el_versions[0]))
+            el_chip.setStyleSheet(
+                "background: rgba(120,120,120,0.18); color: {};"
+                " border-radius: 4px; padding: 1px 5px;"
+                " font-size: 10px; font-weight: 600;".format(self._c["text2"])
+            )
+            name_row.addWidget(el_chip)
+        name_row.addStretch()
+        left.addLayout(name_row)
 
         sub_lbl = QLabel(self._subtitle_for_app(app))
         sub_lbl.setObjectName("rowSubtitle")
@@ -2089,6 +2105,18 @@ class AlmaCreativeInstaller(QMainWindow):
 
 _THEME_COLORS = _DARK  # set by main() before window creation
 _ICON_CACHE   = {}     # app["id"] → QPixmap | None, populated on first build
+_EL_VERSION   = None   # int (9 or 10), set by main()
+
+
+def _detect_el_version():
+    try:
+        with open("/etc/os-release") as f:
+            for line in f:
+                if line.startswith("VERSION_ID="):
+                    return int(line.split("=", 1)[1].strip().strip('"').split(".")[0])
+    except Exception:
+        pass
+    return None
 
 
 def _detect_dark(app):
@@ -2147,9 +2175,10 @@ def _detect_dark(app):
 
 
 def main():
-    global _THEME_COLORS
+    global _THEME_COLORS, _EL_VERSION
     app = QApplication(sys.argv)
     app.setApplicationName("AlmaLinux Creative Installer")
+    _EL_VERSION   = _detect_el_version()
     _THEME_COLORS = _DARK if _detect_dark(app) else _LIGHT
     app.setStyleSheet(_build_qss(_THEME_COLORS))
     win = AlmaCreativeInstaller()
