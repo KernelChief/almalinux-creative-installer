@@ -75,7 +75,8 @@ except ImportError:
            "WindowType", "ItemFlag", "ItemDataRole", "TextInteractionFlag",
            "FocusPolicy", "CursorShape", "GlobalColor", "MatchFlag",
            "SortOrder", "ToolBarArea", "DockWidgetArea", "CheckState",
-           "ConnectionType", "Key", "Modifier")
+           "ConnectionType", "Key", "Modifier",
+           "AspectRatioMode", "TransformationMode")
 
     # QSizePolicy.Policy.Expanding  etc.
     _alias(QSizePolicy, "Policy")

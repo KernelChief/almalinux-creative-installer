@@ -755,6 +755,49 @@ class AlmaCreativeInstaller(QMainWindow):
             return icon.pixmap(size, size)
         return QPixmap()
 
+    def _find_app_pixmap(self, app, size=36):
+        app_id = app["id"]
+        if app_id in _ICON_CACHE:
+            return _ICON_CACHE[app_id]
+        pm = None
+        # Flatpak AppStream icon cache (populated when Flathub remote is added)
+        appid = app.get("appid") or ""
+        if appid:
+            bases = [
+                "/var/lib/flatpak/appstream/flathub/x86_64/active/icons",
+                os.path.expanduser(
+                    "~/.local/share/flatpak/appstream/flathub/x86_64/active/icons"
+                ),
+            ]
+            for base in bases:
+                for res in ("64x64", "128x128"):
+                    path = os.path.join(base, res, appid + ".png")
+                    if os.path.exists(path):
+                        candidate = QPixmap(path)
+                        if not candidate.isNull():
+                            pm = candidate.scaled(
+                                size, size,
+                                Qt.AspectRatioMode.KeepAspectRatio,
+                                Qt.TransformationMode.SmoothTransformation,
+                            )
+                            break
+                if pm:
+                    break
+        # XDG icon theme fallback
+        if pm is None:
+            for name in filter(None, [
+                app.get("pkg"),
+                appid.split(".")[-1].lower() if appid else None,
+            ]):
+                icon = QIcon.fromTheme(name)
+                if not icon.isNull():
+                    candidate = icon.pixmap(size, size)
+                    if not candidate.isNull():
+                        pm = candidate
+                        break
+        _ICON_CACHE[app_id] = pm
+        return pm
+
     def _make_hero_banner(self):
         banner = QFrame()
         banner.setObjectName("heroBanner")
@@ -952,19 +995,27 @@ class AlmaCreativeInstaller(QMainWindow):
         hl.setContentsMargins(10, 6, 10, 6)
         hl.setSpacing(10)
 
-        # Colored initial badge — vivid colors, no emoji font needed
-        _badge_colors = [
-            "#3b6bc7", "#c73b4a", "#3b9c5a", "#c49f27",
-            "#7b4bc7", "#2b9c9c", "#c7613b", "#9c2b7b",
-        ]
-        badge_color = _badge_colors[hash(app["name"]) % len(_badge_colors)]
-        icon_lbl = QLabel(app["name"][0].upper())
-        icon_lbl.setFixedSize(36, 36)
-        icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        icon_lbl.setStyleSheet(
-            "background: {}; border-radius: 8px; color: #ffffff;"
-            " font-weight: 700; font-size: 15px;".format(badge_color)
-        )
+        # App icon: real pixmap when available, colored letter badge as fallback
+        pm = self._find_app_pixmap(app, size=36)
+        if pm and not pm.isNull():
+            icon_lbl = QLabel()
+            icon_lbl.setFixedSize(36, 36)
+            icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            icon_lbl.setPixmap(pm)
+            icon_lbl.setStyleSheet("background: transparent;")
+        else:
+            _badge_colors = [
+                "#3b6bc7", "#c73b4a", "#3b9c5a", "#c49f27",
+                "#7b4bc7", "#2b9c9c", "#c7613b", "#9c2b7b",
+            ]
+            badge_color = _badge_colors[hash(app["name"]) % len(_badge_colors)]
+            icon_lbl = QLabel(app["name"][0].upper())
+            icon_lbl.setFixedSize(36, 36)
+            icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            icon_lbl.setStyleSheet(
+                "background: {}; border-radius: 8px; color: #ffffff;"
+                " font-weight: 700; font-size: 15px;".format(badge_color)
+            )
         hl.addWidget(icon_lbl)
 
         left = QVBoxLayout()
@@ -1982,6 +2033,7 @@ class AlmaCreativeInstaller(QMainWindow):
 
 
 _THEME_COLORS = _DARK  # set by main() before window creation
+_ICON_CACHE   = {}     # app["id"] → QPixmap | None, populated on first build
 
 
 def _detect_dark(app):
