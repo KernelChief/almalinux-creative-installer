@@ -13,11 +13,11 @@ Requires:       polkit
 Requires:       xdg-utils
 Requires:       rsync
 
-# Qt binding — PyQt6 on EL10+, PyQt5 on EL9
+# Qt binding — PyQt6 on EL10+, Qt5 on EL9
 %if 0%{?rhel} >= 10
 Requires:       python3-pyqt6
 %else
-Requires:       python3-pyqt5
+Requires:       python3-qt5
 %endif
 
 Source0:        almalinux-creative-installer-%{version}.tar.gz
@@ -25,7 +25,7 @@ Source0:        almalinux-creative-installer-%{version}.tar.gz
 %description
 A Qt-based UI to install creative applications via DNF or local installers,
 using pkexec + polkit for privileged operations.
-Uses PyQt5 on AlmaLinux 9 and PyQt6 on AlmaLinux 10.
+Uses PyQt5 (python3-qt5) on AlmaLinux 9 and PyQt6 on AlmaLinux 10.
 
 %prep
 %setup -q
@@ -75,3 +75,4 @@ fi
 - Rewrite UI from GTK to Qt (PyQt5/PyQt6)
 - Add qtcompat.py for cross-version compatibility
 - Update dependencies and file layout
+- Fix EL9 dependency name to python3-qt5
