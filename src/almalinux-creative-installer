@@ -13,8 +13,8 @@ from qtcompat import (
     QListWidget, QListWidgetItem,
     QTabWidget, QSizePolicy,
     QFileDialog, QMessageBox,
-    Qt, QTimer, QObject, Signal,
-    QFont, QTextCursor,
+    Qt, QTimer, QObject, Signal, QSize,
+    QFont, QIcon, QPixmap, QTextCursor,
     QT_VERSION,
 )
 
@@ -105,116 +105,343 @@ CATEGORIES = [
     "Game Engines",
 ]
 
-QSS = """
-QMainWindow, QWidget#central {
-    background-color: #1e1e2e;
-    color: #cdd6f4;
-}
-QTabWidget::pane {
-    border: 1px solid #45475a;
-    background: #1e1e2e;
-}
-QTabBar::tab {
-    background: #313244;
-    color: #cdd6f4;
-    padding: 6px 16px;
-    border: 1px solid #45475a;
-}
-QTabBar::tab:selected {
-    background: #89b4fa;
-    color: #1e1e2e;
-}
-QFrame#reqFrame, QFrame#appFrame {
-    border: 1px solid #45475a;
-    border-radius: 6px;
-    background: #181825;
-}
-QFrame#appRow {
+_DARK = dict(
+    bg="#1e1e2e", bg2="#181825", bg3="#252535",
+    border="#313244", border2="#45475a",
+    text="#ffffff", text2="#9399b2", text_dim="#6c7086",
+    accent="#89b4fa", tab_inactive="#6c7086",
+    hero_start="#252535", hero_end="#1e1e2e",
+    input_bg="#252535", btn_bg="#313244", btn_text="#cdd6f4",
+    log_bg="#11111b", log_text="#a6e3a1", scrollbar="#45475a",
+    sidebar_bg="#181825", sidebar_text="#9399b2",
+    sidebar_hover="#252535", sidebar_sel="#252535",
+    sidebar_sel_t="#cdd6f4", sidebar_acc="#89b4fa",
+    row_sep="#252535", row_hover="#252535",
+    inst_bg="rgba(59,107,199,0.13)", inst_text="#89b4fa", inst_border="rgba(59,107,199,0.50)", inst_hover="rgba(59,107,199,0.26)",
+    rem_bg="rgba(199,59,74,0.13)", rem_text="#f38ba8", rem_border="rgba(199,59,74,0.50)", rem_hover="rgba(199,59,74,0.26)",
+    b_inst_bg="#1a3028", b_inst_text="#a6e3a1", b_inst_brd="#3a7058",
+    b_avail_bg="#192540", b_avail_text="#89b4fa", b_avail_brd="#3b5f9a",
+    b_busy_bg="#2e2410", b_busy_text="#f9e2af", b_busy_brd="#7a6010",
+    b_miss_bg="#2e1825", b_miss_text="#f38ba8", b_miss_brd="#7a2840",
+    b_warn_bg="#2e2015", b_warn_text="#fab387", b_warn_brd="#7a5020",
+    ready_bg="#1a3028", ready_text="#a6e3a1", ready_border="#3a7058",
+    empty_text="#6c7086",
+)
+
+_LIGHT = dict(
+    bg="#f5f5f7", bg2="#ffffff", bg3="#e8e8ed",
+    border="#d1d1d6", border2="#c7c7cc",
+    text="#1c1c1e", text2="#636366", text_dim="#8e8e93",
+    accent="#0071e3", tab_inactive="#636366",
+    hero_start="#e8e8ed", hero_end="#f5f5f7",
+    input_bg="#ffffff", btn_bg="#e8e8ed", btn_text="#1c1c1e",
+    log_bg="#1c1c1e", log_text="#30d158", scrollbar="#c7c7cc",
+    sidebar_bg="#ffffff", sidebar_text="#636366",
+    sidebar_hover="#e8e8ed", sidebar_sel="#e8e8ed",
+    sidebar_sel_t="#1c1c1e", sidebar_acc="#0071e3",
+    row_sep="#e8e8ed", row_hover="#f0f0f2",
+    inst_bg="rgba(0,113,227,0.08)", inst_text="#1565c0", inst_border="rgba(0,113,227,0.35)", inst_hover="rgba(0,113,227,0.18)",
+    rem_bg="rgba(198,40,40,0.08)", rem_text="#c62828", rem_border="rgba(198,40,40,0.35)", rem_hover="rgba(198,40,40,0.18)",
+    b_inst_bg="#e8f5e9", b_inst_text="#2e7d32", b_inst_brd="#81c784",
+    b_avail_bg="#e3f2fd", b_avail_text="#1565c0", b_avail_brd="#64b5f6",
+    b_busy_bg="#fff8e1", b_busy_text="#f57f17", b_busy_brd="#ffca28",
+    b_miss_bg="#fce4ec", b_miss_text="#c62828", b_miss_brd="#ef9a9a",
+    b_warn_bg="#fff3e0", b_warn_text="#e65100", b_warn_brd="#ffb74d",
+    ready_bg="#e8f5e9", ready_text="#2e7d32", ready_border="#81c784",
+    empty_text="#8e8e93",
+)
+
+
+def _build_qss(c):
+    return """
+QMainWindow, QWidget#central {{
+    background-color: {bg};
+    color: {text};
+}}
+
+/* ── Tab bar: underline style ── */
+QTabWidget::pane {{
     border: none;
-    border-bottom: 1px solid #313244;
+    border-top: 1px solid {border};
+    background: {bg};
+}}
+QTabBar {{ background: transparent; }}
+QTabBar::tab {{
     background: transparent;
-}
-QFrame#appRow:hover {
-    background: #313244;
-}
-QLabel#rowTitle {
-    font-weight: bold;
-    color: #cdd6f4;
-}
-QLabel#rowSubtitle {
-    color: #6c7086;
-    font-size: 11px;
-}
-QPushButton {
-    background: #313244;
-    color: #cdd6f4;
-    border: 1px solid #45475a;
-    border-radius: 4px;
-    padding: 4px 12px;
-    min-width: 70px;
-}
-QPushButton:hover  { background: #45475a; }
-QPushButton:disabled { color: #6c7086; background: #1e1e2e; }
-QLineEdit {
-    background: #313244;
-    color: #cdd6f4;
-    border: 1px solid #45475a;
-    border-radius: 4px;
-    padding: 4px 8px;
-}
-QComboBox {
-    background: #313244;
-    color: #cdd6f4;
-    border: 1px solid #45475a;
-    border-radius: 4px;
-    padding: 2px 8px;
-}
-QComboBox QAbstractItemView {
-    background: #313244;
-    color: #cdd6f4;
-    selection-background-color: #89b4fa;
-}
-QProgressBar {
-    border: 1px solid #45475a;
-    border-radius: 3px;
-    background: #313244;
-    text-align: center;
-    color: #cdd6f4;
-    max-height: 12px;
-}
-QProgressBar::chunk { background: #89b4fa; border-radius: 3px; }
-QListWidget {
-    background: #181825;
-    border: 1px solid #45475a;
-    color: #cdd6f4;
-}
-QListWidget::item:selected { background: #89b4fa; color: #1e1e2e; }
-QListWidget::item:hover    { background: #313244; }
-QTextEdit {
-    background: #11111b;
-    color: #a6e3a1;
-    border: 1px solid #45475a;
-    font-family: monospace;
-}
-QScrollArea { border: none; }
-QScrollBar:vertical { background: #1e1e2e; width: 10px; }
-QScrollBar::handle:vertical { background: #45475a; border-radius: 5px; min-height: 20px; }
-QFrame#heroBanner {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                                stop:0 #313244, stop:1 #1e1e2e);
-    border: 1px solid #45475a;
+    color: {tab_inactive};
+    padding: 10px 22px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    font-size: 13px;
+}}
+QTabBar::tab:selected {{
+    color: {text};
+    border-bottom: 2px solid {accent};
+}}
+QTabBar::tab:hover:!selected {{
+    color: {text};
+    background: {bg3};
+}}
+
+/* ── Frames ── */
+QFrame#reqFrame, QFrame#appFrame {{
+    border: 1px solid {border};
     border-radius: 8px;
-}
-QLabel#heroTitle {
-    font-size: 15px;
-    font-weight: bold;
-    color: #cdd6f4;
-}
-QLabel#heroSubtitle {
+    background: {bg2};
+}}
+
+/* ── App / requirement rows ── */
+QFrame#appRow {{
+    border: none;
+    border-bottom: 1px solid {row_sep};
+    background: transparent;
+}}
+QFrame#appRow:hover {{ background: {row_hover}; }}
+
+/* ── Typography ── */
+QLabel#rowTitle {{
+    font-weight: 600;
+    font-size: 13px;
+    color: {text};
+}}
+QLabel#rowSubtitle {{
+    color: {text2};
     font-size: 11px;
-    color: #6c7086;
-}
-"""
+}}
+
+/* ── Default button ── */
+QPushButton {{
+    background: {btn_bg};
+    color: {btn_text};
+    border: 1px solid {border2};
+    border-radius: 5px;
+    padding: 5px 14px;
+    min-width: 70px;
+    font-size: 12px;
+}}
+QPushButton:hover   {{ background: {bg3}; }}
+QPushButton:pressed {{ background: {border2}; }}
+QPushButton:disabled {{ color: {text_dim}; background: {bg}; border-color: {border}; }}
+
+/* ── Install: glass overlay ── */
+QPushButton#installBtn {{
+    background: {inst_bg};
+    color: {inst_text};
+    border: 1px solid {inst_border};
+    font-weight: 600;
+}}
+QPushButton#installBtn:hover {{
+    background: {inst_hover};
+    border: 1px solid {accent};
+    color: {accent};
+}}
+QPushButton#installBtn:pressed {{ background: {inst_bg}; }}
+QPushButton#installBtn:disabled {{ background: transparent; color: {text_dim}; border-color: {border}; }}
+
+/* ── Enable (Setup): glass green overlay ── */
+QPushButton#enableBtn {{
+    background: rgba(59,180,100,0.12);
+    color: {b_inst_text};
+    border: 1px solid rgba(59,180,100,0.45);
+    font-weight: 600;
+}}
+QPushButton#enableBtn:hover {{
+    background: rgba(59,180,100,0.24);
+    border: 1px solid {b_inst_text};
+    color: {b_inst_text};
+}}
+QPushButton#enableBtn:pressed {{ background: rgba(59,180,100,0.12); }}
+QPushButton#enableBtn:disabled {{ background: transparent; color: {text_dim}; border-color: {border}; }}
+
+/* ── Remove: glass red overlay ── */
+QPushButton#removeBtn {{
+    background: {rem_bg};
+    color: {rem_text};
+    border: 1px solid {rem_border};
+    font-weight: 600;
+}}
+QPushButton#removeBtn:hover {{
+    background: {rem_hover};
+    border: 1px solid {rem_text};
+    color: {rem_text};
+}}
+QPushButton#removeBtn:pressed {{ background: {rem_bg}; }}
+QPushButton#removeBtn:disabled {{ background: transparent; color: {text_dim}; border-color: {border}; }}
+
+/* ── Category sidebar ── */
+QListWidget#categoryList {{
+    background: {sidebar_bg};
+    border: 1px solid {border};
+    border-radius: 6px;
+    padding: 4px 0;
+    outline: none;
+}}
+QListWidget#categoryList::item {{
+    padding: 7px 14px;
+    color: {sidebar_text};
+    font-size: 12px;
+}}
+QListWidget#categoryList::item:hover {{
+    background: {sidebar_hover};
+    color: {sidebar_sel_t};
+}}
+QListWidget#categoryList::item:selected {{
+    background: {sidebar_sel};
+    color: {sidebar_sel_t};
+    border-left: 3px solid {sidebar_acc};
+    padding-left: 11px;
+}}
+
+/* ── Status badge pills ── */
+QLabel[badge="installed"] {{
+    background: {b_inst_bg};
+    color: {b_inst_text};
+    border: 1px solid {b_inst_brd};
+    border-radius: 10px;
+    padding: 1px 9px;
+    font-size: 11px;
+}}
+QLabel[badge="available"] {{
+    background: {b_avail_bg};
+    color: {b_avail_text};
+    border: 1px solid {b_avail_brd};
+    border-radius: 10px;
+    padding: 1px 9px;
+    font-size: 11px;
+}}
+QLabel[badge="busy"] {{
+    background: {b_busy_bg};
+    color: {b_busy_text};
+    border: 1px solid {b_busy_brd};
+    border-radius: 10px;
+    padding: 1px 9px;
+    font-size: 11px;
+}}
+QLabel[badge="missing"] {{
+    background: {b_miss_bg};
+    color: {b_miss_text};
+    border: 1px solid {b_miss_brd};
+    border-radius: 10px;
+    padding: 1px 9px;
+    font-size: 11px;
+}}
+QLabel[badge="warning"] {{
+    background: {b_warn_bg};
+    color: {b_warn_text};
+    border: 1px solid {b_warn_brd};
+    border-radius: 10px;
+    padding: 1px 9px;
+    font-size: 11px;
+}}
+QLabel[badge="checking"] {{
+    background: transparent;
+    color: {text_dim};
+    border: 1px solid {border2};
+    border-radius: 10px;
+    padding: 1px 9px;
+    font-size: 11px;
+}}
+
+/* ── Inputs ── */
+QLineEdit {{
+    background: {input_bg};
+    color: {text};
+    border: 1px solid {border2};
+    border-radius: 5px;
+    padding: 6px 10px;
+    font-size: 13px;
+}}
+QLineEdit:focus {{ border-color: {accent}; }}
+QComboBox {{
+    background: {btn_bg};
+    color: {text};
+    border: 1px solid {border2};
+    border-radius: 5px;
+    padding: 3px 8px;
+}}
+QComboBox QAbstractItemView {{
+    background: {btn_bg};
+    color: {text};
+    selection-background-color: {accent};
+}}
+
+/* ── Progress bar: slim accent line ── */
+QProgressBar {{
+    border: none;
+    border-radius: 2px;
+    background: {btn_bg};
+    max-height: 4px;
+}}
+QProgressBar::chunk {{ background: {accent}; border-radius: 2px; }}
+
+/* ── Generic list (non-sidebar) ── */
+QListWidget {{
+    background: {bg2};
+    border: 1px solid {border2};
+    color: {text};
+}}
+QListWidget::item:selected {{ background: {accent}; color: {bg}; }}
+QListWidget::item:hover    {{ background: {btn_bg}; }}
+
+/* ── Log console ── */
+QTextEdit {{
+    background: {log_bg};
+    color: {log_text};
+    border: 1px solid {border};
+    border-radius: 6px;
+    font-family: monospace;
+    font-size: 12px;
+    padding: 4px;
+}}
+
+/* ── Scrollbars: slim and subtle ── */
+QScrollArea {{ border: none; }}
+QScrollBar:vertical {{
+    background: transparent;
+    width: 6px;
+    margin: 2px;
+}}
+QScrollBar::handle:vertical {{
+    background: {scrollbar};
+    border-radius: 3px;
+    min-height: 20px;
+}}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0; }}
+
+/* ── Hero banner ── */
+QFrame#heroBanner {{
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                                stop:0 {hero_start}, stop:1 {hero_end});
+    border: 1px solid {border};
+    border-radius: 8px;
+}}
+QLabel#heroTitle {{
+    font-size: 14px;
+    font-weight: bold;
+    color: {text};
+}}
+QLabel#heroSubtitle {{
+    font-size: 11px;
+    color: {text2};
+}}
+
+/* ── All-ready banner ── */
+QLabel#readyBanner {{
+    background: {ready_bg};
+    color: {ready_text};
+    border: 1px solid {ready_border};
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-size: 12px;
+}}
+
+/* ── Empty search state ── */
+QLabel#emptyState {{
+    color: {empty_text};
+    font-size: 13px;
+}}
+""".format(**c)
 
 
 # ---------------------------------------------------------------------------
@@ -232,10 +459,12 @@ class AlmaCreativeInstaller(QMainWindow):
         self.setWindowTitle("AlmaLinux Creative Installer")
         self.resize(1020, 680)
 
-        self.repo_widgets = {}
-        self.app_widgets  = {}
+        self.repo_widgets  = {}
+        self.repo_states   = {}
+        self.app_widgets   = {}
         self.selected_category = "All Apps"
-        self.search_query = ""
+        self.search_query  = ""
+        self._nvidia_present = self._has_nvidia_hardware()
 
         self._signals = WorkerSignals()
         self._signals.log.connect(self._on_log)
@@ -250,34 +479,37 @@ class AlmaCreativeInstaller(QMainWindow):
         self.progress_percent_re = re.compile(r"(?<!\d)(100|[1-9]?\d)%")
         self.progress_step_re    = re.compile(r"\b(\d+)\s*/\s*(\d+)\b")
 
-        self.setStyleSheet(QSS)
+        self._c = _THEME_COLORS
+        self.setStyleSheet(_build_qss(self._c))
 
         central = QWidget()
         central.setObjectName("central")
         self.setCentralWidget(central)
+
+        pm = self._load_app_pixmap(256)
+        if not pm.isNull():
+            self.setWindowIcon(QIcon(pm))
         root = QVBoxLayout(central)
         root.setContentsMargins(12, 12, 12, 12)
         root.setSpacing(10)
 
+        root.addWidget(self._make_hero_banner())
+
         tabs = QTabWidget()
         root.addWidget(tabs)
 
-        # ---- Apps tab ----
-        apps_page = QWidget()
-        apps_layout = QVBoxLayout(apps_page)
-        apps_layout.setContentsMargins(6, 6, 6, 6)
-        apps_layout.setSpacing(10)
-        tabs.addTab(apps_page, "Apps")
+        # ---- Setup tab (first — users configure repos before installing) ----
+        setup_page = QWidget()
+        setup_layout = QVBoxLayout(setup_page)
+        setup_layout.setContentsMargins(6, 6, 6, 6)
+        setup_layout.setSpacing(10)
+        tabs.addTab(setup_page, "Setup")
 
-        apps_layout.addWidget(self._make_hero_banner())
-
-        # System requirements frame
         req_frame = QFrame()
         req_frame.setObjectName("reqFrame")
         req_layout = QVBoxLayout(req_frame)
         req_layout.setContentsMargins(10, 10, 10, 10)
         req_layout.setSpacing(6)
-        apps_layout.addWidget(req_frame)
 
         req_title = QLabel("System Requirements")
         req_title.setObjectName("rowTitle")
@@ -296,7 +528,7 @@ class AlmaCreativeInstaller(QMainWindow):
         ))
         req_layout.addWidget(self._make_requirement_row(
             key="RPMFUSION_FREE",
-            title="RPM Fusion Free (Recommended)",
+            title="RPM Fusion Free (Optional)",
             subtitle="Multimedia codecs (H.264, MP3, AAC) — essential for video editors.",
             enable_action=["enable_rpmfusion_free"],
         ))
@@ -317,6 +549,21 @@ class AlmaCreativeInstaller(QMainWindow):
             post_install_msg="NVIDIA drivers installed. A reboot is required to load the kernel module.",
         ))
         req_layout.addWidget(self._make_selinux_row())
+        req_layout.addStretch()
+        setup_layout.addWidget(req_frame)
+
+        self.ready_banner = QLabel("✓  System ready — all required repositories are enabled. Head to the Apps tab to install.")
+        self.ready_banner.setObjectName("readyBanner")
+        self.ready_banner.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.ready_banner.setVisible(False)
+        setup_layout.addWidget(self.ready_banner)
+
+        # ---- Apps tab ----
+        apps_page = QWidget()
+        apps_layout = QVBoxLayout(apps_page)
+        apps_layout.setContentsMargins(6, 6, 6, 6)
+        apps_layout.setSpacing(10)
+        tabs.addTab(apps_page, "Apps")
 
         # Applications frame
         app_frame = QFrame()
@@ -326,30 +573,32 @@ class AlmaCreativeInstaller(QMainWindow):
         app_frame_layout.setSpacing(8)
         apps_layout.addWidget(app_frame, stretch=1)
 
-        app_title = QLabel("Applications")
-        app_title.setObjectName("rowTitle")
-        app_frame_layout.addWidget(app_title)
-
-        # Search bar
-        search_row = QHBoxLayout()
-        search_row.addWidget(QLabel("Search apps:"))
+        # Search bar — full width, no label
         self.search_entry = QLineEdit()
-        self.search_entry.setPlaceholderText("Type app name (e.g. blender, krita, davinci)")
+        self.search_entry.setPlaceholderText("🔍  Search apps…")
         self.search_entry.textChanged.connect(self._on_search_changed)
-        search_row.addWidget(self.search_entry)
-        app_frame_layout.addLayout(search_row)
+        app_frame_layout.addWidget(self.search_entry)
 
         # Category sidebar + app list
         content_row = QHBoxLayout()
         app_frame_layout.addLayout(content_row, stretch=1)
 
         self.category_list = QListWidget()
-        self.category_list.setFixedWidth(190)
+        self.category_list.setObjectName("categoryList")
+        self.category_list.setFixedWidth(160)
         self.category_list.currentRowChanged.connect(self._on_category_changed)
         for cat in CATEGORIES:
-            self.category_list.addItem(QListWidgetItem(cat))
+            item = QListWidgetItem(cat)
+            item.setSizeHint(QSize(0, 36))
+            self.category_list.addItem(item)
         self.category_list.setCurrentRow(0)
         content_row.addWidget(self.category_list)
+
+        # App list + empty state overlay
+        app_list_container = QWidget()
+        app_list_container_layout = QVBoxLayout(app_list_container)
+        app_list_container_layout.setContentsMargins(0, 0, 0, 0)
+        app_list_container_layout.setSpacing(0)
 
         self.app_list_widget = QWidget()
         self.app_list_layout = QVBoxLayout(self.app_list_widget)
@@ -360,7 +609,19 @@ class AlmaCreativeInstaller(QMainWindow):
         app_scroll = QScrollArea()
         app_scroll.setWidget(self.app_list_widget)
         app_scroll.setWidgetResizable(True)
-        content_row.addWidget(app_scroll, stretch=1)
+        _row_bg = self._c["bg2"]
+        app_scroll.setStyleSheet("QScrollArea {{ background: {0}; border: none; }} "
+                                 "QScrollArea > QWidget > QWidget {{ background: {0}; }}".format(_row_bg))
+        self.app_list_widget.setStyleSheet("background: {};".format(_row_bg))
+        app_list_container_layout.addWidget(app_scroll, stretch=1)
+
+        self.empty_state_lbl = QLabel()
+        self.empty_state_lbl.setObjectName("emptyState")
+        self.empty_state_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.empty_state_lbl.setVisible(False)
+        app_list_container_layout.addWidget(self.empty_state_lbl)
+
+        content_row.addWidget(app_list_container, stretch=1)
 
         for app in APPS:
             self.app_list_layout.insertWidget(
@@ -441,8 +702,60 @@ class AlmaCreativeInstaller(QMainWindow):
         return "dev"
 
     # -------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
+    # Badge helper
+    # -------------------------------------------------------------------------
+    def _set_status_badge(self, label, text, variant):
+        label.setText(text)
+        label.setProperty("badge", variant)
+        label.style().unpolish(label)
+        label.style().polish(label)
+        label.update()
+
+    @staticmethod
+    def _is_system_dark():
+        try:
+            bg = QApplication.instance().palette().window().color()
+            return bg.value() < 128
+        except Exception:
+            return True
+
+    def _has_nvidia_hardware(self):
+        try:
+            out = subprocess.run(
+                ["lspci"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True,
+            ).stdout
+            return "nvidia" in out.lower()
+        except Exception:
+            return False
+
+    def _update_ready_banner(self):
+        if not hasattr(self, "ready_banner"):
+            return
+        required = {"CRB", "EPEL", "RPMFUSION_FREE"}
+        if self._nvidia_present:
+            required.add("NVIDIA")
+        all_ready = all(self.repo_states.get(k) is True for k in required)
+        self.ready_banner.setVisible(all_ready)
+
     # Hero banner
     # -------------------------------------------------------------------------
+    def _load_app_pixmap(self, size=48):
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        candidates = [
+            os.path.join(script_dir, "icons", "hicolor",
+                         "{}x{}".format(size, size), "apps",
+                         "almalinux-creative-installer.png"),
+            "/usr/share/icons/hicolor/{}x{}/apps/almalinux-creative-installer.png".format(size, size),
+        ]
+        for path in candidates:
+            if os.path.exists(path):
+                return QPixmap(path)
+        icon = QIcon.fromTheme("almalinux-creative-installer")
+        if not icon.isNull():
+            return icon.pixmap(size, size)
+        return QPixmap()
+
     def _make_hero_banner(self):
         banner = QFrame()
         banner.setObjectName("heroBanner")
@@ -452,9 +765,10 @@ class AlmaCreativeInstaller(QMainWindow):
 
         logo_lbl = QLabel()
         logo_lbl.setFixedSize(48, 48)
-        icon = QIcon.fromTheme("almalinux-creative-installer")
-        if not icon.isNull():
-            logo_lbl.setPixmap(icon.pixmap(48, 48))
+        logo_lbl.setScaledContents(True)
+        pm = self._load_app_pixmap(48)
+        if not pm.isNull():
+            logo_lbl.setPixmap(pm)
         hl.addWidget(logo_lbl)
 
         text_col = QVBoxLayout()
@@ -500,13 +814,16 @@ class AlmaCreativeInstaller(QMainWindow):
         hl.addLayout(text_col, stretch=1)
 
         status_lbl = QLabel("Checking…")
+        status_lbl.setProperty("badge", "checking")
+        status_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         hl.addWidget(status_lbl)
 
         btn = QPushButton(button_label)
+        btn.setObjectName("enableBtn")
 
         def _on_clicked():
             btn.setEnabled(False)
-            status_lbl.setText("Working…")
+            self._set_status_badge(status_lbl, "Working…", "busy")
 
             def on_success():
                 self.refresh_repo_state()
@@ -552,6 +869,8 @@ class AlmaCreativeInstaller(QMainWindow):
         hl.addLayout(text_col, stretch=1)
 
         status_lbl = QLabel("Checking…")
+        status_lbl.setProperty("badge", "checking")
+        status_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         hl.addWidget(status_lbl)
 
         btn = QPushButton("Set")
@@ -563,32 +882,38 @@ class AlmaCreativeInstaller(QMainWindow):
         return row
 
     def _set_requirement_state(self, key, state):
+        self.repo_states[key] = state
         w = self.repo_widgets.get(key)
         if not w:
             return
         if state is None:
-            w["icon"].setText("…");  w["status"].setText("Checking…"); w["button"].setEnabled(False)
+            w["icon"].setText(""); w["button"].setEnabled(False)
+            self._set_status_badge(w["status"], "Checking…", "checking")
         elif state is True:
-            w["icon"].setText("✅"); w["status"].setText(w.get("status_enabled", "Enabled"));   w["button"].setEnabled(False)
+            w["icon"].setText(""); w["button"].setEnabled(False)
+            self._set_status_badge(w["status"], w.get("status_enabled", "Enabled"), "installed")
         else:
-            w["icon"].setText("❌"); w["status"].setText(w.get("status_disabled", "Not enabled")); w["button"].setEnabled(True)
+            w["icon"].setText(""); w["button"].setEnabled(True)
+            self._set_status_badge(w["status"], w.get("status_disabled", "Not enabled"), "missing")
+        self._update_ready_banner()
 
     def _set_selinux_requirement_state(self, mode):
         w = self.repo_widgets.get("SELINUX")
         if not w:
             return
+        w["icon"].setText("")
         if mode is None:
-            w["icon"].setText("…"); w["status"].setText("Checking…")
+            self._set_status_badge(w["status"], "Checking…", "checking")
         else:
             m = (mode or "unknown").lower()
             if m == "enforcing":
-                w["icon"].setText("⚠️"); w["status"].setText("Enforcing")
+                self._set_status_badge(w["status"], "Enforcing", "warning")
             elif m == "permissive":
-                w["icon"].setText("ℹ️"); w["status"].setText("Permissive")
+                self._set_status_badge(w["status"], "Permissive", "available")
             elif m == "disabled":
-                w["icon"].setText("ℹ️"); w["status"].setText("Disabled")
+                self._set_status_badge(w["status"], "Disabled", "warning")
             else:
-                w["icon"].setText("❓"); w["status"].setText("Unknown")
+                self._set_status_badge(w["status"], "Unknown", "checking")
         w["button"].setEnabled(True)
 
     def prompt_set_selinux_mode(self):
@@ -622,31 +947,52 @@ class AlmaCreativeInstaller(QMainWindow):
         row = QFrame()
         row.setObjectName("appRow")
         hl = QHBoxLayout(row)
-        hl.setContentsMargins(10, 8, 10, 8)
+        hl.setContentsMargins(10, 6, 10, 6)
         hl.setSpacing(10)
+
+        # Colored initial badge — vivid colors, no emoji font needed
+        _badge_colors = [
+            "#3b6bc7", "#c73b4a", "#3b9c5a", "#c49f27",
+            "#7b4bc7", "#2b9c9c", "#c7613b", "#9c2b7b",
+        ]
+        badge_color = _badge_colors[hash(app["name"]) % len(_badge_colors)]
+        icon_lbl = QLabel(app["name"][0].upper())
+        icon_lbl.setFixedSize(36, 36)
+        icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        icon_lbl.setStyleSheet(
+            "background: {}; border-radius: 8px; color: #ffffff;"
+            " font-weight: 700; font-size: 15px;".format(badge_color)
+        )
+        hl.addWidget(icon_lbl)
 
         left = QVBoxLayout()
         left.setSpacing(2)
 
-        title_lbl = QLabel("{}  {}".format(app.get("emoji", ""), app["name"]).strip())
+        title_lbl = QLabel(app["name"])
         title_lbl.setObjectName("rowTitle")
+        title_lbl.setStyleSheet(
+            "color: {}; font-weight: 600; font-size: 13px;".format(self._c["text"])
+        )
         left.addWidget(title_lbl)
 
         sub_lbl = QLabel(self._subtitle_for_app(app))
         sub_lbl.setObjectName("rowSubtitle")
+        sub_lbl.setStyleSheet("color: {}; font-size: 11px;".format(self._c["text2"]))
         left.addWidget(sub_lbl)
 
         progress = QProgressBar()
         progress.setRange(0, 100)
         progress.setValue(0)
         progress.setVisible(False)
-        progress.setFixedHeight(10)
+        progress.setFixedHeight(4)
+        progress.setTextVisible(False)
         left.addWidget(progress)
 
         hl.addLayout(left, stretch=1)
 
         status_lbl = QLabel("…")
-        status_lbl.setFixedWidth(140)
+        status_lbl.setProperty("badge", "checking")
+        status_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         hl.addWidget(status_lbl)
 
         btn_box = QHBoxLayout()
@@ -661,7 +1007,9 @@ class AlmaCreativeInstaller(QMainWindow):
             btn_box.addWidget(version_combo)
 
         install_btn = QPushButton("Install")
+        install_btn.setObjectName("installBtn")
         remove_btn  = QPushButton("Remove")
+        remove_btn.setObjectName("removeBtn")
         btn_box.addWidget(install_btn)
         btn_box.addWidget(remove_btn)
         hl.addLayout(btn_box)
@@ -733,6 +1081,9 @@ class AlmaCreativeInstaller(QMainWindow):
         self._apply_filters()
 
     def _apply_filters(self):
+        if not hasattr(self, "empty_state_lbl"):
+            return
+        any_visible = False
         for app in APPS:
             w = self.app_widgets.get(app["id"])
             if not w:
@@ -741,7 +1092,14 @@ class AlmaCreativeInstaller(QMainWindow):
                          app.get("category") == self.selected_category)
             search_ok = (not self.search_query or
                          self.search_query in app.get("name", "").lower())
-            w["row"].setVisible(cat_ok and search_ok)
+            visible = cat_ok and search_ok
+            w["row"].setVisible(visible)
+            if visible:
+                any_visible = True
+        self.empty_state_lbl.setVisible(not any_visible)
+        if not any_visible and self.search_query:
+            self.empty_state_lbl.setText('No apps match  "{}"\n\nTry a different search term.'.format(
+                self.search_query))
 
     # -------------------------------------------------------------------------
     # Busy / progress
@@ -755,8 +1113,7 @@ class AlmaCreativeInstaller(QMainWindow):
             w["progress"].setValue(0)
             w["progress"].setVisible(True)
             w["pulse_timer"].start()
-            if msg:
-                w["status"].setText(msg)
+            self._set_status_badge(w["status"], msg or "Installing…", "busy")
             w["install"].setEnabled(False)
             w["remove"].setEnabled(False)
             if w.get("version_combo") is not None:
@@ -870,14 +1227,16 @@ class AlmaCreativeInstaller(QMainWindow):
 
         if app["type"] == "resolve":
             installed = self._resolve_installed()
-            w["status"].setText("✅ Installed" if installed else "ℹ️ Guided install")
+            self._set_status_badge(w["status"], "Installed" if installed else "Guided install",
+                                   "installed" if installed else "available")
             w["install"].setEnabled(not installed)
             w["remove"].setEnabled(installed)
             return
 
         if app["type"] == "3dcoat":
             installed = self._3dcoat_installed()
-            w["status"].setText("✅ Installed" if installed else "ℹ️ Guided install")
+            self._set_status_badge(w["status"], "Installed" if installed else "Guided install",
+                                   "installed" if installed else "available")
             w["install"].setEnabled(not installed)
             w["remove"].setEnabled(installed)
             return
@@ -890,7 +1249,7 @@ class AlmaCreativeInstaller(QMainWindow):
 
         elif app["type"] == "flatpak":
             if not shutil.which("flatpak"):
-                w["status"].setText("ℹ️ Flatpak not installed")
+                self._set_status_badge(w["status"], "Flatpak N/A", "warning")
                 w["install"].setEnabled(True)
                 w["remove"].setEnabled(False)
                 return
@@ -900,12 +1259,12 @@ class AlmaCreativeInstaller(QMainWindow):
             installed = False
 
         if installed:
-            suffix = " (user)" if app["type"] == "flatpak" and scope == "user" else ""
-            w["status"].setText("✅ Installed" + suffix)
+            label = "Installed (user)" if app["type"] == "flatpak" and scope == "user" else "Installed"
+            self._set_status_badge(w["status"], label, "installed")
             w["install"].setEnabled(False)
             w["remove"].setEnabled(True)
         else:
-            w["status"].setText("❌ Not installed")
+            self._set_status_badge(w["status"], "Not installed", "missing")
             w["install"].setEnabled(True)
             w["remove"].setEnabled(False)
 
@@ -1620,10 +1979,22 @@ class AlmaCreativeInstaller(QMainWindow):
         )
 
 
+_THEME_COLORS = _DARK  # set by main() before window creation
+
+
+def _detect_dark(app):
+    try:
+        return app.palette().window().color().value() < 128
+    except Exception:
+        return True
+
+
 def main():
+    global _THEME_COLORS
     app = QApplication(sys.argv)
     app.setApplicationName("AlmaLinux Creative Installer")
-    app.setStyleSheet(QSS)
+    _THEME_COLORS = _DARK if _detect_dark(app) else _LIGHT
+    app.setStyleSheet(_build_qss(_THEME_COLORS))
     win = AlmaCreativeInstaller()
     win.show()
     return app.exec()
