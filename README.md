@@ -151,8 +151,7 @@ The **System Requirements** panel lets you enable the following repositories wit
 
 ## 📦 Install AppImage Apps (Beginner Guide)
 
-> ⚠️ **Current limitation:** AppImageLauncher is currently supported on **AlmaLinux 10 only**.
-> On AlmaLinux 9, AppImageLauncher may fail to run due to upstream glibc version requirements.
+> ⚠️ **AlmaLinux 10 only.** AppImageLauncher requires a newer glibc than EL9 provides.
 
 If you want to use an AppImage application, this is the easiest way:
 
@@ -170,17 +169,27 @@ That’s it — after this, launching AppImages is much simpler for beginners.
 
 ## 🧩 Supported Platforms
 
-- AlmaLinux 9 — officially supported (uses PyQt5)
-- AlmaLinux 10 — experimental (uses PyQt6)
+| Platform        | Qt backend | Support level       |
+|-----------------|------------|---------------------|
+| AlmaLinux 9     | PyQt5      | Officially supported |
+| AlmaLinux 10    | PyQt6      | Officially supported |
 
-### AppImageLauncher support
+### Per-app EL version availability
 
-- AlmaLinux 10 — supported (current beta package target)
-- AlmaLinux 9 — currently unsupported for AppImageLauncher due to binary compatibility constraints
+Not every app is available on both EL versions. The installer shows a small **EL9** or **EL10** badge next to apps that are restricted to one version. Apps with no badge work on both.
 
-Some creative applications are not yet available (or not yet complete) in AlmaLinux 10 /
-EPEL repositories at this time (for example: Blender and GIMP availability varies),
-so results may differ.
+| App               | EL9 | EL10 | Notes |
+|-------------------|-----|------|-------|
+| GIMP              | ✅  | ❌   | Not yet in EPEL 10 |
+| Krusader          | ✅  | ✅   | |
+| Kdenlive          | ✅  | ❌   | Not yet in EPEL 10 |
+| AppImageLauncher  | ❌  | ✅   | glibc requirement |
+| All Flatpak apps  | ✅  | ✅   | Via Flathub |
+| Blender           | ✅  | ✅   | Via EPEL |
+| DaVinci Resolve   | ✅  | ✅   | Guided vendor install |
+| 3DCoat            | ✅  | ✅   | Guided vendor install |
+
+> This table reflects current EPEL availability and will be updated as packages land in EL10.
 
 ---
 
@@ -190,7 +199,7 @@ This project focuses on real-world creative tools commonly used in studios,
 post-production, and content creation environments:
 
 - **Image Processing**
-  - GIMP
+  - GIMP *(EL9 only — not yet in EPEL 10)*
   - Krita
   - Inkscape
   - darktable
@@ -207,7 +216,7 @@ post-production, and content creation environments:
   - 3DCoat
 
 - **Animation & Video**
-  - Kdenlive (AlmaLinux 9 or AlmaLinux 10.2+)
+  - Kdenlive *(EL9 only — not yet in EPEL 10)*
   - OpenToonz
   - VLC
   - OBS Studio
@@ -216,17 +225,17 @@ post-production, and content creation environments:
   - DaVinci Resolve
 
 - **Productivity**
-  - Krusader (AlmaLinux 9; may not be available yet on AL10)
+  - Krusader
   - Scribus
   - draw.io
   - LibreOffice
   - OnlyOffice
-  - AppImageLauncher (AlmaLinux 10+ only)
+  - AppImageLauncher *(EL10 only — glibc requirement)*
 
 - **Game Engines**
   - Epic Asset Manager
   - Asset Manager Studio
-  - Godot Engine
+  - Godots
 
 - **Audio**
   - Ardour
@@ -242,7 +251,7 @@ post-production, and content creation environments:
   - Mattermost
   - Slack
 
-> Note: This list may evolve over time. The in-app list is the source of truth.
+> The in-app list is the source of truth. EL version badges in the UI always reflect current availability.
 
 ---
 

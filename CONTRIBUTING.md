@@ -26,15 +26,21 @@ focused.
 The app list is data-driven in `src/almalinux-creative-installer` via `APPS`.
 
 1. Add or update an item in `APPS` with a unique `id`.
-2. Set a supported `type`: `dnf`, `flatpak`, or `resolve`.
+2. Set a supported `type`: `dnf`, `flatpak`, `resolve`, or `3dcoat`.
 3. Provide type-specific keys:
    - `dnf`: `pkg`
    - `flatpak`: `appid`
-   - `resolve`: guided flow (no package key)
-   Common UI keys are `name`, `emoji`, and `category`.
-4. (Optional) Add the app `id` to `VERSION_SELECTABLE_APPS` if you want
+   - `dnf` with external RPM: `pkg` + `install_target` (URL)
+   - guided flows (`resolve`, `3dcoat`): no package key
+   Common UI keys are `name` and `category`.
+4. (Optional) `icon_appid` — Flathub app ID to use for the icon when the
+   app is a DNF package (e.g. `"icon_appid": "org.blender.Blender"`).
+5. (Optional) `el` — list of EL major versions the app supports. Omit for
+   apps that work on both. Use `[9]` or `[10]` for single-version apps.
+   A badge is shown in the UI automatically.
+6. (Optional) Add the app `id` to `VERSION_SELECTABLE_APPS` if you want
    version/branch selection in the UI.
-5. If you introduce a new type/action model, update app type handlers in
+7. If you introduce a new type/action model, update app type handlers in
    `src/almalinux-creative-installer` and matching helper actions in
    `src/almalinux-creative-installer-helper`.
 
