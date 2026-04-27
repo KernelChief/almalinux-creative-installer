@@ -49,46 +49,46 @@ APPIMAGELAUNCHER_RPM_URL = (
 # -----------------------------------------------------------------------------
 
 APPS = [
-    {"id": "gimp",              "name": "GIMP",                         "type": "dnf",     "pkg": "gimp",     "icon_appid": "org.gimp.GIMP",        "emoji": "🖌️", "category": "Image Processing"},
-    {"id": "krusader",          "name": "Krusader",                     "type": "dnf",     "pkg": "krusader",                                   "emoji": "📁", "category": "Productivity"},
-    {"id": "kdenlive",          "name": "Kdenlive",                     "type": "dnf",     "pkg": "kdenlive", "icon_appid": "org.kde.kdenlive",     "emoji": "🎥", "category": "Animation & Video"},
-    {"id": "krita",             "name": "Krita",                        "type": "flatpak", "appid": "org.kde.krita",                            "emoji": "🎨", "category": "Image Processing"},
-    {"id": "inkscape",          "name": "Inkscape",                     "type": "flatpak", "appid": "org.inkscape.Inkscape",                    "emoji": "✏️", "category": "Image Processing"},
-    {"id": "darktable",         "name": "darktable",                    "type": "flatpak", "appid": "org.darktable.Darktable",                  "emoji": "📷", "category": "Image Processing"},
-    {"id": "rawtherapee",       "name": "RawTherapee",                  "type": "flatpak", "appid": "com.rawtherapee.RawTherapee",              "emoji": "🌄", "category": "Image Processing"},
-    {"id": "digikam",           "name": "digiKam",                      "type": "flatpak", "appid": "org.kde.digikam",                          "emoji": "📸", "category": "Image Processing"},
-    {"id": "fontforge",         "name": "FontForge",                    "type": "flatpak", "appid": "org.fontforge.FontForge",                  "emoji": "🔡", "category": "Image Processing"},
-    {"id": "blender",           "name": "Blender",                      "type": "dnf",     "pkg": "blender",  "icon_appid": "org.blender.Blender",  "emoji": "🧊", "category": "3D"},
-    {"id": "meshlab",           "name": "MeshLab",                      "type": "flatpak", "appid": "net.meshlab.MeshLab",                      "emoji": "🎬", "category": "3D"},
-    {"id": "prusaslicer",       "name": "PrusaSlicer",                  "type": "flatpak", "appid": "com.prusa3d.PrusaSlicer",                  "emoji": "🎬", "category": "3D"},
-    {"id": "materialmaker",     "name": "Material Maker",               "type": "flatpak", "appid": "io.github.RodZill4.Material-Maker",        "emoji": "🎬", "category": "3D"},
-    {"id": "freecad",           "name": "FreeCAD",                      "type": "flatpak", "appid": "org.freecad.FreeCAD",                      "emoji": "📐", "category": "3D"},
-    {"id": "3dcoat",            "name": "3DCoat",                       "type": "3dcoat",                                                       "emoji": "🗿", "category": "3D"},
-    {"id": "opentoonz",         "name": "OpenToonz",                    "type": "flatpak", "appid": "io.github.OpenToonz",                      "emoji": "🎬", "category": "Animation & Video"},
-    {"id": "vlc",               "name": "VLC",                          "type": "flatpak", "appid": "org.videolan.VLC",                         "emoji": "📺", "category": "Animation & Video"},
-    {"id": "obs-studio",        "name": "OBS Studio",                   "type": "flatpak", "appid": "com.obsproject.Studio",                    "emoji": "📹", "category": "Animation & Video"},
-    {"id": "handbrake",         "name": "HandBrake",                    "type": "flatpak", "appid": "fr.handbrake.ghb",                         "emoji": "🔄", "category": "Animation & Video"},
-    {"id": "shotcut",           "name": "Shotcut",                      "type": "flatpak", "appid": "org.shotcut.Shotcut",                      "emoji": "✂️", "category": "Animation & Video"},
-    {"id": "scribus",           "name": "Scribus",                      "type": "flatpak", "appid": "net.scribus.Scribus",                      "emoji": "🎬", "category": "Productivity"},
-    {"id": "ardour",            "name": "Ardour",                       "type": "flatpak", "appid": "org.ardour.Ardour",                        "emoji": "🎛️", "category": "Audio"},
-    {"id": "bitwig studio",     "name": "Bitwig Studio",                "type": "flatpak", "appid": "com.bitwig.BitwigStudio",                  "emoji": "🎹", "category": "Audio"},
-    {"id": "lmms",              "name": "LMMS",                         "type": "flatpak", "appid": "io.lmms.LMMS",                             "emoji": "🎵", "category": "Audio"},
-    {"id": "audacity",          "name": "Audacity",                     "type": "flatpak", "appid": "org.audacityteam.Audacity",                "emoji": "🎤", "category": "Audio"},
-    {"id": "carla",             "name": "Carla",                        "type": "flatpak", "appid": "studio.kx.carla",                          "emoji": "🔌", "category": "Audio"},
-    {"id": "hydrogen",          "name": "Hydrogen",                     "type": "flatpak", "appid": "org.hydrogenmusic.Hydrogen",               "emoji": "🥁", "category": "Audio"},
-    {"id": "spotify",           "name": "Spotify",                      "type": "flatpak", "appid": "com.spotify.Client",                       "emoji": "🎵", "category": "Audio"},
-    {"id": "discord",           "name": "Discord",                      "type": "flatpak", "appid": "com.discordapp.Discord",                   "emoji": "💬", "category": "Communication"},
-    {"id": "mattermost",        "name": "Mattermost",                   "type": "flatpak", "appid": "com.mattermost.Desktop",                   "emoji": "🗨️", "category": "Communication"},
-    {"id": "slack",             "name": "Slack",                        "type": "flatpak", "appid": "com.slack.Slack",                          "emoji": "💼", "category": "Communication"},
-    {"id": "drawio",            "name": "draw.io",                      "type": "flatpak", "appid": "com.jgraph.drawio.desktop",                "emoji": "🧭", "category": "Productivity"},
-    {"id": "libreoffice",       "name": "LibreOffice",                  "type": "flatpak", "appid": "org.libreoffice.LibreOffice",              "emoji": "📄", "category": "Productivity"},
-    {"id": "onlyoffice",        "name": "OnlyOffice",                   "type": "flatpak", "appid": "org.onlyoffice.desktopeditors",            "emoji": "📄", "category": "Productivity"},
-    {"id": "epicassetmanager",  "name": "Epic Asset Manager",           "type": "flatpak", "appid": "io.github.achetagames.epic_asset_manager", "emoji": "🕹️", "category": "Game Engines"},
-    {"id": "assetmanagerstudio","name": "Asset Manager Studio",         "type": "flatpak", "appid": "studio.assetmanager.ams",                  "emoji": "🧩", "category": "Game Engines"},
-    {"id": "godots",            "name": "Godots",                       "type": "flatpak", "appid": "io.github.MakovWait.Godots",               "emoji": "🎮", "category": "Game Engines"},
+    {"id": "gimp",              "name": "GIMP",             "type": "dnf",     "pkg": "gimp",     "icon_appid": "org.gimp.GIMP",        "category": "Image Processing"},
+    {"id": "krusader",          "name": "Krusader",         "type": "dnf",     "pkg": "krusader",                                       "category": "Productivity"},
+    {"id": "kdenlive",          "name": "Kdenlive",         "type": "dnf",     "pkg": "kdenlive", "icon_appid": "org.kde.kdenlive",     "category": "Animation & Video"},
+    {"id": "krita",             "name": "Krita",            "type": "flatpak", "appid": "org.kde.krita",                                "category": "Image Processing"},
+    {"id": "inkscape",          "name": "Inkscape",         "type": "flatpak", "appid": "org.inkscape.Inkscape",                        "category": "Image Processing"},
+    {"id": "darktable",         "name": "darktable",        "type": "flatpak", "appid": "org.darktable.Darktable",                      "category": "Image Processing"},
+    {"id": "rawtherapee",       "name": "RawTherapee",      "type": "flatpak", "appid": "com.rawtherapee.RawTherapee",                  "category": "Image Processing"},
+    {"id": "digikam",           "name": "digiKam",          "type": "flatpak", "appid": "org.kde.digikam",                              "category": "Image Processing"},
+    {"id": "fontforge",         "name": "FontForge",        "type": "flatpak", "appid": "org.fontforge.FontForge",                      "category": "Image Processing"},
+    {"id": "blender",           "name": "Blender",          "type": "dnf",     "pkg": "blender",  "icon_appid": "org.blender.Blender",  "category": "3D"},
+    {"id": "meshlab",           "name": "MeshLab",          "type": "flatpak", "appid": "net.meshlab.MeshLab",                          "category": "3D"},
+    {"id": "prusaslicer",       "name": "PrusaSlicer",      "type": "flatpak", "appid": "com.prusa3d.PrusaSlicer",                      "category": "3D"},
+    {"id": "materialmaker",     "name": "Material Maker",   "type": "flatpak", "appid": "io.github.RodZill4.Material-Maker",            "category": "3D"},
+    {"id": "freecad",           "name": "FreeCAD",          "type": "flatpak", "appid": "org.freecad.FreeCAD",                          "category": "3D"},
+    {"id": "3dcoat",            "name": "3DCoat",           "type": "3dcoat",                                                           "category": "3D"},
+    {"id": "opentoonz",         "name": "OpenToonz",        "type": "flatpak", "appid": "io.github.OpenToonz",                          "category": "Animation & Video"},
+    {"id": "vlc",               "name": "VLC",              "type": "flatpak", "appid": "org.videolan.VLC",                             "category": "Animation & Video"},
+    {"id": "obs-studio",        "name": "OBS Studio",       "type": "flatpak", "appid": "com.obsproject.Studio",                        "category": "Animation & Video"},
+    {"id": "handbrake",         "name": "HandBrake",        "type": "flatpak", "appid": "fr.handbrake.ghb",                             "category": "Animation & Video"},
+    {"id": "shotcut",           "name": "Shotcut",          "type": "flatpak", "appid": "org.shotcut.Shotcut",                          "category": "Animation & Video"},
+    {"id": "scribus",           "name": "Scribus",          "type": "flatpak", "appid": "net.scribus.Scribus",                          "category": "Productivity"},
+    {"id": "ardour",            "name": "Ardour",           "type": "flatpak", "appid": "org.ardour.Ardour",                            "category": "Audio"},
+    {"id": "bitwig studio",     "name": "Bitwig Studio",    "type": "flatpak", "appid": "com.bitwig.BitwigStudio",                      "category": "Audio"},
+    {"id": "lmms",              "name": "LMMS",             "type": "flatpak", "appid": "io.lmms.LMMS",                                 "category": "Audio"},
+    {"id": "audacity",          "name": "Audacity",         "type": "flatpak", "appid": "org.audacityteam.Audacity",                    "category": "Audio"},
+    {"id": "carla",             "name": "Carla",            "type": "flatpak", "appid": "studio.kx.carla",                              "category": "Audio"},
+    {"id": "hydrogen",          "name": "Hydrogen",         "type": "flatpak", "appid": "org.hydrogenmusic.Hydrogen",                   "category": "Audio"},
+    {"id": "spotify",           "name": "Spotify",          "type": "flatpak", "appid": "com.spotify.Client",                           "category": "Audio"},
+    {"id": "discord",           "name": "Discord",          "type": "flatpak", "appid": "com.discordapp.Discord",                       "category": "Communication"},
+    {"id": "mattermost",        "name": "Mattermost",       "type": "flatpak", "appid": "com.mattermost.Desktop",                       "category": "Communication"},
+    {"id": "slack",             "name": "Slack",            "type": "flatpak", "appid": "com.slack.Slack",                              "category": "Communication"},
+    {"id": "drawio",            "name": "draw.io",          "type": "flatpak", "appid": "com.jgraph.drawio.desktop",                    "category": "Productivity"},
+    {"id": "libreoffice",       "name": "LibreOffice",      "type": "flatpak", "appid": "org.libreoffice.LibreOffice",                  "category": "Productivity"},
+    {"id": "onlyoffice",        "name": "OnlyOffice",       "type": "flatpak", "appid": "org.onlyoffice.desktopeditors",                "category": "Productivity"},
+    {"id": "epicassetmanager",  "name": "Epic Asset Manager","type": "flatpak", "appid": "io.github.achetagames.epic_asset_manager",    "category": "Game Engines"},
+    {"id": "assetmanagerstudio","name": "Asset Manager Studio","type": "flatpak","appid": "studio.assetmanager.ams",                    "category": "Game Engines"},
+    {"id": "godots",            "name": "Godots",           "type": "flatpak", "appid": "io.github.MakovWait.Godots",                   "category": "Game Engines"},
     {"id": "appimagelauncher",  "name": "AppImageLauncher (AlmaLinux 10 ONLY)", "type": "dnf", "pkg": "appimagelauncher",
-     "install_target": APPIMAGELAUNCHER_RPM_URL,                                                                                                "emoji": "📦", "category": "Productivity"},
-    {"id": "resolve",           "name": "DaVinci Resolve",              "type": "resolve",                                                      "emoji": "🎞️", "category": "Animation & Video"},
+     "install_target": APPIMAGELAUNCHER_RPM_URL,                                                                                        "category": "Productivity"},
+    {"id": "resolve",           "name": "DaVinci Resolve",  "type": "resolve",                                                          "category": "Animation & Video"},
 ]
 
 VERSION_SELECTABLE_APPS = {"gimp", "krita", "blender"}
@@ -1122,7 +1122,7 @@ class AlmaCreativeInstaller(QMainWindow):
 
     def _subtitle_for_app(self, app):
         if app.get("install_target"):
-            return "Installs a vendor RPM from a pinned URL"
+            return "GUI to help install AppImage"
         if app["id"] in VERSION_SELECTABLE_APPS:
             if app["type"] == "dnf":
                 return "Installed via DNF repositories (version selectable)"
@@ -2072,6 +2072,54 @@ _ICON_CACHE   = {}     # app["id"] → QPixmap | None, populated on first build
 
 
 def _detect_dark(app):
+    de = os.environ.get("XDG_CURRENT_DESKTOP", "").upper()
+
+    if "GNOME" in de or "UNITY" in de:
+        # GNOME 42+: color-scheme key is authoritative
+        try:
+            out = subprocess.run(
+                ["gsettings", "get", "org.gnome.desktop.interface", "color-scheme"],
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, timeout=2,
+            ).stdout.strip().strip("'\"")
+            if out == "prefer-dark":
+                return True
+            if out in ("default", "prefer-light"):
+                return False
+        except Exception:
+            pass
+        # Older GNOME: check gtk-theme name
+        try:
+            theme = subprocess.run(
+                ["gsettings", "get", "org.gnome.desktop.interface", "gtk-theme"],
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, timeout=2,
+            ).stdout.strip().strip("'\"").lower()
+            return "dark" in theme
+        except Exception:
+            pass
+
+    elif "KDE" in de or "PLASMA" in de:
+        # KDE: read ColorScheme from kdeglobals
+        try:
+            kdeglobals = os.path.expanduser("~/.config/kdeglobals")
+            with open(kdeglobals) as f:
+                for line in f:
+                    if line.strip().lower().startswith("colorscheme="):
+                        return "dark" in line.split("=", 1)[1].strip().lower()
+        except Exception:
+            pass
+        # KDE fallback: read window background luma from kdeglobals
+        try:
+            with open(os.path.expanduser("~/.config/kdeglobals")) as f:
+                content = f.read()
+            import re
+            m = re.search(r"\[Colors:Window].*?BackgroundNormal=(\d+),(\d+),(\d+)", content, re.S)
+            if m:
+                r, g, b = int(m.group(1)), int(m.group(2)), int(m.group(3))
+                return (r * 299 + g * 587 + b * 114) / 1000 < 128
+        except Exception:
+            pass
+
+    # Fallback: Qt palette (works with qt5ct/qt6ct or any other DE)
     try:
         return app.palette().window().color().value() < 128
     except Exception:
