@@ -1088,6 +1088,7 @@ class AlmaCreativeInstaller(QMainWindow):
         self.app_widgets[app_id] = {
             "app": app,
             "row": row,
+            "icon_lbl": icon_lbl,
             "status": status_lbl,
             "progress": progress,
             "pulse_timer": pulse_timer,
@@ -1256,6 +1257,24 @@ class AlmaCreativeInstaller(QMainWindow):
         self._set_app_progress_fraction(app_id, 1.0)
         self.set_app_busy(app_id, False)
         self.refresh_app_state(app_id)
+        self._refresh_app_icon(app_id)
+
+    def _refresh_app_icon(self, app_id):
+        w = self.app_widgets.get(app_id)
+        if not w:
+            return
+        app = w["app"]
+        if app.get("type") != "flatpak":
+            return
+        _ICON_CACHE.pop(app_id, None)
+        pm = self._find_app_pixmap(app, size=36)
+        lbl = w.get("icon_lbl")
+        if lbl is None:
+            return
+        if pm and not pm.isNull():
+            lbl.setText("")
+            lbl.setPixmap(pm)
+            lbl.setStyleSheet("background: transparent;")
 
     def _stop_all_busy(self):
         for app_id in list(self.app_widgets.keys()):
