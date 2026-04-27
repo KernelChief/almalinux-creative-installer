@@ -49,16 +49,16 @@ APPIMAGELAUNCHER_RPM_URL = (
 # -----------------------------------------------------------------------------
 
 APPS = [
-    {"id": "gimp",              "name": "GIMP",                         "type": "dnf",     "pkg": "gimp",                                       "emoji": "🖌️", "category": "Image Processing"},
+    {"id": "gimp",              "name": "GIMP",                         "type": "dnf",     "pkg": "gimp",     "icon_appid": "org.gimp.GIMP",        "emoji": "🖌️", "category": "Image Processing"},
     {"id": "krusader",          "name": "Krusader",                     "type": "dnf",     "pkg": "krusader",                                   "emoji": "📁", "category": "Productivity"},
-    {"id": "kdenlive",          "name": "Kdenlive",                     "type": "dnf",     "pkg": "kdenlive",                                   "emoji": "🎥", "category": "Animation & Video"},
+    {"id": "kdenlive",          "name": "Kdenlive",                     "type": "dnf",     "pkg": "kdenlive", "icon_appid": "org.kde.kdenlive",     "emoji": "🎥", "category": "Animation & Video"},
     {"id": "krita",             "name": "Krita",                        "type": "flatpak", "appid": "org.kde.krita",                            "emoji": "🎨", "category": "Image Processing"},
     {"id": "inkscape",          "name": "Inkscape",                     "type": "flatpak", "appid": "org.inkscape.Inkscape",                    "emoji": "✏️", "category": "Image Processing"},
     {"id": "darktable",         "name": "darktable",                    "type": "flatpak", "appid": "org.darktable.Darktable",                  "emoji": "📷", "category": "Image Processing"},
     {"id": "rawtherapee",       "name": "RawTherapee",                  "type": "flatpak", "appid": "com.rawtherapee.RawTherapee",              "emoji": "🌄", "category": "Image Processing"},
     {"id": "digikam",           "name": "digiKam",                      "type": "flatpak", "appid": "org.kde.digikam",                          "emoji": "📸", "category": "Image Processing"},
     {"id": "fontforge",         "name": "FontForge",                    "type": "flatpak", "appid": "org.fontforge.FontForge",                  "emoji": "🔡", "category": "Image Processing"},
-    {"id": "blender",           "name": "Blender",                      "type": "dnf",     "pkg": "blender",                                    "emoji": "🧊", "category": "3D"},
+    {"id": "blender",           "name": "Blender",                      "type": "dnf",     "pkg": "blender",  "icon_appid": "org.blender.Blender",  "emoji": "🧊", "category": "3D"},
     {"id": "meshlab",           "name": "MeshLab",                      "type": "flatpak", "appid": "net.meshlab.MeshLab",                      "emoji": "🎬", "category": "3D"},
     {"id": "prusaslicer",       "name": "PrusaSlicer",                  "type": "flatpak", "appid": "com.prusa3d.PrusaSlicer",                  "emoji": "🎬", "category": "3D"},
     {"id": "materialmaker",     "name": "Material Maker",               "type": "flatpak", "appid": "io.github.RodZill4.Material-Maker",        "emoji": "🎬", "category": "3D"},
@@ -760,9 +760,23 @@ class AlmaCreativeInstaller(QMainWindow):
         if app_id in _ICON_CACHE:
             return _ICON_CACHE[app_id]
         pm = None
-        # Flatpak AppStream icon cache (populated when Flathub remote is added)
-        appid = app.get("appid") or ""
+        appid = app.get("appid") or app.get("icon_appid") or ""
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+
+        # 1. Bundled icons shipped with the installer
         if appid:
+            bundled = os.path.join(script_dir, "icons", "apps", appid + ".png")
+            if os.path.exists(bundled):
+                candidate = QPixmap(bundled)
+                if not candidate.isNull():
+                    pm = candidate.scaled(
+                        size, size,
+                        Qt.AspectRatioMode.KeepAspectRatio,
+                        Qt.TransformationMode.SmoothTransformation,
+                    )
+
+        # 2. Flatpak AppStream icon cache (populated after `flatpak remote-add flathub`)
+        if pm is None and appid:
             bases = [
                 "/var/lib/flatpak/appstream/flathub/x86_64/active/icons",
                 os.path.expanduser(
@@ -783,7 +797,8 @@ class AlmaCreativeInstaller(QMainWindow):
                             break
                 if pm:
                     break
-        # XDG icon theme fallback
+
+        # 3. XDG icon theme (works for installed DNF packages)
         if pm is None:
             for name in filter(None, [
                 app.get("pkg"),
@@ -795,6 +810,7 @@ class AlmaCreativeInstaller(QMainWindow):
                     if not candidate.isNull():
                         pm = candidate
                         break
+
         _ICON_CACHE[app_id] = pm
         return pm
 
