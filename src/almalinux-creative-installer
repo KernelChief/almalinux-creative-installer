@@ -462,7 +462,8 @@ class AlmaCreativeInstaller(QMainWindow):
         self.repo_states   = {}
         self.app_widgets   = {}
         self.selected_category = "All Apps"
-        self.search_query  = ""
+        self.search_query      = ""
+        self.installed_only    = False
         self._nvidia_present = self._has_nvidia_hardware()
 
         self._signals = WorkerSignals()
@@ -572,11 +573,20 @@ class AlmaCreativeInstaller(QMainWindow):
         app_frame_layout.setSpacing(8)
         apps_layout.addWidget(app_frame, stretch=1)
 
-        # Search bar — full width, no label
+        # Search bar + installed filter
+        search_row = QHBoxLayout()
+        search_row.setSpacing(6)
         self.search_entry = QLineEdit()
         self.search_entry.setPlaceholderText("🔍  Search apps…")
         self.search_entry.textChanged.connect(self._on_search_changed)
-        app_frame_layout.addWidget(self.search_entry)
+        search_row.addWidget(self.search_entry, stretch=1)
+
+        self.installed_only_btn = QPushButton("Installed")
+        self.installed_only_btn.setCheckable(True)
+        self.installed_only_btn.setChecked(False)
+        self.installed_only_btn.toggled.connect(self._on_installed_filter_toggled)
+        search_row.addWidget(self.installed_only_btn)
+        app_frame_layout.addLayout(search_row)
 
         # Category sidebar + app list
         content_row = QHBoxLayout()
@@ -1150,6 +1160,10 @@ class AlmaCreativeInstaller(QMainWindow):
         self.search_query = text.strip().lower()
         self._apply_filters()
 
+    def _on_installed_filter_toggled(self, checked):
+        self.installed_only = checked
+        self._apply_filters()
+
     def _apply_filters(self):
         if not hasattr(self, "empty_state_lbl"):
             return
@@ -1158,18 +1172,23 @@ class AlmaCreativeInstaller(QMainWindow):
             w = self.app_widgets.get(app["id"])
             if not w:
                 continue
-            cat_ok    = (self.selected_category == "All Apps" or
-                         app.get("category") == self.selected_category)
-            search_ok = (not self.search_query or
-                         self.search_query in app.get("name", "").lower())
-            visible = cat_ok and search_ok
+            cat_ok       = (self.selected_category == "All Apps" or
+                            app.get("category") == self.selected_category)
+            search_ok    = (not self.search_query or
+                            self.search_query in app.get("name", "").lower())
+            installed_ok = (not self.installed_only or
+                            (w["status"].property("badge") or "").startswith("installed"))
+            visible = cat_ok and search_ok and installed_ok
             w["row"].setVisible(visible)
             if visible:
                 any_visible = True
         self.empty_state_lbl.setVisible(not any_visible)
-        if not any_visible and self.search_query:
-            self.empty_state_lbl.setText('No apps match  "{}"\n\nTry a different search term.'.format(
-                self.search_query))
+        if not any_visible:
+            if self.installed_only:
+                self.empty_state_lbl.setText("No installed apps in this category.")
+            elif self.search_query:
+                self.empty_state_lbl.setText('No apps match  "{}"\n\nTry a different search term.'.format(
+                    self.search_query))
 
     # -------------------------------------------------------------------------
     # Busy / progress
@@ -1306,6 +1325,7 @@ class AlmaCreativeInstaller(QMainWindow):
         self.refresh_app_versions()
         for app in APPS:
             self.refresh_app_state(app["id"])
+        self._apply_filters()
 
     def refresh_app_state(self, app_id):
         w = self.app_widgets.get(app_id)
