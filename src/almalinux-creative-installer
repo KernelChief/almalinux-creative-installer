@@ -11,11 +11,10 @@ from qtcompat import (
     QLabel, QPushButton, QComboBox, QLineEdit,
     QTextEdit, QProgressBar, QScrollArea,
     QListWidget, QListWidgetItem,
-    QTabWidget, QSizePolicy,
+    QTabWidget,
     QFileDialog, QMessageBox,
     Qt, QTimer, QObject, Signal, QSize,
-    QFont, QIcon, QPixmap, QTextCursor,
-    QT_VERSION,
+    QIcon, QPixmap, QTextCursor,
 )
 
 import subprocess
@@ -887,13 +886,16 @@ class AlmaCreativeInstaller(QMainWindow):
         if not w:
             return
         if state is None:
-            w["icon"].setText(""); w["button"].setEnabled(False)
+            w["icon"].setText("")
+            w["button"].setEnabled(False)
             self._set_status_badge(w["status"], "Checking…", "checking")
         elif state is True:
-            w["icon"].setText(""); w["button"].setEnabled(False)
+            w["icon"].setText("")
+            w["button"].setEnabled(False)
             self._set_status_badge(w["status"], w.get("status_enabled", "Enabled"), "installed")
         else:
-            w["icon"].setText(""); w["button"].setEnabled(True)
+            w["icon"].setText("")
+            w["button"].setEnabled(True)
             self._set_status_badge(w["status"], w.get("status_disabled", "Not enabled"), "missing")
         self._update_ready_banner()
 
@@ -1689,7 +1691,7 @@ class AlmaCreativeInstaller(QMainWindow):
                     if on_success:
                         self._signals.idle.emit(on_success)
                 else:
-                    reason = next((l.strip() for l in reversed(last_lines) if l.strip()),
+                    reason = next((line.strip() for line in reversed(last_lines) if line.strip()),
                                   "Exit code {}".format(rc))
                     self._signals.log.emit("❌ Failed: {}\n[exit code: {}]\n".format(reason, rc))
                     self._signals.idle.emit(self._stop_all_busy)
@@ -1851,7 +1853,7 @@ class AlmaCreativeInstaller(QMainWindow):
                     self._signals.idle.emit(lambda: self._finish_app_action("resolve"))
                     self._signals.idle.emit(self._prompt_reenable_selinux)
                 else:
-                    reason = next((l.strip() for l in reversed(last_lines) if l.strip()),
+                    reason = next((line.strip() for line in reversed(last_lines) if line.strip()),
                                   "Exit code {}".format(rc))
                     self._signals.log.emit("❌ Failed: {}\n[exit code: {}]\n".format(reason, rc))
                     self._signals.idle.emit(lambda: self.set_app_busy("resolve", False))
@@ -1909,7 +1911,7 @@ class AlmaCreativeInstaller(QMainWindow):
                     self._signals.log.emit("✅ Successful\n[exit code: {}]\n".format(rc))
                     self._signals.idle.emit(self._resolve_finalize_install)
                 else:
-                    reason = next((l.strip() for l in reversed(last_lines) if l.strip()),
+                    reason = next((line.strip() for line in reversed(last_lines) if line.strip()),
                                   "Exit code {}".format(rc))
                     self._signals.log.emit("❌ Failed: {}\n[exit code: {}]\n".format(reason, rc))
                     self._signals.idle.emit(lambda: self.set_app_busy("resolve", False))
