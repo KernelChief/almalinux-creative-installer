@@ -1059,6 +1059,7 @@ class AlmaCreativeInstaller(QMainWindow):
         name_row.addWidget(title_lbl)
 
         el_versions = app.get("el")
+        _is_incompatible = False
         if el_versions and len(el_versions) == 1:
             el_chip = QLabel("EL{}".format(el_versions[0]))
             el_chip.setStyleSheet(
@@ -1066,6 +1067,15 @@ class AlmaCreativeInstaller(QMainWindow):
                 " border-radius: 4px; padding: 1px 5px;"
                 " font-size: 10px; font-weight: 600;".format(self._c["text2"])
             )
+            if _EL_VERSION is not None and _EL_VERSION not in el_versions:
+                _is_incompatible = True
+                el_name = "AlmaLinux {}".format(el_versions[0])
+                el_chip.setToolTip(
+                    "Only available on {}.\n"
+                    "Contact the upstream project to request EL{} support.".format(
+                        el_name, _EL_VERSION
+                    )
+                )
             name_row.addWidget(el_chip)
         name_row.addStretch()
         left.addLayout(name_row)
@@ -1144,6 +1154,14 @@ class AlmaCreativeInstaller(QMainWindow):
             "version_options": [],
             "busy": False,
         }
+
+        if _is_incompatible:
+            self._set_status_badge(status_lbl, "Not compatible", "missing")
+            install_btn.setEnabled(False)
+            remove_btn.setEnabled(False)
+            if version_combo:
+                version_combo.setEnabled(False)
+
         return row
 
     def _subtitle_for_app(self, app):
@@ -1348,6 +1366,10 @@ class AlmaCreativeInstaller(QMainWindow):
         if not w:
             return
         app = w["app"]
+
+        el_versions = app.get("el")
+        if el_versions and _EL_VERSION is not None and _EL_VERSION not in el_versions:
+            return  # incompatible — keep the state set at row-build time
 
         if app["type"] == "resolve":
             installed = self._resolve_installed()
