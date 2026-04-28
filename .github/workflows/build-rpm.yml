@@ -74,6 +74,10 @@ jobs:
     steps:
       - name: Install build dependencies
         run: |
+          # EL10: enable CRB before EPEL so python3-pyqt6 is resolvable
+          if [ "${{ matrix.el }}" -ge "10" ]; then
+            dnf config-manager --enable crb
+          fi
           dnf -y install epel-release
           dnf -y install \
             rpm-build rpmdevtools git bash \
