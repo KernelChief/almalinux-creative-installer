@@ -17,9 +17,6 @@ permissions:
   contents: write
   pull-requests: write
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   lint:
     name: Lint Python
@@ -253,6 +250,7 @@ jobs:
       - name: Post new comment with beta RPM download link
         uses: marocchino/sticky-pull-request-comment@v3
         with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           header: beta-rpm
           recreate: true
           message: |
