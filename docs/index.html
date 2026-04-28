@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- ── PRIMARY SEO ── -->
+  <title>AlmaLinux Creative Installer — Pro Creative Tools with One Click</title>
+  <meta name="title" content="AlmaLinux Creative Installer — Pro Creative Tools with One Click" />
+  <meta name="description" content="The ultimate one-click installer for DaVinci Resolve, Blender, GIMP, Krita and 30+ creative tools on AlmaLinux. Built for professional artists, no IT team required." />
+  <meta name="keywords" content="AlmaLinux, Creative Linux, DaVinci Resolve Linux, Blender AlmaLinux, VFX Linux, Media and Entertainment SIG, Linux Workstation Setup, One-click Installer, Open Source Creative, RHEL Creative, CentOS Alternative, Workstation-Starter-Kit" />
+  <meta name="author" content="KernelChief" />
+  <meta name="robots" content="index, follow" />
+
+  <!-- ── OPEN GRAPH / FACEBOOK ── -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://kernelchief.github.io/almalinux-creative-installer/" />
+  <meta property="og:title" content="AlmaLinux Creative Installer — One-click pro tools on Enterprise Linux" />
+  <meta property="og:description" content="Ditch the terminal. Install your entire creative suite on AlmaLinux with a single click. Supported by the AlmaLinux M&E SIG." />
+  <meta property="og:image" content="https://raw.githubusercontent.com/KernelChief/almalinux-creative-installer/main/docs/screenshots/main.png" />
+
+  <!-- ── TWITTER ── -->
+  <meta property="twitter:card" content="summary_large_image" />
+  <meta property="twitter:url" content="https://kernelchief.github.io/almalinux-creative-installer/" />
+  <meta property="twitter:title" content="AlmaLinux Creative Installer — One-click pro tools" />
+  <meta property="twitter:description" content="Professional creative workstations made simple on AlmaLinux. No IT team? No problem." />
+  <meta property="twitter:image" content="https://raw.githubusercontent.com/KernelChief/almalinux-creative-installer/main/docs/screenshots/main.png" />
+
+  <!-- ── FAVICON ── -->
+  <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/KernelChief/almalinux-creative-installer/main/src/icons/hicolor/256x256/apps/almalinux-creative-installer.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #06060f;
+      --bg2:       #0c0c1e;
+      --violet:    #7c3aed;
+      --violet-lt: #a78bfa;
+      --pink:      #ec4899;
+      --coral:     #f43f5e;
+      --teal:      #14b8a6;
+      --lime:      #84cc16;
+      --amber:     #f59e0b;
+      --white:     #f8fafc;
+      --muted:     #94a3b8;
+      --faint:     rgba(255,255,255,0.06);
+      --border:    rgba(255,255,255,0.10);
+      --r:         18px;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      /* Ensures that scroll targets don't hide under the fixed nav */
+      scroll-padding-top: 80px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--white);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 17px;
+      line-height: 1.65;
+      overflow-x: hidden;
+    }
+
+    /* ── Noise grain ── */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 9999;
+      mix-blend-mode: overlay;
+    }
+
+    /* ── Gradient orbs ── */
+    .orbs {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(90px);
+      opacity: 0.28;
+      will-change: transform;
+    }
+    .orb-1 { width: 700px; height: 700px; background: var(--violet); top: -250px; left: -200px; animation: drift1 26s ease-in-out infinite alternate; }
+    .orb-2 { width: 550px; height: 550px; background: var(--pink);   bottom: -150px; right: -150px; animation: drift2 20s ease-in-out infinite alternate; }
+    .orb-3 { width: 450px; height: 450px; background: var(--teal);   top: 35%; left: 45%; animation: drift3 30s ease-in-out infinite alternate; }
+    .orb-4 { width: 350px; height: 350px; background: var(--amber);  top: 60%; left: 10%; animation: drift4 22s ease-in-out infinite alternate; opacity: 0.18; }
+
+    @keyframes drift1 { 0%{transform:translate(0,0) scale(1)}   50%{transform:translate(60px,-80px) scale(1.08)}  100%{transform:translate(-40px,50px) scale(0.94)} }
+    @keyframes drift2 { 0%{transform:translate(0,0) scale(1)}   50%{transform:translate(-70px,50px) scale(1.12)} 100%{transform:translate(40px,-60px) scale(0.96)} }
+    @keyframes drift3 { 0%{transform:translate(0,0) scale(1)}   50%{transform:translate(40px,70px) scale(0.9)}  100%{transform:translate(-50px,-40px) scale(1.15)} }
+    @keyframes drift4 { 0%{transform:translate(0,0) scale(1)}   100%{transform:translate(80px,-60px) scale(1.2)} }
+
+    /* ── Layout ── */
+    .wrap {
+      position: relative;
+      z-index: 1;
+      max-width: 1140px;
+      margin: 0 auto;
+      padding: 0 36px;
+    }
+
+    /* ── Nav ── */
+    nav {
+      position: fixed;
+      inset: 0 0 auto 0;
+      z-index: 100;
+      backdrop-filter: blur(20px) saturate(1.8);
+      -webkit-backdrop-filter: blur(20px) saturate(1.8);
+      background: rgba(6,6,15,0.55);
+      border-bottom: 1px solid var(--border);
+    }
+    nav .wrap {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 64px;
+    }
+    .nav-logo-link {
+      text-decoration: none;
+      color: inherit;
+      transition: opacity 0.2s;
+    }
+    .nav-logo-link:hover { opacity: 0.8; }
+    .nav-logo {
+      font-family: 'Bricolage Grotesque', sans-serif;
+      font-weight: 800;
+      font-size: 1rem;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .nav-logo .alma-icon {
+      width: 28px; height: 28px;
+      object-fit: contain;
+    }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .nav-links a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.9rem;
+      padding: 6px 14px;
+      border-radius: 8px;
+      transition: color .2s, background .2s;
+    }
+    .nav-links a:hover { color: var(--white); background: var(--faint); }
+    .btn-nav {
+      background: var(--faint);
+      border: 1px solid var(--border);
+      color: var(--white) !important;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-nav:hover { background: rgba(255,255,255,0.12) !important; }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 28px;
+      border-radius: 12px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      border: none;
+      transition: transform .2s, box-shadow .2s, opacity .2s;
+    }
+    .btn:hover { transform: translateY(-2px); }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--violet), var(--pink));
+      color: #fff;
+      box-shadow: 0 8px 32px rgba(124,58,237,0.35);
+    }
+    .btn-primary:hover { box-shadow: 0 12px 40px rgba(124,58,237,0.55); }
+    .btn-ghost {
+      background: var(--faint);
+      border: 1px solid var(--border);
+      color: var(--white);
+    }
+    .btn-ghost:hover { background: rgba(255,255,255,0.1); }
+
+    /* ── Hero ── */
+    .hero {
+      padding: 160px 0 100px;
+      text-align: center;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(124,58,237,0.15);
+      border: 1px solid rgba(124,58,237,0.4);
+      border-radius: 100px;
+      padding: 6px 16px 6px 8px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--violet-lt);
+      margin-bottom: 36px;
+      letter-spacing: 0.01em;
+    }
+    .hero-badge .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--lime);
+      box-shadow: 0 0 8px var(--lime);
+      animation: pulse-dot 2s ease-in-out infinite;
+    }
+    @keyframes pulse-dot {
+      0%, 100% { box-shadow: 0 0 8px var(--lime); }
+      50%       { box-shadow: 0 0 16px var(--lime), 0 0 24px rgba(132,204,22,0.4); }
+    }
+    .hero h1 {
+      font-family: 'Bricolage Grotesque', sans-serif;
+      font-size: clamp(2.8rem, 6vw, 5.2rem);
+      font-weight: 800;
+      line-height: 1.08;
+      letter-spacing: -0.035em;
+      max-width: 860px;
+      margin: 0 auto 24px;
+    }
+    .grad-text {
+      background: linear-gradient(90deg, var(--violet-lt), var(--pink), var(--amber));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero p {
+      font-size: 1.2rem;
+      color: var(--muted);
+      max-width: 580px;
+      margin: 0 auto 44px;
+      font-weight: 400;
+      line-height: 1.7;
+    }
+    .hero-ctas {
+      display: flex;
+      gap: 14px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .hero-meta {
+      margin-top: 56px;
+      display: flex;
+      justify-content: center;
+      gap: 36px;
+      flex-wrap: wrap;
+    }
+    .hero-stat {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+    .hero-stat svg { opacity: 0.6; }
+    .hero-stat strong { color: var(--white); font-weight: 600; }
+
+    /* ── V2 Announcement ── */
+    .v2-section {
+      padding: 20px 0 80px;
+    }
+    .v2-card {
+      position: relative;
+      overflow: hidden;
+      border-radius: 24px;
+      border: 1px solid rgba(124,58,237,0.4);
+      background: linear-gradient(135deg, rgba(124,58,237,0.12), rgba(236,72,153,0.08), rgba(20,184,166,0.08));
+      padding: 56px 64px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 40px;
+      align-items: center;
+    }
+    @media (max-width: 700px) { .v2-card { grid-template-columns: 1fr; padding: 40px 32px; } }
+    .v2-card::before {
+      content: '';
+      position: absolute;
+      top: -1px; left: -1px; right: -1px; height: 2px;
+      background: linear-gradient(90deg, var(--violet), var(--pink), var(--teal));
+    }
+    .v2-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: linear-gradient(90deg, var(--violet), var(--pink));
+      color: #fff;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 4px 12px;
+      border-radius: 100px;
+      margin-bottom: 20px;
+    }
+    .v2-badge .flash {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #fff;
+      animation: blink 1.4s ease-in-out infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    .v2-card h2 {
+      font-family: 'Bricolage Grotesque', sans-serif;
+      font-size: 2.2rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      margin-bottom: 16px;
+    }
+    .v2-card p {
+      color: var(--muted);
+      font-size: 1rem;
+      max-width: 520px;
+      line-height: 1.7;
+    }
+    .v2-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 24px;
+    }
+    .v2-pill {
+      background: var(--faint);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      padding: 5px 12px;
+      font-size: 0.78rem;
+      color: var(--white);
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .v2-pill.highlight {
+      background: rgba(132,204,22,0.12);
+      border-color: rgba(132,204,22,0.35);
+      color: var(--lime);
+    }
+    .v2-qt-badge {
+      text-align: center;
+      flex-shrink: 0;
+    }
+    .qt-ring {
+      width: 140px; height: 140px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      background: radial-gradient(circle at 40% 40%, rgba(124,58,237,0.2), transparent 70%);
+    }
+    .qt-ring::before {
+      content: '';
+      position: absolute;
+      inset: -6px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      background: linear-gradient(135deg, var(--violet), var(--pink), var(--teal)) border-box;
+      -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: destination-out;
+      mask-composite: exclude;
+      animation: spin-border 6s linear infinite;
+    }
+    @keyframes spin-border { to { transform: rotate(360deg); } }
+    .qt-inner {
+      font-family: 'Bricolage Grotesque', sans-serif;
+      font-size: 2.6rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--violet-lt), var(--teal));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -0.04em;
+    }
+    .qt-sub {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 12px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    /* ── FEATURES ── */
+    .features { padding: 80px 0; }
+    .features-header { margin-bottom: 56px; }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 20px;
+    }
+    .feat-card {
+      background: var(--faint);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 32px 28px;
+      transition: transform .25s, border-color .25s, background .25s;
+      position: relative;
+      overflow: hidden;
+      display: flex;            /* Make it a flex container */
+      flex-direction: column;   /* Stack children vertically */
+    }
+    .feat-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--card-accent, var(--violet)), transparent);
+      opacity: 0;
+      transition: opacity .3s;
+    }
+    .feat-card:hover { transform: translateY(-4px); border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.07); }
+    .feat-card:hover::before { opacity: 1; }
+    .feat-icon {
+      width: 48px; height: 48px;
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+      margin-bottom: 20px;
+    }
+    .feat-card h3 {
+      font-family: 'Bricolage Grotesque', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 10px;
+      min-height: 3.8rem;
+    }
+    .feat-card p {
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.65;
+      flex-grow: 1; /* Allow paragraph to take up available space */
+    }
+
+    /* ── App Categories ── */
+    .apps-section { padding: 80px 0; }
+    .apps-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 16px;
+      margin-top: 52px;
+    }
+    .app-cat {
+      background: var(--faint);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 24px 26px;
+      transition: border-color .2s, background .2s;
+    }
+    .app-cat:hover { border-color: rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); }
+    .app-cat-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .cat-icon {
+      font-size: 22px;
+      width: 42px; height: 42px;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .app-cat h4 {
+      font-family: 'Bricolage Grotesque', sans-serif;
+      font-weight: 700;
+      font-size: 1rem;
+      letter-spacing: -0.01em;
+      margin-bottom: 8px;
+    }
+    .app-cat .count {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 1px;
+    }
+    .app-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+    .app-tag {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 7px;
+      padding: 3px 10px;
+      font-size: 0.8rem;
+      color: var(--muted);
+      font-weight: 500;
+      transition: color .2s, border-color .2s;
+    }
+    .app-cat:hover .app-tag { color: rgba(255,255,255,0.8); border-color: rgba(255,255,255,0.15); }
+
+    /* ── INSTALL ── */
+    .install-section { padding: 80px 0; }
+    .install-inner {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 56px;
+      align-items: start;
+    }
+    @media (max-width: 760px) { .install-inner { grid-template-columns: 1fr; } }
+    .install-tabs {
+      display: flex;
+      gap: 2px;
+      background: var(--faint);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 4px;
+      margin-bottom: 20px;
+      width: fit-content;
+    }
+    .tab-btn {
+      padding: 8px 20px;
+      border-radius: 9px;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .2s, color .2s;
+    }
+    .tab-btn.active {
+      background: rgba(255,255,255,0.1);
+      color: var(--white);
+    }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    .terminal {
+      background: rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: var(--r);
+      overflow: hidden;
+    }
+    .terminal-bar {
+      background: rgba(255,255,255,0.05);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .term-dot { width: 12px; height: 12px; border-radius: 50%; }
+    .term-dot:nth-child(1) { background: #ff5f57; }
+    .term-dot:nth-child(2) { background: #febc2e; }
+    .term-dot:nth-child(3) { background: #28c840; }
+    .term-title { flex: 1; text-align: center; font-size: 0.78rem; color: var(--muted); }
+    .terminal-body { padding: 24px 24px 20px; position: relative; }
+    .terminal-body pre {
+      font-family: 'SFMono-Regular', 'Cascadia Code', 'Fira Code', monospace;
+      font-size: 0.85rem;
+      line-height: 1.9;
+      color: #e2e8f0;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .terminal-body pre .prompt { color: var(--lime); user-select: none; }
+    .terminal-body pre .cmd { color: #f8fafc; }
+    .terminal-body pre .comment { color: #475569; font-style: italic; }
+    .copy-btn {
+      position: absolute;
+      top: 16px; right: 16px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 8px;
+      color: var(--muted);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 5px 12px;
+      cursor: pointer;
+      transition: background .2s, color .2s;
+    }
+    .copy-btn:hover { background: rgba(255,255,255,0.14); color: var(--white); }
+    .copr-note {
+      margin-top: 14px;
+      background: rgba(132,204,22,0.08);
+      border: 1px solid rgba(132,204,22,0.25);
+      border-radius: 12px;
+      padding: 14px 18px;
+      font-size: 0.85rem;
+      color: var(--lime);
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .copr-note .icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+
+    /* ── COMMUNITY ── */
+    .community-section { padding: 80px 0; }
+    .community-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+      margin-top: 52px;
+    }
+    .comm-card {
+      background: var(--faint);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 28px 26px;
+      text-decoration: none;
+      color: inherit;
+      display: block;
+      transition: transform .22s, border-color .22s, background .22s;
+    }
+    .comm-card:hover { transform: translateY(-3px); border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.07); }
+    .comm-icon { font-size: 26px; margin-bottom: 14px; }
+    .comm-card h4 {
+      font-family: 'Bricolage Grotesque', sans-serif;
+      font-weight: 700;
+      font-size: 1rem;
+      letter-spacing: -0.01em;
+      margin-bottom: 8px;
+    }
+    .comm-card p { color: var(--muted); font-size: 0.88rem; line-height: 1.6; }
+    .comm-arrow { margin-top: 16px; color: var(--violet-lt); font-size: 0.85rem; font-weight: 600; }
+
+    /* ── FOOTER ── */
+    footer {
+      position: relative;
+      z-index: 1;
+      border-top: 1px solid var(--border);
+      padding: 40px 0;
+    }
+    footer .wrap {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+    .footer-left { font-size: 0.85rem; color: var(--muted); line-height: 1.7; }
+    .footer-left a { color: var(--violet-lt); text-decoration: none; }
+    .footer-left a:hover { text-decoration: underline; }
+    .footer-right { display: flex; gap: 16px; }
+    .footer-link {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.85rem;
+      transition: color .2s;
+    }
+    .footer-link:hover { color: var(--white); }
+
+    /* ── Divider ── */
+    .divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border), transparent);
+      margin: 0;
+    }
+
+    /* ── Animations on scroll ── */
+    .reveal {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: opacity .6s ease, transform .6s ease;
+    }
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .reveal-delay-1 { transition-delay: .1s; }
+    .reveal-delay-2 { transition-delay: .2s; }
+    .reveal-delay-3 { transition-delay: .3s; }
+    .reveal-delay-4 { transition-delay: .4s; }
+
+    /* ── Misc ── */
+    .text-center { text-align: center; }
+    .mb-8  { margin-bottom: 8px; }
+    .mb-12 { margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+
+<!-- Hidden target for the Home button -->
+<div id="top" style="position:absolute; top:0;"></div>
+
+<div class="orbs" aria-hidden="true">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+  <div class="orb orb-4"></div>
+</div>
+
+<!-- ── NAV ── -->
+<nav>
+  <div class="wrap">
+    <a href="#top" class="nav-logo-link">
+      <div class="nav-logo">
+        <img src="https://raw.githubusercontent.com/KernelChief/almalinux-creative-installer/main/src/icons/hicolor/256x256/apps/almalinux-creative-installer.png" alt="AlmaLinux Creative Installer Logo" class="alma-icon" />
+        AlmaLinux Creative Installer
+      </div>
+    </a>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#apps">Apps</a>
+      <a href="#install">Install</a>
+      <a href="https://github.com/KernelChief/almalinux-creative-installer" target="_blank" rel="noopener" class="btn-nav">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2z"/></svg>
+        GitHub
+      </a>
+    </div>
+  </div>
+</nav>
+
+<!-- ── HERO ── -->
+<section class="hero">
+  <div class="wrap">
+    <div class="hero-badge">
+      <span class="dot"></span>
+      v1.0.14 Stable (GTK) — v2.0.1 (Qt Rewrite) Coming Soon
+    </div>
+    <h1>
+      Creative tools.<br />
+      <span class="grad-text">Enterprise Linux.</span><br />
+      Zero compromise.
+    </h1>
+    <p>
+      The one-click solution for independent creatives on AlmaLinux. Install Blender, DaVinci Resolve, GIMP, Krita and 30+ more apps without an IT team. Just your vision, powered by community expertise.
+    </p>
+    <div class="hero-ctas">
+      <a href="https://github.com/KernelChief/almalinux-creative-installer/releases" target="_blank" rel="noopener" class="btn btn-primary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download v1.0.14 (GTK)
+      </a>
+      <a href="https://github.com/KernelChief/almalinux-creative-installer" target="_blank" rel="noopener" class="btn btn-ghost">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2z"/></svg>
+        View Source
+      </a>
+    </div>
+    <div class="hero-meta">
+      <div class="hero-stat">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        <strong>GPLv3</strong> Open Source
+      </div>
+      <div class="hero-stat">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg>
+        AlmaLinux <strong>9</strong> + <strong>10</strong>
+      </div>
+      <div class="hero-stat">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Polkit <strong>Security Model</strong>
+      </div>
+      <div class="hero-stat">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        AlmaLinux <strong>M&amp;E SIG</strong>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── V2.0.1 ANNOUNCEMENT ── -->
+<section class="v2-section">
+  <div class="wrap">
+    <div class="v2-card reveal">
+      <div>
+        <div class="v2-badge"><span class="flash"></span> Coming in v2.0.1 (Next Gen)</div>
+        <h2>From GTK3 to <span class="grad-text">Qt Rewrite</span></h2>
+        <p>
+          The future of AlmaLinux Creative Installer is built on Qt. We're migrating the entire foundation from GTK to Qt5 / Qt6 for a more native feel, smoother UI scaling, and better long-term maintenance across AlmaLinux 9 and 10.
+        </p>
+        <div class="v2-pills">
+          <span class="v2-pill">PyQt5 / PyQt6</span>
+          <span class="v2-pill">Modern UI Design</span>
+          <span class="v2-pill">Better scaling</span>
+          <span class="v2-pill">Adaptive Light/Dark Theme</span>
+          <span class="v2-pill highlight">🚀 Upcoming COPR</span>
+        </div>
+      </div>
+      <div class="v2-qt-badge">
+        <div class="qt-ring">
+          <span class="qt-inner">Qt</span>
+        </div>
+        <div class="qt-sub">v2.0.1 Milestone</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ── FEATURES ── -->
+<section class="features" id="features">
+  <div class="wrap">
+    <div class="features-header reveal">
+      <span class="section-label">Empowering Creatives</span>
+      <h2 class="section-title">Everything taken care of,<br />no IT team required</h2>
+      <p class="section-sub">We bridge the gap between enterprise Linux stability and the ease-of-use you need as a professional artist.</p>
+    </div>
+    <div class="features-grid">
+      <div class="feat-card reveal reveal-delay-1" style="--card-accent: var(--violet);">
+        <div class="feat-icon" style="background:rgba(124,58,237,0.15);">🖱️</div>
+        <h3>Independent Setup</h3>
+        <p>No more terminal commands. No manual dependency hunting. Get your studio up and running entirely through a clean, visual interface.</p>
+      </div>
+      <div class="feat-card reveal reveal-delay-2" style="--card-accent: var(--pink);">
+        <div class="feat-icon" style="background:rgba(236,72,153,0.15);">📦</div>
+        <h3>Multi-Source Smart Installs</h3>
+        <p>Automatically handles DNF, Flatpak, RPM, and vendor installers. We've done the work to find the best way to install each specific creative app.</p>
+      </div>
+      <div class="feat-card reveal reveal-delay-3" style="--card-accent: var(--teal);">
+        <div class="feat-icon" style="background:rgba(20,184,166,0.15);">🛡️</div>
+        <h3>Enterprise Security Model</h3>
+        <p>Secure by design. The GUI runs unprivileged, using Polkit-protected helpers for system changes — the same way official system tools work.</p>
+      </div>
+      <div class="feat-card reveal reveal-delay-4" style="--card-accent: var(--amber);">
+        <div class="feat-icon" style="background:rgba(245,158,11,0.15);">⚡</div>
+        <h3>Repo Auto-Setup</h3>
+        <p>Enables EPEL, CRB, RPM Fusion, Flathub, and NVIDIA drivers in one click — your system, perfectly tuned for M&E production.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ── APPS ── -->
+<section class="apps-section" id="apps">
+  <div class="wrap">
+    <div class="reveal">
+      <span class="section-label">The catalog</span>
+      <h2 class="section-title">30+ apps across every<br />creative discipline</h2>
+      <p class="section-sub">Curated and supported by the community and the AlmaLinux M&E SIG. The tools you use, ready for production.</p>
+    </div>
+    <div class="apps-grid">
+      <div class="app-cat reveal reveal-delay-1">
+        <div class="app-cat-header">
+          <div class="cat-icon" style="background:rgba(236,72,153,0.15);">🎨</div>
+          <div>
+            <h4>Image &amp; Illustration</h4>
+            <div class="count">7 apps</div>
+          </div>
+        </div>
+        <div class="app-tags">
+          <span class="app-tag">GIMP</span>
+          <span class="app-tag">Krita</span>
+          <span class="app-tag">Inkscape</span>
+          <span class="app-tag">darktable</span>
+          <span class="app-tag">RawTherapee</span>
+          <span class="app-tag">digiKam</span>
+          <span class="app-tag">FontForge</span>
+        </div>
+      </div>
+      <div class="app-cat reveal reveal-delay-2">
+        <div class="app-cat-header">
+          <div class="cat-icon" style="background:rgba(245,158,11,0.15);">🎬</div>
+          <div>
+            <h4>Video &amp; Motion</h4>
+            <div class="count">7 apps</div>
+          </div>
+        </div>
+        <div class="app-tags">
+          <span class="app-tag">DaVinci Resolve</span>
+          <span class="app-tag">Kdenlive</span>
+          <span class="app-tag">Shotcut</span>
+          <span class="app-tag">HandBrake</span>
+          <span class="app-tag">OBS Studio</span>
+          <span class="app-tag">OpenToonz</span>
+          <span class="app-tag">VLC</span>
+        </div>
+      </div>
+      <div class="app-cat reveal reveal-delay-3">
+        <div class="app-cat-header">
+          <div class="cat-icon" style="background:rgba(124,58,237,0.15);">🧊</div>
+          <div>
+            <h4>3D &amp; Modeling</h4>
+            <div class="count">6 apps</div>
+          </div>
+        </div>
+        <div class="app-tags">
+          <span class="app-tag">Blender</span>
+          <span class="app-tag">3DCoat</span>
+          <span class="app-tag">FreeCAD</span>
+          <span class="app-tag">MeshLab</span>
+          <span class="app-tag">PrusaSlicer</span>
+          <span class="app-tag">Material Maker</span>
+        </div>
+      </div>
+      <div class="app-cat reveal reveal-delay-1">
+        <div class="app-cat-header">
+          <div class="cat-icon" style="background:rgba(20,184,166,0.15);">🎵</div>
+          <div>
+            <h4>Audio &amp; Music</h4>
+            <div class="count">6 apps</div>
+          </div>
+        </div>
+        <div class="app-tags">
+          <span class="app-tag">Ardour</span>
+          <span class="app-tag">LMMS</span>
+          <span class="app-tag">Audacity</span>
+          <span class="app-tag">Bitwig Studio</span>
+          <span class="app-tag">Carla</span>
+          <span class="app-tag">Hydrogen</span>
+        </div>
+      </div>
+      <div class="app-cat reveal reveal-delay-2">
+        <div class="app-cat-header">
+          <div class="cat-icon" style="background:rgba(132,204,22,0.15);">🎮</div>
+          <div>
+            <h4>Game Development</h4>
+            <div class="count">3 apps</div>
+          </div>
+        </div>
+        <div class="app-tags">
+          <span class="app-tag">Godot Engine</span>
+          <span class="app-tag">Epic Asset Manager</span>
+          <span class="app-tag">Asset Manager Studio</span>
+        </div>
+      </div>
+      <div class="app-cat reveal reveal-delay-3">
+        <div class="app-cat-header">
+          <div class="cat-icon" style="background:rgba(245,158,11,0.15);">📋</div>
+          <div>
+            <h4>Productivity &amp; Comms</h4>
+            <div class="count">8 apps</div>
+          </div>
+        </div>
+        <div class="app-tags">
+          <span class="app-tag">Scribus</span>
+          <span class="app-tag">LibreOffice</span>
+          <span class="app-tag">OnlyOffice</span>
+          <span class="app-tag">draw.io</span>
+          <span class="app-tag">Discord</span>
+          <span class="app-tag">Slack</span>
+          <span class="app-tag">Mattermost</span>
+          <span class="app-tag">Spotify</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ── INSTALL ── -->
+<section class="install-section" id="install">
+  <div class="wrap">
+    <div class="install-inner">
+      <div class="reveal">
+        <span class="section-label">Installation</span>
+        <h2 class="section-title">Ready in minutes,<br />v1.0.14 Stable (GTK)</h2>
+        <p class="section-sub" style="margin-bottom:28px;">
+          Download the RPM for your AlmaLinux version, install it with DNF, and you're ready to create. No manual configuration needed.
+        </p>
+        <p class="section-sub" style="font-size:.9rem;">
+          The upcoming <strong style="color:var(--lime);">v2.0.1 release (Qt)</strong> will introduce a <strong>COPR repository</strong> for even easier updates.
+        </p>
+      </div>
+      <div class="reveal reveal-delay-2">
+        <div class="install-tabs" role="tablist">
+          <button class="tab-btn active" onclick="switchTab('rpm')" role="tab">Current (RPM)</button>
+          <button class="tab-btn" onclick="switchTab('copr')" role="tab">Coming: COPR</button>
+        </div>
+
+        <div id="tab-rpm" class="tab-panel active">
+          <div class="terminal">
+            <div class="terminal-bar">
+              <div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div>
+              <div class="term-title">bash — AlmaLinux 9</div>
+            </div>
+            <div class="terminal-body">
+              <button class="copy-btn" onclick="copyCmd('rpm-cmd')" id="copy-rpm">Copy</button>
+              <pre id="rpm-cmd"><span class="comment"># 1. Download the RPM from GitHub Releases</span>
+<span class="comment"># 2. Install with DNF (it handles the rest)</span>
+<span class="prompt">$ </span><span class="cmd">sudo dnf install \
+  ./almalinux-creative-installer-1.0.14-1.el9.noarch.rpm</span>
+
+<span class="comment"># 3. Launch and start creating!</span>
+<span class="prompt">$ </span><span class="cmd">almalinux-creative-installer</span></pre>
+            </div>
+          </div>
+        </div>
+
+        <div id="tab-copr" class="tab-panel">
+          <div class="terminal">
+            <div class="terminal-bar">
+              <div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div>
+              <div class="term-title">bash — v2.0.1 + COPR</div>
+            </div>
+            <div class="terminal-body">
+              <button class="copy-btn" onclick="copyCmd('copr-cmd')" id="copy-copr">Copy</button>
+              <pre id="copr-cmd"><span class="comment"># Enable the official COPR repository</span>
+<span class="prompt">$ </span><span class="cmd">sudo dnf copr enable \
+  tristantheroux/almalinux-creative-installer</span>
+
+<span class="comment"># One-command installation & updates</span>
+<span class="prompt">$ </span><span class="cmd">sudo dnf install almalinux-creative-installer</span></pre>
+            </div>
+          </div>
+          <div class="copr-note">
+            <span class="icon">🚀</span>
+            <span>COPR support will launch alongside <strong>v2.0.1 (The Qt Migration)</strong>.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── COMMUNITY ── -->
+<section class="community-section">
+  <div class="wrap">
+    <div class="text-center reveal">
+      <span class="section-label">Community Driven</span>
+      <h2 class="section-title">Built by the community,<br />for the community</h2>
+      <p class="section-sub" style="margin:0 auto;">
+        Born within the <strong>AlmaLinux Media &amp; Entertainment SIG</strong>, this project exists to make high-end workstations accessible to everyone. No expensive IT support needed.
+      </p>
+    </div>
+    <div class="community-grid" style="margin-top:48px;">
+      <a href="https://chat.almalinux.org/almalinux/channels/sig-media-entertainment" target="_blank" rel="noopener" class="comm-card reveal reveal-delay-1">
+        <div class="comm-icon">💬</div>
+        <h4>Join the M&amp;E SIG</h4>
+        <p>Talk directly with the creators and community in the AlmaLinux M&E channel.</p>
+        <div class="comm-arrow">Join the conversation →</div>
+      </a>
+      <a href="https://github.com/KernelChief/almalinux-creative-installer/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener" class="comm-card reveal reveal-delay-2">
+        <div class="comm-icon">🤝</div>
+        <h4>Contribute</h4>
+        <p>Help us add new apps and refine the installation experience for others.</p>
+        <div class="comm-arrow">Contributing guide →</div>
+      </a>
+      <a href="https://github.com/KernelChief/almalinux-creative-installer/issues" target="_blank" rel="noopener" class="comm-card reveal reveal-delay-3">
+        <div class="comm-icon">🐛</div>
+        <h4>Report an Issue</h4>
+        <p>Have a problem? Open an issue and let the community help you solve it.</p>
+        <div class="comm-arrow">Open an issue →</div>
+      </a>
+      <a href="https://www.buymeacoffee.com/ttheroux" target="_blank" rel="noopener" class="comm-card reveal reveal-delay-4">
+        <div class="comm-icon">☕</div>
+        <h4>Support the Project</h4>
+        <p>Keep the coffee flowing and help us maintain the servers and development tools.</p>
+        <div class="comm-arrow">Support via Coffee →</div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ── FOOTER ── -->
+<footer>
+  <div class="wrap">
+    <div class="footer-left">
+      <strong>AlmaLinux Creative Installer</strong> — GPL v3.0<br />
+      Built by <a href="https://github.com/KernelChief" target="_blank" rel="noopener">KernelChief</a> ·
+      Icon by <a href="https://www.linkedin.com/in/crisslavik/" target="_blank" rel="noopener">Cristian Slavik</a> (NOX Visual Effects) ·
+      QA by <a href="https://github.com/KernelQA" target="_blank" rel="noopener">KernelQA</a> ·
+      Discussed in the <a href="https://wiki.almalinux.org/sigs/MediaAndEntertainmentSIG.html" target="_blank" rel="noopener">AlmaLinux M&amp;E SIG</a>
+    </div>
+    <div class="footer-right">
+      <a href="https://github.com/KernelChief/almalinux-creative-installer/blob/main/LICENSE" target="_blank" rel="noopener" class="footer-link">License</a>
+      <a href="https://github.com/KernelChief/almalinux-creative-installer/blob/main/SECURITY.md" target="_blank" rel="noopener" class="footer-link">Security</a>
+      <a href="https://github.com/KernelChief/almalinux-creative-installer" target="_blank" rel="noopener" class="footer-link">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // ── Tab switching ──
+  function switchTab(id) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + id).classList.add('active');
+    event.target.classList.add('active');
+  }
+
+  // ── Copy to clipboard ──
+  function copyCmd(id) {
+    const pre = document.getElementById(id);
+    const text = pre.innerText
+      .replaceAll(/^\$ /gm, '')
+      .replaceAll(/^#.*\n?/gm, '')
+      .replaceAll(/\n{2,}/g, '\n')
+      .trim();
+    navigator.clipboard.writeText(text).then(() => {
+      const btnId = id === 'rpm-cmd' ? 'copy-rpm' : 'copy-copr';
+      const btn = document.getElementById(btnId);
+      const orig = btn.textContent;
+      btn.textContent = 'Copied!';
+      btn.style.color = 'var(--lime)';
+      setTimeout(() => { btn.textContent = orig; btn.style.color = ''; }, 2000);
+    });
+  }
+
+  // ── Scroll reveal ──
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.classList.add('visible');
+        observer.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.12 });
+
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
+
+</body>
+</html>
