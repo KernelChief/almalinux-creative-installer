@@ -72,12 +72,8 @@ echo "Building ${NAME} version ${VERSION} using spec: ${SPEC}"
 
 RPMBUILD_ARGS=(
   -ba
-  --define "version ${RPM_VERSION}"
+  --define "app_version ${RPM_VERSION}"
 )
-
-if [[ -n "${RPM_PRERELEASE}" ]]; then
-  RPMBUILD_ARGS+=(--define "prerelease ${RPM_PRERELEASE}")
-fi
 
 rpmbuild "${RPMBUILD_ARGS[@]}" "${SPEC}"
 
