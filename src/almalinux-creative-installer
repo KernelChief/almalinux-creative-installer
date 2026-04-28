@@ -776,16 +776,23 @@ class AlmaCreativeInstaller(QMainWindow):
         script_dir = os.path.dirname(os.path.abspath(__file__))
 
         # 1. Bundled icons shipped with the installer
+        # Checks both dev (src/icons/apps/) and RPM-installed (/usr/share/<name>/icons/apps/) paths.
         if appid:
-            bundled = os.path.join(script_dir, "icons", "apps", appid + ".png")
-            if os.path.exists(bundled):
-                candidate = QPixmap(bundled)
-                if not candidate.isNull():
-                    pm = candidate.scaled(
-                        size, size,
-                        Qt.AspectRatioMode.KeepAspectRatio,
-                        Qt.TransformationMode.SmoothTransformation,
-                    )
+            _data_dir = "/usr/share/almalinux-creative-installer"
+            for _icons_base in (
+                os.path.join(script_dir, "icons", "apps"),
+                os.path.join(_data_dir, "icons", "apps"),
+            ):
+                bundled = os.path.join(_icons_base, appid + ".png")
+                if os.path.exists(bundled):
+                    candidate = QPixmap(bundled)
+                    if not candidate.isNull():
+                        pm = candidate.scaled(
+                            size, size,
+                            Qt.AspectRatioMode.KeepAspectRatio,
+                            Qt.TransformationMode.SmoothTransformation,
+                        )
+                        break
 
         # 2. Flatpak AppStream icon cache (populated after `flatpak remote-add flathub`)
         if pm is None and appid:
