@@ -64,7 +64,7 @@ rsync -a \
   --exclude "rpmbuild" \
   "${ROOT_DIR}/" "${SRC_DIR}/"
 
-TARBALL="${HOME}/rpmbuild/SOURCES/${NAME}-${RPM_VERSION}.tar.gz"
+TARBALL="${HOME}/rpmbuild/SOURCES/v${RPM_VERSION}.tar.gz"
 tar -C "${TMPDIR}" -czf "${TARBALL}" "${NAME}-${RPM_VERSION}"
 
 echo "Created source tarball: ${TARBALL}"
@@ -72,12 +72,8 @@ echo "Building ${NAME} version ${VERSION} using spec: ${SPEC}"
 
 RPMBUILD_ARGS=(
   -ba
-  --define "version ${RPM_VERSION}"
+  --define "app_version ${RPM_VERSION}"
 )
-
-if [[ -n "${RPM_PRERELEASE}" ]]; then
-  RPMBUILD_ARGS+=(--define "prerelease ${RPM_PRERELEASE}")
-fi
 
 rpmbuild "${RPMBUILD_ARGS[@]}" "${SPEC}"
 

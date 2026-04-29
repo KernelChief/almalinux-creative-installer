@@ -1,15 +1,25 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-only
 
-import gi
-gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, GLib, Gdk, GdkPixbuf
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'share', 'almalinux-creative-installer'))
+
+from qtcompat import (
+    QApplication, QMainWindow, QWidget, QFrame,
+    QVBoxLayout, QHBoxLayout,
+    QLabel, QPushButton, QComboBox, QLineEdit,
+    QTextEdit, QProgressBar, QScrollArea,
+    QListWidget, QListWidgetItem,
+    QTabWidget,
+    QFileDialog, QMessageBox,
+    Qt, QTimer, QObject, Signal, QSize,
+    QIcon, QPixmap, QTextCursor,
+)
 
 import subprocess
 import threading
 import shutil
-import os
-import stat
 import re
 import importlib.metadata
 from pathlib import Path
@@ -28,335 +38,59 @@ APPIMAGELAUNCHER_RPM_URL = (
 # -----------------------------------------------------------------------------
 # HOW TO ADD / EDIT APPS (quick maintainer guide)
 # -----------------------------------------------------------------------------
-# 1) Add or update an item inside APPS (below) with a unique "id".
-# 2) Pick a supported "type" so install/remove/status logic can route correctly:
-#      dnf, flatpak, resolve
-# 3) Set the metadata keys used by the UI for that type:
+# 1) Add or update an item inside APPS with a unique "id".
+# 2) Pick a supported "type": dnf, flatpak, resolve, 3dcoat
+# 3) Set metadata keys used by the UI for that type:
 #      - dnf:     pkg
 #      - flatpak: appid
 #      - guided flow: no package key
-#    Common display keys: name, emoji, category
-# 4) Optional: add the app id to VERSION_SELECTABLE_APPS when version/branch
-#    selection should be shown.
-# 5) If adding a truly new app type or action model, update this file's type
-#    handlers and add matching helper actions in src/almalinux-creative-installer-helper.
-#
-# NOTE: Keep app changes data-driven in APPS first; avoid hardcoding per-app
-# logic unless introducing a genuinely new install/check model.
+# 4) Optional: add the app id to VERSION_SELECTABLE_APPS.
+# 5) Optional: add "el": [9] or "el": [10] if the app only works on one EL
+#    version. Omit (or use [9, 10]) for apps that work on both.
+# 6) If adding a truly new app type, update type handlers here and in the helper.
 # -----------------------------------------------------------------------------
 
 APPS = [
-    {
-        "id": "gimp",
-        "name": "GIMP",
-        "type": "dnf",
-        "pkg": "gimp",
-        "emoji": "🖌️",
-        "category": "Image Processing",
-    },
-    {
-        "id": "krusader",
-        "name": "Krusader",
-        "type": "dnf",
-        "pkg": "krusader",
-        "emoji": "📁",
-        "category": "Productivity",
-    },
-    {
-        "id": "kdenlive",
-        "name": "Kdenlive",
-        "type": "dnf",
-        "pkg": "kdenlive",
-        "emoji": "🎥",
-        "category": "Animation & Video",
-    },
-    {
-        "id": "krita",
-        "name": "Krita",
-        "type": "flatpak",
-        "appid": "org.kde.krita",
-        "emoji": "🎨",
-        "category": "Image Processing",
-    },
-    {
-        "id": "inkscape",
-        "name": "Inkscape",
-        "type": "flatpak",
-        "appid": "org.inkscape.Inkscape",
-        "emoji": "✏️",
-        "category": "Image Processing",
-    },
-    {
-        "id": "darktable",
-        "name": "darktable",
-        "type": "flatpak",
-        "appid": "org.darktable.Darktable",
-        "emoji": "📷",
-        "category": "Image Processing",
-    },
-    {
-        "id": "rawtherapee",
-        "name": "RawTherapee",
-        "type": "flatpak",
-        "appid": "com.rawtherapee.RawTherapee",
-        "emoji": "🌄",
-        "category": "Image Processing",
-    },
-    {
-        "id": "digikam",
-        "name": "digiKam",
-        "type": "flatpak",
-        "appid": "org.kde.digikam",
-        "emoji": "📸",
-        "category": "Image Processing",
-    },
-    {
-        "id": "fontforge",
-        "name": "FontForge",
-        "type": "flatpak",
-        "appid": "org.fontforge.FontForge",
-        "emoji": "🔡",
-        "category": "Image Processing",
-    },
-    {
-        "id": "blender",
-        "name": "Blender",
-        "type": "dnf",
-        "pkg": "blender",
-        "emoji": "🧊",
-        "category": "3D",
-    },
-    {
-        "id": "meshlab",
-        "name": "MeshLab",
-        "type": "flatpak",
-        "appid": "net.meshlab.MeshLab",
-        "emoji": "🎬",
-        "category": "3D",
-    },
-    {
-        "id": "scribus",
-        "name": "Scribus",
-        "type": "flatpak",
-        "appid": "net.scribus.Scribus",
-        "emoji": "🎬",
-        "category": "Productivity",
-    },
-    {
-        "id": "prusaslicer",
-        "name": "PrusaSlicer",
-        "type": "flatpak",
-        "appid": "com.prusa3d.PrusaSlicer",
-        "emoji": "🎬",
-        "category": "3D",
-    },
-    {
-        "id": "materialmaker",
-        "name": "Material Maker",
-        "type": "flatpak",
-        "appid": "io.github.RodZill4.Material-Maker",
-        "emoji": "🎬",
-        "category": "3D",
-    },
-    {
-        "id": "freecad",
-        "name": "FreeCAD",
-        "type": "flatpak",
-        "appid": "org.freecad.FreeCAD",
-        "emoji": "📐",
-        "category": "3D",
-    },
-    {
-        "id": "3dcoat",
-        "name": "3DCoat",
-        "type": "3dcoat",
-        "emoji": "🗿",
-        "category": "3D",
-    },
-    {
-        "id": "opentoonz",
-        "name": "OpenToonz",
-        "type": "flatpak",
-        "appid": "io.github.OpenToonz",
-        "emoji": "🎬",
-        "category": "Animation & Video",
-    },
-    {
-        "id": "vlc",
-        "name": "VLC",
-        "type": "flatpak",
-        "appid": "org.videolan.VLC",
-        "emoji": "📺",
-        "category": "Animation & Video",
-    },
-    {
-        "id": "obs-studio",
-        "name": "OBS Studio",
-        "type": "flatpak",
-        "appid": "com.obsproject.Studio",
-        "emoji": "📹",
-        "category": "Animation & Video",
-    },
-    {
-        "id": "handbrake",
-        "name": "HandBrake",
-        "type": "flatpak",
-        "appid": "fr.handbrake.ghb",
-        "emoji": "🔄",
-        "category": "Animation & Video",
-    },
-    {
-        "id": "shotcut",
-        "name": "Shotcut",
-        "type": "flatpak",
-        "appid": "org.shotcut.Shotcut",
-        "emoji": "✂️",
-        "category": "Animation & Video",
-    },
-    {
-        "id": "ardour",
-        "name": "Ardour",
-        "type": "flatpak",
-        "appid": "org.ardour.Ardour",
-        "emoji": "🎛️",
-        "category": "Audio",
-    },
-    {
-        "id": "bitwig studio",
-        "name": "Bitwig Studio",
-        "type": "flatpak",
-        "appid": "com.bitwig.BitwigStudio",
-        "emoji": "🎹",
-        "category": "Audio",
-    },
-    {
-        "id": "lmms",
-        "name": "LMMS",
-        "type": "flatpak",
-        "appid": "io.lmms.LMMS",
-        "emoji": "🎵",
-        "category": "Audio",
-    },
-    {
-        "id": "audacity",
-        "name": "Audacity",
-        "type": "flatpak",
-        "appid": "org.audacityteam.Audacity",
-        "emoji": "🎤",
-        "category": "Audio",
-    },
-    {
-        "id": "carla",
-        "name": "Carla",
-        "type": "flatpak",
-        "appid": "studio.kx.carla",
-        "emoji": "🔌",
-        "category": "Audio",
-    },
-    {
-        "id": "hydrogen",
-        "name": "Hydrogen",
-        "type": "flatpak",
-        "appid": "org.hydrogenmusic.Hydrogen",
-        "emoji": "🥁",
-        "category": "Audio",
-    },
-    {
-        "id": "discord",
-        "name": "Discord",
-        "type": "flatpak",
-        "appid": "com.discordapp.Discord",
-        "emoji": "💬",
-        "category": "Communication",
-    },
-    {
-        "id": "drawio",
-        "name": "draw.io",
-        "type": "flatpak",
-        "appid": "com.jgraph.drawio.desktop",
-        "emoji": "🧭",
-        "category": "Productivity",
-    },
-    {
-        "id": "mattermost",
-        "name": "Mattermost",
-        "type": "flatpak",
-        "appid": "com.mattermost.Desktop",
-        "emoji": "🗨️",
-        "category": "Communication",
-    },
-    {
-        "id": "slack",
-        "name": "Slack",
-        "type": "flatpak",
-        "appid": "com.slack.Slack",
-        "emoji": "💼",
-        "category": "Communication",
-    },
-    {
-        "id": "spotify",
-        "name": "Spotify",
-        "type": "flatpak",
-        "appid": "com.spotify.Client",
-        "emoji": "🎵",
-        "category": "Audio",
-    },
-    {
-        "id": "libreoffice",
-        "name": "LibreOffice",
-        "type": "flatpak",
-        "appid": "org.libreoffice.LibreOffice",
-        "emoji": "📄",
-        "category": "Productivity",
-    },
-    {
-        "id": "onlyoffice",
-        "name": "OnlyOffice",
-        "type": "flatpak",
-        "appid": "org.onlyoffice.desktopeditors",
-        "emoji": "📄",
-        "category": "Productivity",
-    },
-    {
-        "id": "epicassetmanager",
-        "name": "Epic Asset Manager",
-        "type": "flatpak",
-        "appid": "io.github.achetagames.epic_asset_manager",
-        "emoji": "🕹️",
-        "category": "Game Engines",
-    },
-    {
-        "id": "assetmanagerstudio",
-        "name": "Asset Manager Studio",
-        "type": "flatpak",
-        "appid": "studio.assetmanager.ams",
-        "emoji": "🧩",
-        "category": "Game Engines",
-    },
-    {
-        "id": "godots",
-        "name": "Godots",
-        "type": "flatpak",
-        "appid": "io.github.MakovWait.Godots",
-        "emoji": "🎮",
-        "category": "Game Engines",
-    },
-    {
-        "id": "appimagelauncher",
-        "name": "AppImageLauncher (AlmaLinux 10 ONLY)",
-        "type": "dnf",
-        "pkg": "appimagelauncher",
-        "install_target": APPIMAGELAUNCHER_RPM_URL,
-        "emoji": "📦",
-        "category": "Productivity",
-    },
-    {
-        "id": "resolve",
-        "name": "DaVinci Resolve",
-        "type": "resolve",
-        "emoji": "🎞️",
-        "category": "Animation & Video",
-    },
+    {"id": "gimp",              "name": "GIMP",             "type": "dnf",     "pkg": "gimp",     "icon_appid": "org.gimp.GIMP",        "category": "Image Processing",    "el": [9]},
+    {"id": "krusader",          "name": "Krusader",         "type": "dnf",     "pkg": "krusader",                                       "category": "Productivity"},
+    {"id": "kdenlive",          "name": "Kdenlive",         "type": "dnf",     "pkg": "kdenlive", "icon_appid": "org.kde.kdenlive",     "category": "Animation & Video",   "el": [9]},
+    {"id": "krita",             "name": "Krita",            "type": "flatpak", "appid": "org.kde.krita",                                "category": "Image Processing"},
+    {"id": "inkscape",          "name": "Inkscape",         "type": "flatpak", "appid": "org.inkscape.Inkscape",                        "category": "Image Processing"},
+    {"id": "darktable",         "name": "darktable",        "type": "flatpak", "appid": "org.darktable.Darktable",                      "category": "Image Processing"},
+    {"id": "rawtherapee",       "name": "RawTherapee",      "type": "flatpak", "appid": "com.rawtherapee.RawTherapee",                  "category": "Image Processing"},
+    {"id": "digikam",           "name": "digiKam",          "type": "flatpak", "appid": "org.kde.digikam",                              "category": "Image Processing"},
+    {"id": "fontforge",         "name": "FontForge",        "type": "flatpak", "appid": "org.fontforge.FontForge",                      "category": "Image Processing"},
+    {"id": "blender",           "name": "Blender",          "type": "dnf",     "pkg": "blender",  "icon_appid": "org.blender.Blender",  "category": "3D"},
+    {"id": "meshlab",           "name": "MeshLab",          "type": "flatpak", "appid": "net.meshlab.MeshLab",                          "category": "3D"},
+    {"id": "prusaslicer",       "name": "PrusaSlicer",      "type": "flatpak", "appid": "com.prusa3d.PrusaSlicer",                      "category": "3D"},
+    {"id": "materialmaker",     "name": "Material Maker",   "type": "flatpak", "appid": "io.github.RodZill4.Material-Maker",            "category": "3D"},
+    {"id": "freecad",           "name": "FreeCAD",          "type": "flatpak", "appid": "org.freecad.FreeCAD",                          "category": "3D"},
+    {"id": "3dcoat",            "name": "3DCoat",           "type": "3dcoat",                                                           "category": "3D"},
+    {"id": "opentoonz",         "name": "OpenToonz",        "type": "flatpak", "appid": "io.github.OpenToonz",                          "category": "Animation & Video"},
+    {"id": "vlc",               "name": "VLC",              "type": "flatpak", "appid": "org.videolan.VLC",                             "category": "Animation & Video"},
+    {"id": "obs-studio",        "name": "OBS Studio",       "type": "flatpak", "appid": "com.obsproject.Studio",                        "category": "Animation & Video"},
+    {"id": "handbrake",         "name": "HandBrake",        "type": "flatpak", "appid": "fr.handbrake.ghb",                             "category": "Animation & Video"},
+    {"id": "shotcut",           "name": "Shotcut",          "type": "flatpak", "appid": "org.shotcut.Shotcut",                          "category": "Animation & Video"},
+    {"id": "scribus",           "name": "Scribus",          "type": "flatpak", "appid": "net.scribus.Scribus",                          "category": "Productivity"},
+    {"id": "ardour",            "name": "Ardour",           "type": "flatpak", "appid": "org.ardour.Ardour",                            "category": "Audio"},
+    {"id": "bitwig studio",     "name": "Bitwig Studio",    "type": "flatpak", "appid": "com.bitwig.BitwigStudio",                      "category": "Audio"},
+    {"id": "lmms",              "name": "LMMS",             "type": "flatpak", "appid": "io.lmms.LMMS",                                 "category": "Audio"},
+    {"id": "audacity",          "name": "Audacity",         "type": "flatpak", "appid": "org.audacityteam.Audacity",                    "category": "Audio"},
+    {"id": "carla",             "name": "Carla",            "type": "flatpak", "appid": "studio.kx.carla",                              "category": "Audio"},
+    {"id": "hydrogen",          "name": "Hydrogen",         "type": "flatpak", "appid": "org.hydrogenmusic.Hydrogen",                   "category": "Audio"},
+    {"id": "spotify",           "name": "Spotify",          "type": "flatpak", "appid": "com.spotify.Client",                           "category": "Audio"},
+    {"id": "discord",           "name": "Discord",          "type": "flatpak", "appid": "com.discordapp.Discord",                       "category": "Communication"},
+    {"id": "mattermost",        "name": "Mattermost",       "type": "flatpak", "appid": "com.mattermost.Desktop",                       "category": "Communication"},
+    {"id": "slack",             "name": "Slack",            "type": "flatpak", "appid": "com.slack.Slack",                              "category": "Communication"},
+    {"id": "drawio",            "name": "draw.io",          "type": "flatpak", "appid": "com.jgraph.drawio.desktop",                    "category": "Productivity"},
+    {"id": "libreoffice",       "name": "LibreOffice",      "type": "flatpak", "appid": "org.libreoffice.LibreOffice",                  "category": "Productivity"},
+    {"id": "onlyoffice",        "name": "OnlyOffice",       "type": "flatpak", "appid": "org.onlyoffice.desktopeditors",                "category": "Productivity"},
+    {"id": "epicassetmanager",  "name": "Epic Asset Manager","type": "flatpak", "appid": "io.github.achetagames.epic_asset_manager",    "category": "Game Engines"},
+    {"id": "assetmanagerstudio","name": "Asset Manager Studio","type": "flatpak","appid": "studio.assetmanager.ams",                    "category": "Game Engines"},
+    {"id": "godots",            "name": "Godots",           "type": "flatpak", "appid": "io.github.MakovWait.Godots",                   "category": "Game Engines"},
+    {"id": "appimagelauncher",  "name": "AppImageLauncher", "type": "dnf", "pkg": "appimagelauncher",
+     "install_target": APPIMAGELAUNCHER_RPM_URL,                                                                                        "category": "Productivity",        "el": [10]},
+    {"id": "resolve",           "name": "DaVinci Resolve",  "type": "resolve",                                                          "category": "Animation & Video"},
 ]
 
 VERSION_SELECTABLE_APPS = {"gimp", "krita", "blender"}
@@ -372,560 +106,806 @@ CATEGORIES = [
     "Game Engines",
 ]
 
+_DARK = dict(
+    bg="#1e1e2e", bg2="#181825", bg3="#252535",
+    border="#313244", border2="#45475a",
+    text="#ffffff", text2="#9399b2", text_dim="#6c7086",
+    accent="#89b4fa", tab_inactive="#6c7086",
+    hero_start="#252535", hero_end="#1e1e2e",
+    input_bg="#252535", btn_bg="#313244", btn_text="#cdd6f4",
+    log_bg="#11111b", log_text="#a6e3a1", scrollbar="#45475a",
+    sidebar_bg="#181825", sidebar_text="#9399b2",
+    sidebar_hover="#252535", sidebar_sel="#252535",
+    sidebar_sel_t="#cdd6f4", sidebar_acc="#89b4fa",
+    row_sep="#252535", row_hover="#252535",
+    inst_bg="rgba(59,107,199,0.13)", inst_text="#89b4fa", inst_border="rgba(59,107,199,0.50)", inst_hover="rgba(59,107,199,0.26)",
+    rem_bg="rgba(199,59,74,0.13)", rem_text="#f38ba8", rem_border="rgba(199,59,74,0.50)", rem_hover="rgba(199,59,74,0.26)",
+    b_inst_bg="#1a3028", b_inst_text="#a6e3a1", b_inst_brd="#3a7058",
+    b_avail_bg="#192540", b_avail_text="#89b4fa", b_avail_brd="#3b5f9a",
+    b_busy_bg="#2e2410", b_busy_text="#f9e2af", b_busy_brd="#7a6010",
+    b_miss_bg="#2e1825", b_miss_text="#f38ba8", b_miss_brd="#7a2840",
+    b_warn_bg="#2e2015", b_warn_text="#fab387", b_warn_brd="#7a5020",
+    ready_bg="#1a3028", ready_text="#a6e3a1", ready_border="#3a7058",
+    empty_text="#6c7086",
+)
 
-_EMOJI_ICON = {
-    "🎨": "applications-graphics-symbolic",
-    "🖌️": "applications-graphics-symbolic",
-    "🎬": "video-x-generic-symbolic",
-    "🎞️": "video-x-generic-symbolic",
-    "🎥": "camera-video-symbolic",
-    "🎵": "audio-x-generic-symbolic",
-    "🎹": "audio-x-generic-symbolic",
-    "🎛️": "multimedia-volume-control-symbolic",
-    "🎮": "input-gaming-symbolic",
-    "🕹️": "input-gaming-symbolic",
-    "🧩": "applications-games-symbolic",
-    "🧊": "applications-engineering-symbolic",
-    "🧭": "applications-engineering-symbolic",
-    "📐": "applications-engineering-symbolic",
-    "📦": "system-software-install-symbolic",
-    "📄": "text-x-generic-symbolic",
-    "📁": "folder-symbolic",
-    "💬": "user-available-symbolic",
-    "🗨️": "user-available-symbolic",
-    "💼": "text-x-generic-symbolic",
-}
-
-_CATEGORY_ICON = {
-    "3D":               "applications-engineering-symbolic",
-    "Image Processing": "applications-graphics-symbolic",
-    "Animation & Video":"video-x-generic-symbolic",
-    "Audio":            "audio-x-generic-symbolic",
-    "Game Engines":     "input-gaming-symbolic",
-    "Communication":    "user-available-symbolic",
-    "Productivity":     "text-x-generic-symbolic",
-}
+_LIGHT = dict(
+    bg="#f5f5f7", bg2="#ffffff", bg3="#e8e8ed",
+    border="#d1d1d6", border2="#c7c7cc",
+    text="#1c1c1e", text2="#636366", text_dim="#8e8e93",
+    accent="#0071e3", tab_inactive="#636366",
+    hero_start="#e8e8ed", hero_end="#f5f5f7",
+    input_bg="#ffffff", btn_bg="#e8e8ed", btn_text="#1c1c1e",
+    log_bg="#1c1c1e", log_text="#30d158", scrollbar="#c7c7cc",
+    sidebar_bg="#ffffff", sidebar_text="#636366",
+    sidebar_hover="#e8e8ed", sidebar_sel="#e8e8ed",
+    sidebar_sel_t="#1c1c1e", sidebar_acc="#0071e3",
+    row_sep="#e8e8ed", row_hover="#f0f0f2",
+    inst_bg="rgba(0,113,227,0.08)", inst_text="#1565c0", inst_border="rgba(0,113,227,0.35)", inst_hover="rgba(0,113,227,0.18)",
+    rem_bg="rgba(198,40,40,0.08)", rem_text="#c62828", rem_border="rgba(198,40,40,0.35)", rem_hover="rgba(198,40,40,0.18)",
+    b_inst_bg="#e8f5e9", b_inst_text="#2e7d32", b_inst_brd="#81c784",
+    b_avail_bg="#e3f2fd", b_avail_text="#1565c0", b_avail_brd="#64b5f6",
+    b_busy_bg="#fff8e1", b_busy_text="#f57f17", b_busy_brd="#ffca28",
+    b_miss_bg="#fce4ec", b_miss_text="#c62828", b_miss_brd="#ef9a9a",
+    b_warn_bg="#fff3e0", b_warn_text="#e65100", b_warn_brd="#ffb74d",
+    ready_bg="#e8f5e9", ready_text="#2e7d32", ready_border="#81c784",
+    empty_text="#8e8e93",
+)
 
 
-class AlmaCreativeInstaller(Gtk.Window):
+def _build_qss(c):
+    return """
+QMainWindow, QWidget#central {{
+    background-color: {bg};
+    color: {text};
+}}
+
+/* ── Tab bar: underline style ── */
+QTabWidget::pane {{
+    border: none;
+    border-top: 1px solid {border};
+    background: {bg};
+}}
+QTabBar {{ background: transparent; }}
+QTabBar::tab {{
+    background: transparent;
+    color: {tab_inactive};
+    padding: 10px 22px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    font-size: 13px;
+}}
+QTabBar::tab:selected {{
+    color: {text};
+    border-bottom: 2px solid {accent};
+}}
+QTabBar::tab:hover:!selected {{
+    color: {text};
+    background: {bg3};
+}}
+
+/* ── Frames ── */
+QFrame#reqFrame, QFrame#appFrame {{
+    border: 1px solid {border};
+    border-radius: 8px;
+    background: {bg2};
+}}
+
+/* ── App / requirement rows ── */
+QFrame#appRow {{
+    border: none;
+    border-bottom: 1px solid {row_sep};
+    background: transparent;
+}}
+QFrame#appRow:hover {{ background: {row_hover}; }}
+
+/* ── Typography ── */
+QLabel#rowTitle {{
+    font-weight: 600;
+    font-size: 13px;
+    color: {text};
+}}
+QLabel#rowSubtitle {{
+    color: {text2};
+    font-size: 11px;
+}}
+
+/* ── Default button ── */
+QPushButton {{
+    background: {btn_bg};
+    color: {btn_text};
+    border: 1px solid {border2};
+    border-radius: 5px;
+    padding: 5px 14px;
+    min-width: 70px;
+    font-size: 12px;
+}}
+QPushButton:hover   {{ background: {bg3}; }}
+QPushButton:pressed {{ background: {border2}; }}
+QPushButton:disabled {{ color: {text_dim}; background: {bg}; border-color: {border}; }}
+
+/* ── Install: glass overlay ── */
+QPushButton#installBtn {{
+    background: {inst_bg};
+    color: {inst_text};
+    border: 1px solid {inst_border};
+    font-weight: 600;
+}}
+QPushButton#installBtn:hover {{
+    background: {inst_hover};
+    border: 1px solid {accent};
+    color: {accent};
+}}
+QPushButton#installBtn:pressed {{ background: {inst_bg}; }}
+QPushButton#installBtn:disabled {{ background: transparent; color: {text_dim}; border-color: {border}; }}
+
+/* ── Enable (Setup): glass green overlay ── */
+QPushButton#enableBtn {{
+    background: rgba(59,180,100,0.12);
+    color: {b_inst_text};
+    border: 1px solid rgba(59,180,100,0.45);
+    font-weight: 600;
+}}
+QPushButton#enableBtn:hover {{
+    background: rgba(59,180,100,0.24);
+    border: 1px solid {b_inst_text};
+    color: {b_inst_text};
+}}
+QPushButton#enableBtn:pressed {{ background: rgba(59,180,100,0.12); }}
+QPushButton#enableBtn:disabled {{ background: transparent; color: {text_dim}; border-color: {border}; }}
+
+/* ── Remove: glass red overlay ── */
+QPushButton#removeBtn {{
+    background: {rem_bg};
+    color: {rem_text};
+    border: 1px solid {rem_border};
+    font-weight: 600;
+}}
+QPushButton#removeBtn:hover {{
+    background: {rem_hover};
+    border: 1px solid {rem_text};
+    color: {rem_text};
+}}
+QPushButton#removeBtn:pressed {{ background: {rem_bg}; }}
+QPushButton#removeBtn:disabled {{ background: transparent; color: {text_dim}; border-color: {border}; }}
+
+/* ── Category sidebar ── */
+QListWidget#categoryList {{
+    background: {sidebar_bg};
+    border: 1px solid {border};
+    border-radius: 6px;
+    padding: 4px 0;
+    outline: none;
+}}
+QListWidget#categoryList::item {{
+    padding: 7px 14px;
+    color: {sidebar_text};
+    font-size: 12px;
+}}
+QListWidget#categoryList::item:hover {{
+    background: {sidebar_hover};
+    color: {sidebar_sel_t};
+}}
+QListWidget#categoryList::item:selected {{
+    background: {sidebar_sel};
+    color: {sidebar_sel_t};
+    border-left: 3px solid {sidebar_acc};
+    padding-left: 11px;
+}}
+
+/* ── Status badge pills ── */
+QLabel[badge="installed"] {{
+    background: {b_inst_bg};
+    color: {b_inst_text};
+    border: 1px solid {b_inst_brd};
+    border-radius: 10px;
+    padding: 1px 9px;
+    font-size: 11px;
+}}
+QLabel[badge="available"] {{
+    background: {b_avail_bg};
+    color: {b_avail_text};
+    border: 1px solid {b_avail_brd};
+    border-radius: 10px;
+    padding: 1px 9px;
+    font-size: 11px;
+}}
+QLabel[badge="busy"] {{
+    background: {b_busy_bg};
+    color: {b_busy_text};
+    border: 1px solid {b_busy_brd};
+    border-radius: 10px;
+    padding: 1px 9px;
+    font-size: 11px;
+}}
+QLabel[badge="missing"] {{
+    background: {b_miss_bg};
+    color: {b_miss_text};
+    border: 1px solid {b_miss_brd};
+    border-radius: 10px;
+    padding: 1px 9px;
+    font-size: 11px;
+}}
+QLabel[badge="warning"] {{
+    background: {b_warn_bg};
+    color: {b_warn_text};
+    border: 1px solid {b_warn_brd};
+    border-radius: 10px;
+    padding: 1px 9px;
+    font-size: 11px;
+}}
+QLabel[badge="checking"] {{
+    background: transparent;
+    color: {text_dim};
+    border: 1px solid {border2};
+    border-radius: 10px;
+    padding: 1px 9px;
+    font-size: 11px;
+}}
+
+/* ── Inputs ── */
+QLineEdit {{
+    background: {input_bg};
+    color: {text};
+    border: 1px solid {border2};
+    border-radius: 5px;
+    padding: 6px 10px;
+    font-size: 13px;
+}}
+QLineEdit:focus {{ border-color: {accent}; }}
+QComboBox {{
+    background: {btn_bg};
+    color: {text};
+    border: 1px solid {border2};
+    border-radius: 5px;
+    padding: 3px 8px;
+}}
+QComboBox QAbstractItemView {{
+    background: {btn_bg};
+    color: {text};
+    selection-background-color: {accent};
+}}
+
+/* ── Progress bar: slim accent line ── */
+QProgressBar {{
+    border: none;
+    border-radius: 2px;
+    background: {btn_bg};
+    max-height: 4px;
+}}
+QProgressBar::chunk {{ background: {accent}; border-radius: 2px; }}
+
+/* ── Generic list (non-sidebar) ── */
+QListWidget {{
+    background: {bg2};
+    border: 1px solid {border2};
+    color: {text};
+}}
+QListWidget::item:selected {{ background: {accent}; color: {bg}; }}
+QListWidget::item:hover    {{ background: {btn_bg}; }}
+
+/* ── Log console ── */
+QTextEdit {{
+    background: {log_bg};
+    color: {log_text};
+    border: 1px solid {border};
+    border-radius: 6px;
+    font-family: monospace;
+    font-size: 12px;
+    padding: 4px;
+}}
+
+/* ── Scrollbars: slim and subtle ── */
+QScrollArea {{ border: none; }}
+QScrollBar:vertical {{
+    background: transparent;
+    width: 6px;
+    margin: 2px;
+}}
+QScrollBar::handle:vertical {{
+    background: {scrollbar};
+    border-radius: 3px;
+    min-height: 20px;
+}}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0; }}
+
+/* ── Hero banner ── */
+QFrame#heroBanner {{
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                                stop:0 {hero_start}, stop:1 {hero_end});
+    border: 1px solid {border};
+    border-radius: 8px;
+}}
+QLabel#heroTitle {{
+    font-size: 14px;
+    font-weight: bold;
+    color: {text};
+}}
+QLabel#heroSubtitle {{
+    font-size: 11px;
+    color: {text2};
+}}
+
+/* ── All-ready banner ── */
+QLabel#readyBanner {{
+    background: {ready_bg};
+    color: {ready_text};
+    border: 1px solid {ready_border};
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-size: 12px;
+}}
+
+/* ── Empty search state ── */
+QLabel#emptyState {{
+    color: {empty_text};
+    font-size: 13px;
+}}
+""".format(**c)
+
+
+# ---------------------------------------------------------------------------
+# Worker signals — bridge background threads to the main thread safely
+# ---------------------------------------------------------------------------
+class WorkerSignals(QObject):
+    log      = Signal(str)
+    progress = Signal(str, str)   # app_id, output_line
+    idle     = Signal(object)     # zero-arg callable
+
+
+class AlmaCreativeInstaller(QMainWindow):
     def __init__(self):
-        super().__init__(title="AlmaLinux Creative Installer")
-        self.set_default_size(1100, 760)
+        super().__init__()
+        self.setWindowTitle("AlmaLinux Creative Installer")
+        self.resize(1020, 680)
 
-        self.repo_widgets = {}
-        self.app_widgets = {}
-        self.category_rows = {}
+        self.repo_widgets  = {}
+        self.repo_states   = {}
+        self.app_widgets   = {}
         self.selected_category = "All Apps"
-        self.search_query = ""
+        self.search_query      = ""
+        self.installed_only    = False
+        self._nvidia_present = self._has_nvidia_hardware()
 
-        self._apply_css()
+        self._signals = WorkerSignals()
+        self._signals.log.connect(self._on_log)
+        self._signals.progress.connect(self._update_app_progress_from_output)
+        self._signals.idle.connect(lambda fn: fn())
 
         self.app_version = self._get_app_version()
-
-        hb = Gtk.HeaderBar()
-        hb.set_show_close_button(True)
-        hb.props.title = "AlmaLinux Creative Installer"
-        hb.props.subtitle = "Creative & M&E workstation installs • v{}".format(self.app_version)
-        self.set_titlebar(hb)
-
-        btn_refresh = Gtk.Button.new_from_icon_name("view-refresh", Gtk.IconSize.BUTTON)
-        btn_refresh.set_tooltip_text("Refresh checks")
-        btn_refresh.connect("clicked", lambda *_: self.refresh_all_states())
-        hb.pack_end(btn_refresh)
-
-        outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
-        outer.set_border_width(12)
-        self.add(outer)
-
-        self.notebook = Gtk.Notebook()
-        outer.pack_start(self.notebook, True, True, 0)
-
-        # ---------------- Apps tab ----------------
-        apps_page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
-        apps_page.set_border_width(6)
-        self.notebook.append_page(apps_page, Gtk.Label(label="Apps"))
-
-        apps_page.pack_start(self._make_hero_banner(), False, False, 0)
-
-        # System Requirements
-        req_frame = Gtk.Frame(label="System Requirements")
-        req_frame.set_shadow_type(Gtk.ShadowType.IN)
-        apps_page.pack_start(req_frame, False, False, 0)
-
-        req_scroll = Gtk.ScrolledWindow()
-        req_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        req_scroll.set_max_content_height(220)
-        req_scroll.set_propagate_natural_height(True)
-        req_frame.add(req_scroll)
-
-        req_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
-        req_box.set_border_width(8)
-        req_scroll.add(req_box)
-
-        req_box.pack_start(
-            self._make_requirement_row(
-                key="CRB",
-                title="CodeReady Builder (CRB) / PowerTools(Required)",
-                subtitle="Extra dependencies used by many workstation apps.",
-                enable_action=["enable_crb"],
-            ),
-            False, False, 0
-        )
-        req_box.pack_start(
-            self._make_requirement_row(
-                key="EPEL",
-                title="Extra Packages for Enterprise Linux (EPEL)(Required)",
-                subtitle="Community packages used by many creative tools.",
-                enable_action=["enable_epel"],
-            ),
-            False, False, 0
-        )
-        req_box.pack_start(
-            self._make_requirement_row(
-                key="RPMFUSION_FREE",
-                title="RPM Fusion Free (Recommended)",
-                subtitle="Multimedia codecs (H.264, MP3, AAC) — essential for video editors.",
-                enable_action=["enable_rpmfusion_free"],
-            ),
-            False, False, 0
-        )
-        req_box.pack_start(
-            self._make_requirement_row(
-                key="RPMFUSION_NONFREE",
-                title="RPM Fusion Non-Free (Optional)",
-                subtitle="Proprietary codecs and non-redistributable software. Also enables RPM Fusion Free.",
-                enable_action=["enable_rpmfusion_nonfree"],
-            ),
-            False, False, 0
-        )
-        req_box.pack_start(
-            self._make_requirement_row(
-                key="NVIDIA",
-                title="NVIDIA Drivers — AlmaLinux Native (Optional)",
-                subtitle="Open-kernel NVIDIA drivers via AlmaLinux official repo. Requires reboot after install.",
-                enable_action=["enable_nvidia_drivers"],
-                button_label="Install",
-                status_enabled="Installed",
-                status_disabled="Not installed",
-                post_install_msg="NVIDIA drivers installed. A reboot is required to load the kernel module.",
-            ),
-            False, False, 0
-        )
-        req_box.pack_start(
-            self._make_selinux_row(),
-            False, False, 0
+        self.setWindowTitle(
+            "AlmaLinux Creative Installer  •  v{}".format(self.app_version)
         )
 
-        # Applications
-        app_frame = Gtk.Frame(label="Applications")
-        app_frame.set_shadow_type(Gtk.ShadowType.IN)
-        apps_page.pack_start(app_frame, True, True, 0)
+        self.progress_percent_re = re.compile(r"(?<!\d)(100|[1-9]?\d)%")
+        self.progress_step_re    = re.compile(r"\b(\d+)\s*/\s*(\d+)\b")
 
-        app_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-        app_box.set_border_width(10)
-        app_frame.add(app_box)
+        self._c = _THEME_COLORS
+        self.setStyleSheet(_build_qss(self._c))
 
-        self.listbox = Gtk.ListBox()
-        self.listbox.set_selection_mode(Gtk.SelectionMode.NONE)
-        self.listbox.get_style_context().add_class("boxed-list")
+        central = QWidget()
+        central.setObjectName("central")
+        self.setCentralWidget(central)
 
-        search_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-        app_box.pack_start(search_box, False, False, 0)
+        pm = self._load_app_pixmap(256)
+        if not pm.isNull():
+            self.setWindowIcon(QIcon(pm))
+        root = QVBoxLayout(central)
+        root.setContentsMargins(12, 12, 12, 12)
+        root.setSpacing(10)
 
-        search_label = Gtk.Label(label="Search apps:")
-        search_label.set_xalign(0)
-        search_box.pack_start(search_label, False, False, 0)
+        root.addWidget(self._make_hero_banner())
 
-        self.search_entry = Gtk.SearchEntry()
-        self.search_entry.set_placeholder_text("Type app name (e.g. blender, krita, davinci)")
-        self.search_entry.connect("search-changed", self.on_search_changed)
-        self.search_entry.set_hexpand(True)
-        self.search_entry.get_style_context().add_class("pill-search")
-        search_box.pack_start(self.search_entry, True, True, 0)
+        tabs = QTabWidget()
+        root.addWidget(tabs)
 
-        app_content = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
-        app_box.pack_start(app_content, True, True, 0)
+        # ---- Setup tab (first — users configure repos before installing) ----
+        setup_page = QWidget()
+        setup_layout = QVBoxLayout(setup_page)
+        setup_layout.setContentsMargins(6, 6, 6, 6)
+        setup_layout.setSpacing(10)
+        tabs.addTab(setup_page, "Setup")
 
-        category_scroller = Gtk.ScrolledWindow()
-        category_scroller.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        category_scroller.set_min_content_width(190)
-        category_scroller.set_hexpand(False)
-        category_scroller.set_vexpand(True)
-        app_content.pack_start(category_scroller, False, False, 0)
+        req_frame = QFrame()
+        req_frame.setObjectName("reqFrame")
+        req_layout = QVBoxLayout(req_frame)
+        req_layout.setContentsMargins(10, 10, 10, 10)
+        req_layout.setSpacing(6)
 
-        self.category_listbox = Gtk.ListBox()
-        self.category_listbox.set_selection_mode(Gtk.SelectionMode.SINGLE)
-        self.category_listbox.get_style_context().add_class("category-list")
-        self.category_listbox.connect("row-selected", self.on_category_selected)
-        category_scroller.add(self.category_listbox)
+        req_title = QLabel("System Requirements")
+        req_title.setObjectName("rowTitle")
+        req_layout.addWidget(req_title)
+        req_layout.addWidget(self._make_requirement_row(
+            key="CRB",
+            title="CodeReady Builder (CRB) / PowerTools  (Required)",
+            subtitle="Extra dependencies used by many workstation apps.",
+            enable_action=["enable_crb"],
+        ))
+        req_layout.addWidget(self._make_requirement_row(
+            key="EPEL",
+            title="Extra Packages for Enterprise Linux (EPEL)  (Required)",
+            subtitle="Community packages used by many creative tools.",
+            enable_action=["enable_epel"],
+        ))
+        req_layout.addWidget(self._make_requirement_row(
+            key="RPMFUSION_FREE",
+            title="RPM Fusion Free (Optional)",
+            subtitle="Multimedia codecs (H.264, MP3, AAC) — essential for video editors.",
+            enable_action=["enable_rpmfusion_free"],
+        ))
+        req_layout.addWidget(self._make_requirement_row(
+            key="RPMFUSION_NONFREE",
+            title="RPM Fusion Non-Free (Optional)",
+            subtitle="Proprietary codecs and non-redistributable software. Also enables RPM Fusion Free.",
+            enable_action=["enable_rpmfusion_nonfree"],
+        ))
+        req_layout.addWidget(self._make_requirement_row(
+            key="NVIDIA",
+            title="NVIDIA Drivers — AlmaLinux Native (Optional)",
+            subtitle="Open-kernel NVIDIA drivers via AlmaLinux official repo. Requires reboot after install.",
+            enable_action=["enable_nvidia_drivers"],
+            button_label="Install",
+            status_enabled="Installed",
+            status_disabled="Not installed",
+            post_install_msg="NVIDIA drivers installed. A reboot is required to load the kernel module.",
+        ))
+        req_layout.addWidget(self._make_selinux_row())
+        req_layout.addStretch()
+        setup_layout.addWidget(req_frame)
 
-        for category in CATEGORIES:
-            category_row = Gtk.ListBoxRow()
-            category_row.category = category
+        self.ready_banner = QLabel("✓  System ready — all required repositories are enabled. Head to the Apps tab to install.")
+        self.ready_banner.setObjectName("readyBanner")
+        self.ready_banner.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.ready_banner.setVisible(False)
+        setup_layout.addWidget(self.ready_banner)
 
-            category_label = Gtk.Label(label=category)
-            category_label.set_xalign(0)
-            category_label.set_margin_start(8)
-            category_label.set_margin_end(8)
-            category_label.set_margin_top(8)
-            category_label.set_margin_bottom(8)
-            category_row.add(category_label)
+        # ---- Apps tab ----
+        apps_page = QWidget()
+        apps_layout = QVBoxLayout(apps_page)
+        apps_layout.setContentsMargins(6, 6, 6, 6)
+        apps_layout.setSpacing(10)
+        tabs.addTab(apps_page, "Apps")
 
-            self.category_rows[category] = category_row
-            self.category_listbox.add(category_row)
+        # Applications frame
+        app_frame = QFrame()
+        app_frame.setObjectName("appFrame")
+        app_frame_layout = QVBoxLayout(app_frame)
+        app_frame_layout.setContentsMargins(10, 10, 10, 10)
+        app_frame_layout.setSpacing(8)
+        apps_layout.addWidget(app_frame, stretch=1)
 
-        app_scroller = Gtk.ScrolledWindow()
-        app_scroller.set_hexpand(True)
-        app_scroller.set_vexpand(True)
-        app_scroller.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        app_scroller.add(self.listbox)
-        app_content.pack_start(app_scroller, True, True, 0)
+        # Search bar + installed filter
+        search_row = QHBoxLayout()
+        search_row.setSpacing(6)
+        self.search_entry = QLineEdit()
+        self.search_entry.setPlaceholderText("🔍  Search apps…")
+        self.search_entry.textChanged.connect(self._on_search_changed)
+        search_row.addWidget(self.search_entry, stretch=1)
+
+        self.installed_only_btn = QPushButton("Installed")
+        self.installed_only_btn.setCheckable(True)
+        self.installed_only_btn.setChecked(False)
+        self.installed_only_btn.toggled.connect(self._on_installed_filter_toggled)
+        search_row.addWidget(self.installed_only_btn)
+        app_frame_layout.addLayout(search_row)
+
+        # Category sidebar + app list
+        content_row = QHBoxLayout()
+        app_frame_layout.addLayout(content_row, stretch=1)
+
+        self.category_list = QListWidget()
+        self.category_list.setObjectName("categoryList")
+        self.category_list.setFixedWidth(160)
+        self.category_list.currentRowChanged.connect(self._on_category_changed)
+        for cat in CATEGORIES:
+            item = QListWidgetItem(cat)
+            item.setSizeHint(QSize(0, 36))
+            self.category_list.addItem(item)
+        self.category_list.setCurrentRow(0)
+        content_row.addWidget(self.category_list)
+
+        # App list + empty state overlay
+        app_list_container = QWidget()
+        app_list_container_layout = QVBoxLayout(app_list_container)
+        app_list_container_layout.setContentsMargins(0, 0, 0, 0)
+        app_list_container_layout.setSpacing(0)
+
+        self.app_list_widget = QWidget()
+        self.app_list_layout = QVBoxLayout(self.app_list_widget)
+        self.app_list_layout.setContentsMargins(0, 0, 0, 0)
+        self.app_list_layout.setSpacing(0)
+        self.app_list_layout.addStretch()
+
+        app_scroll = QScrollArea()
+        app_scroll.setWidget(self.app_list_widget)
+        app_scroll.setWidgetResizable(True)
+        _row_bg = self._c["bg2"]
+        app_scroll.setStyleSheet("QScrollArea {{ background: {0}; border: none; }} "
+                                 "QScrollArea > QWidget > QWidget {{ background: {0}; }}".format(_row_bg))
+        self.app_list_widget.setStyleSheet("background: {};".format(_row_bg))
+        app_list_container_layout.addWidget(app_scroll, stretch=1)
+
+        self.empty_state_lbl = QLabel()
+        self.empty_state_lbl.setObjectName("emptyState")
+        self.empty_state_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.empty_state_lbl.setVisible(False)
+        app_list_container_layout.addWidget(self.empty_state_lbl)
+
+        content_row.addWidget(app_list_container, stretch=1)
 
         for app in APPS:
-            self.listbox.add(self._make_app_row(app))
+            self.app_list_layout.insertWidget(
+                self.app_list_layout.count() - 1,
+                self._make_app_row(app),
+            )
 
-        if "All Apps" in self.category_rows:
-            self.category_listbox.select_row(self.category_rows["All Apps"])
-            self._apply_category_filter("All Apps")
+        # Bottom action bar
+        btn_row = QHBoxLayout()
+        apps_layout.addLayout(btn_row)
+        btn_refresh = QPushButton("Refresh")
+        btn_refresh.clicked.connect(lambda: self.refresh_all_states())
+        btn_row.addWidget(btn_refresh)
+        btn_row.addStretch()
+        btn_quit = QPushButton("Quit")
+        btn_quit.clicked.connect(self.close)
+        btn_row.addWidget(btn_quit)
 
-        actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
-        apps_page.pack_start(actions, False, False, 0)
+        # ---- Logs tab ----
+        logs_page = QWidget()
+        logs_layout = QVBoxLayout(logs_page)
+        logs_layout.setContentsMargins(6, 6, 6, 6)
+        logs_layout.setSpacing(8)
+        tabs.addTab(logs_page, "Logs")
 
-        btn_quit = Gtk.Button(label="Quit")
-        btn_quit.connect("clicked", lambda *_: self.close())
-        actions.pack_end(btn_quit, False, False, 0)
+        log_actions = QHBoxLayout()
+        logs_layout.addLayout(log_actions)
+        btn_repo_debug = QPushButton("Show enabled repos (debug)")
+        btn_repo_debug.clicked.connect(self.show_enabled_repos_debug)
+        log_actions.addWidget(btn_repo_debug)
+        btn_clear = QPushButton("Clear logs")
+        btn_clear.clicked.connect(lambda: self.log_view.clear())
+        log_actions.addWidget(btn_clear)
+        log_actions.addStretch()
 
-        # ---------------- Logs tab ----------------
-        logs_page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-        logs_page.set_border_width(6)
-        self.notebook.append_page(logs_page, Gtk.Label(label="Logs"))
-
-        logs_actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
-        logs_actions.set_halign(Gtk.Align.START)
-        logs_page.pack_start(logs_actions, False, False, 0)
-
-        btn_repo_status = Gtk.Button(label="Show enabled repos (debug)")
-        btn_repo_status.connect("clicked", lambda *_: self.show_enabled_repos_debug())
-        logs_actions.pack_start(btn_repo_status, False, False, 0)
-
-        btn_clear_logs = Gtk.Button(label="Clear logs")
-        btn_clear_logs.connect("clicked", lambda *_: self.set_log(""))
-        logs_actions.pack_start(btn_clear_logs, False, False, 0)
-
-        self.textview = Gtk.TextView()
-        self.textview.set_editable(False)
-        self.textview.set_monospace(True)
-        self.textbuf = self.textview.get_buffer()
-
-        scroller = Gtk.ScrolledWindow()
-        scroller.set_hexpand(True)
-        scroller.set_vexpand(True)
-        scroller.add(self.textview)
-        logs_page.pack_start(scroller, True, True, 0)
+        self.log_view = QTextEdit()
+        self.log_view.setReadOnly(True)
+        logs_layout.addWidget(self.log_view)
 
         self.append_log("AlmaLinux Creative Installer v{}\n".format(self.app_version))
         self.append_log("Ready.\n")
-
         if not Path(HELPER).exists():
             self.append_log("\nWARNING: Helper not found at {}\n".format(HELPER))
 
-        # IMPORTANT: no pkexec at launch anymore
         self.refresh_all_states()
 
-        self.progress_percent_re = re.compile(r"(?<!\d)(100|[1-9]?\d)%")
-        self.progress_step_re = re.compile(r"\b(\d+)\s*/\s*(\d+)\b")
+    # -------------------------------------------------------------------------
+    # Logging
+    # -------------------------------------------------------------------------
+    def _on_log(self, text):
+        self.append_log(text)
 
-    # ---------------- CSS ----------------
-    def _apply_css(self):
-        css = b"""
-        /* === Hero Banner === */
-        .hero-banner {
-            background-image: linear-gradient(135deg, #1a4c8c, #2979d0);
-            border-radius: 10px;
-        }
-        .hero-title {
-            color: #ffffff;
-            font-size: 20px;
-            font-weight: bold;
-        }
-        .hero-subtitle {
-            color: rgba(255, 255, 255, 0.78);
-            font-size: 12px;
-        }
+    def append_log(self, text):
+        cursor = self.log_view.textCursor()
+        cursor.movePosition(QTextCursor.MoveOperation.End)
+        cursor.insertText(text)
+        self.log_view.setTextCursor(cursor)
+        self.log_view.ensureCursorVisible()
 
-        /* === App Cards === */
-        .boxed-list row {
-            padding: 12px 14px;
-            border-radius: 10px;
-            border: 1px solid rgba(128, 128, 128, 0.25);
-            margin: 3px 6px;
-            transition: background-color 150ms, border-color 150ms;
-        }
-        .boxed-list row:hover {
-            background-color: rgba(41, 121, 208, 0.08);
-            border-color: #2979d0;
-        }
-
-        /* === Section Frames === */
-        frame {
-            border-radius: 8px;
-        }
-        frame > border {
-            border-radius: 8px;
-            border-color: rgba(41, 121, 208, 0.30);
-        }
-        frame > label {
-            color: #444444;
-            font-weight: bold;
-            padding: 0 4px;
-        }
-
-        /* === Status Badges === */
-        .badge-installed {
-            background-color: #2e7d32;
-            color: #ffffff;
-            border-radius: 999px;
-            padding: 2px 10px;
-            font-size: 12px;
-            font-weight: bold;
-        }
-        .badge-available {
-            background-color: #555555;
-            color: #ffffff;
-            border-radius: 999px;
-            padding: 2px 10px;
-            font-size: 12px;
-        }
-        .badge-busy {
-            background-color: #e65100;
-            color: #ffffff;
-            border-radius: 999px;
-            padding: 2px 10px;
-            font-size: 12px;
-        }
-
-        /* === Action Buttons === */
-        .btn-install {
-            background-image: none;
-            background-color: #2e7d32;
-            color: #ffffff;
-            border: none;
-            border-radius: 6px;
-            padding: 4px 14px;
-            font-weight: bold;
-        }
-        .btn-install:hover {
-            background-color: #1b5e20;
-        }
-        .btn-install:disabled {
-            background-color: rgba(46, 125, 50, 0.40);
-            color: rgba(255, 255, 255, 0.60);
-        }
-        .btn-remove {
-            background-image: none;
-            background-color: #c62828;
-            color: #ffffff;
-            border: none;
-            border-radius: 6px;
-            padding: 4px 14px;
-        }
-        .btn-remove:hover {
-            background-color: #8e0000;
-        }
-        .btn-remove:disabled {
-            background-color: rgba(198, 40, 40, 0.40);
-            color: rgba(255, 255, 255, 0.60);
-        }
-
-        /* === Notebook Tabs === */
-        notebook tab {
-            padding: 8px 20px;
-            border-radius: 6px 6px 0 0;
-        }
-        notebook tab:checked {
-            background-color: #2979d0;
-        }
-        notebook tab:checked label {
-            color: #ffffff;
-            font-weight: bold;
-        }
-        notebook tab:hover:not(:checked) {
-            background-color: rgba(41, 121, 208, 0.12);
-        }
-
-        /* === Search Entry === */
-        entry.pill-search {
-            border-radius: 999px;
-            padding: 6px 14px;
-        }
-        entry.pill-search:focus {
-            border-color: #2979d0;
-        }
-
-        /* === Category Sidebar === */
-        .category-list row {
-            padding: 9px 12px;
-            border-radius: 6px;
-            margin: 2px 4px;
-        }
-        .category-list row:selected {
-            background-color: #2979d0;
-        }
-        .category-list row:selected label {
-            color: #ffffff;
-            font-weight: bold;
-        }
-        .category-list row:hover:not(:selected) {
-            background-color: rgba(41, 121, 208, 0.10);
-        }
-
-        /* === Scrollbars === */
-        scrollbar {
-            background-color: transparent;
-            border: none;
-        }
-        scrollbar slider {
-            border-radius: 4px;
-            background-color: rgba(136, 136, 136, 0.50);
-            min-width: 8px;
-            min-height: 8px;
-        }
-        scrollbar.vertical slider {
-            min-width: 8px;
-        }
-        scrollbar.horizontal slider {
-            min-height: 8px;
-        }
-        scrollbar button {
-            min-height: 0;
-            min-width: 0;
-            padding: 0;
-            opacity: 0;
-        }
-
-        /* === Requirement row icons (symbolic icon color) === */
-        .req-icon-ok    { color: #2e7d32; }
-        .req-icon-warn  { color: #e65100; }
-        .req-icon-error { color: #c62828; }
-        .req-icon-info  { color: #1565c0; }
-
-        /* === Misc === */
-        .subtle { opacity: 0.70; font-size: 11px; }
-        """
-        provider = Gtk.CssProvider()
-        provider.load_from_data(css)
-        Gtk.StyleContext.add_provider_for_screen(
-            Gdk.Screen.get_default(),
-            provider,
-            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
-        )
-
-    def _make_hero_banner(self):
-        eb = Gtk.EventBox()
-        eb.get_style_context().add_class("hero-banner")
-
-        inner = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=16)
-        inner.set_border_width(14)
-        eb.add(inner)
-
-        logo = Gtk.Image()
-        _script_dir = os.path.dirname(os.path.abspath(__file__))
-        _logo_png = os.path.join(_script_dir, "icons", "hicolor", "256x256",
-                                 "apps", "almalinux-creative-installer.png")
-        try:
-            pb = GdkPixbuf.Pixbuf.new_from_file_at_scale(_logo_png, 56, 56, True)
-            logo.set_from_pixbuf(pb)
-        except Exception:
-            logo.set_from_icon_name("almalinux-creative-installer", Gtk.IconSize.INVALID)
-            logo.set_pixel_size(56)
-        inner.pack_start(logo, False, False, 0)
-
-        text_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
-        text_box.set_valign(Gtk.Align.CENTER)
-        inner.pack_start(text_box, True, True, 0)
-
-        title_lbl = Gtk.Label(label="AlmaLinux Creative Installer")
-        title_lbl.set_xalign(0)
-        title_lbl.get_style_context().add_class("hero-title")
-        text_box.pack_start(title_lbl, False, False, 0)
-
-        subtitle_lbl = Gtk.Label(label="Creative & M&E workstation setup • v{}".format(self.app_version))
-        subtitle_lbl.set_xalign(0)
-        subtitle_lbl.get_style_context().add_class("hero-subtitle")
-        text_box.pack_start(subtitle_lbl, False, False, 0)
-
-        return eb
-
+    # -------------------------------------------------------------------------
+    # Version detection
+    # -------------------------------------------------------------------------
     def _get_app_version(self):
         try:
             return importlib.metadata.version("almalinux-creative-installer")
         except Exception:
             pass
-
         try:
             proc = subprocess.run(
                 ["rpm", "-q", "--qf", "%{VERSION}-%{RELEASE}", "almalinux-creative-installer"],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
-                text=True,
-                check=False,
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, check=False,
             )
             out = proc.stdout.strip()
             if out and "not installed" not in out.lower():
                 return out
         except Exception:
             pass
-
         return "dev"
 
-    # ---------------- UI builders ----------------
+    # -------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
+    # Badge helper
+    # -------------------------------------------------------------------------
+    def _set_status_badge(self, label, text, variant):
+        label.setText(text)
+        label.setProperty("badge", variant)
+        label.style().unpolish(label)
+        label.style().polish(label)
+        label.update()
+
+    @staticmethod
+    def _is_system_dark():
+        try:
+            bg = QApplication.instance().palette().window().color()
+            return bg.value() < 128
+        except Exception:
+            return True
+
+    def _has_nvidia_hardware(self):
+        try:
+            out = subprocess.run(
+                ["lspci"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True,
+            ).stdout
+            return "nvidia" in out.lower()
+        except Exception:
+            return False
+
+    def _update_ready_banner(self):
+        if not hasattr(self, "ready_banner"):
+            return
+        required = {"CRB", "EPEL", "RPMFUSION_FREE"}
+        if self._nvidia_present:
+            required.add("NVIDIA")
+        all_ready = all(self.repo_states.get(k) is True for k in required)
+        self.ready_banner.setVisible(all_ready)
+
+    # Hero banner
+    # -------------------------------------------------------------------------
+    def _load_app_pixmap(self, size=48):
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        candidates = [
+            os.path.join(script_dir, "icons", "hicolor",
+                         "{}x{}".format(size, size), "apps",
+                         "almalinux-creative-installer.png"),
+            "/usr/share/icons/hicolor/{}x{}/apps/almalinux-creative-installer.png".format(size, size),
+        ]
+        for path in candidates:
+            if os.path.exists(path):
+                return QPixmap(path)
+        icon = QIcon.fromTheme("almalinux-creative-installer")
+        if not icon.isNull():
+            return icon.pixmap(size, size)
+        return QPixmap()
+
+    def _find_app_pixmap(self, app, size=36):
+        app_id = app["id"]
+        if app_id in _ICON_CACHE:
+            return _ICON_CACHE[app_id]
+        pm = None
+        appid = app.get("appid") or app.get("icon_appid") or ""
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+
+        # 1. Bundled icons shipped with the installer
+        # Checks both dev (src/icons/apps/) and RPM-installed (/usr/share/<name>/icons/apps/) paths.
+        if appid:
+            _data_dir = "/usr/share/almalinux-creative-installer"
+            for _icons_base in (
+                os.path.join(script_dir, "icons", "apps"),
+                os.path.join(_data_dir, "icons", "apps"),
+            ):
+                bundled = os.path.join(_icons_base, appid + ".png")
+                if os.path.exists(bundled):
+                    candidate = QPixmap(bundled)
+                    if not candidate.isNull():
+                        pm = candidate.scaled(
+                            size, size,
+                            Qt.AspectRatioMode.KeepAspectRatio,
+                            Qt.TransformationMode.SmoothTransformation,
+                        )
+                        break
+
+        # 2. Flatpak AppStream icon cache (populated after `flatpak remote-add flathub`)
+        if pm is None and appid:
+            bases = [
+                "/var/lib/flatpak/appstream/flathub/x86_64/active/icons",
+                os.path.expanduser(
+                    "~/.local/share/flatpak/appstream/flathub/x86_64/active/icons"
+                ),
+            ]
+            for base in bases:
+                for res in ("64x64", "128x128"):
+                    path = os.path.join(base, res, appid + ".png")
+                    if os.path.exists(path):
+                        candidate = QPixmap(path)
+                        if not candidate.isNull():
+                            pm = candidate.scaled(
+                                size, size,
+                                Qt.AspectRatioMode.KeepAspectRatio,
+                                Qt.TransformationMode.SmoothTransformation,
+                            )
+                            break
+                if pm:
+                    break
+
+        # 3. XDG icon theme (works for installed DNF packages)
+        if pm is None:
+            for name in filter(None, [
+                app.get("pkg"),
+                appid.split(".")[-1].lower() if appid else None,
+            ]):
+                icon = QIcon.fromTheme(name)
+                if not icon.isNull():
+                    candidate = icon.pixmap(size, size)
+                    if not candidate.isNull():
+                        pm = candidate
+                        break
+
+        _ICON_CACHE[app_id] = pm
+        return pm
+
+    def _make_hero_banner(self):
+        banner = QFrame()
+        banner.setObjectName("heroBanner")
+        hl = QHBoxLayout(banner)
+        hl.setContentsMargins(16, 12, 16, 12)
+        hl.setSpacing(14)
+
+        logo_lbl = QLabel()
+        logo_lbl.setFixedSize(48, 48)
+        logo_lbl.setScaledContents(True)
+        pm = self._load_app_pixmap(48)
+        if not pm.isNull():
+            logo_lbl.setPixmap(pm)
+        hl.addWidget(logo_lbl)
+
+        text_col = QVBoxLayout()
+        text_col.setSpacing(2)
+
+        title_lbl = QLabel("AlmaLinux Creative Installer")
+        title_lbl.setObjectName("heroTitle")
+        text_col.addWidget(title_lbl)
+
+        subtitle_lbl = QLabel(
+            "Creative & M&E workstation setup • v{}".format(self.app_version)
+        )
+        subtitle_lbl.setObjectName("heroSubtitle")
+        text_col.addWidget(subtitle_lbl)
+
+        hl.addLayout(text_col, stretch=1)
+        return banner
+
+    # -------------------------------------------------------------------------
+    # Requirement rows
+    # -------------------------------------------------------------------------
     def _make_requirement_row(self, key, title, subtitle, enable_action,
                               button_label="Enable",
                               status_enabled="Enabled",
                               status_disabled="Not enabled",
                               post_install_msg=None):
-        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        row = QFrame()
+        row.setObjectName("appRow")
+        hl = QHBoxLayout(row)
+        hl.setContentsMargins(8, 6, 8, 6)
 
-        icon = Gtk.Image()
-        icon.set_pixel_size(18)
-        icon.set_size_request(24, 24)
-        row.pack_start(icon, False, False, 0)
+        icon_lbl = QLabel("…")
+        icon_lbl.setFixedWidth(28)
+        hl.addWidget(icon_lbl)
 
-        text_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
-        row.pack_start(text_box, True, True, 0)
+        text_col = QVBoxLayout()
+        title_lbl = QLabel(title)
+        title_lbl.setObjectName("rowTitle")
+        text_col.addWidget(title_lbl)
+        sub_lbl = QLabel(subtitle)
+        sub_lbl.setObjectName("rowSubtitle")
+        text_col.addWidget(sub_lbl)
+        hl.addLayout(text_col, stretch=1)
 
-        title_lbl = Gtk.Label(label=title)
-        title_lbl.set_xalign(0)
-        title_lbl.set_hexpand(True)
-        text_box.pack_start(title_lbl, False, False, 0)
+        status_lbl = QLabel("Checking…")
+        status_lbl.setProperty("badge", "checking")
+        status_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        hl.addWidget(status_lbl)
 
-        subtitle_lbl = Gtk.Label(label=subtitle)
-        subtitle_lbl.set_xalign(0)
-        subtitle_lbl.set_hexpand(True)
-        subtitle_lbl.get_style_context().add_class("subtle")
-        text_box.pack_start(subtitle_lbl, False, False, 0)
+        btn = QPushButton(button_label)
+        btn.setObjectName("enableBtn")
 
-        status_lbl = Gtk.Label(label="Checking…")
-        row.pack_start(status_lbl, False, False, 0)
-
-        btn = Gtk.Button(label=button_label)
-
-        def _on_req_clicked(*_):
-            btn.set_sensitive(False)
-            status_lbl.set_text("Working…")
+        def _on_clicked():
+            btn.setEnabled(False)
+            self._set_status_badge(status_lbl, "Working…", "busy")
 
             def on_success():
                 self.refresh_repo_state()
                 if post_install_msg:
-                    dlg = Gtk.MessageDialog(
-                        parent=self,
-                        flags=0,
-                        message_type=Gtk.MessageType.INFO,
-                        buttons=Gtk.ButtonsType.OK,
-                        text=post_install_msg,
-                    )
-                    dlg.run()
-                    dlg.destroy()
+                    QMessageBox.information(self, "Done", post_install_msg)
 
             self.run_helper_with_callback(
                 enable_action,
@@ -933,11 +913,11 @@ class AlmaCreativeInstaller(Gtk.Window):
                 on_failure=self.refresh_repo_state,
             )
 
-        btn.connect("clicked", _on_req_clicked)
-        row.pack_start(btn, False, False, 0)
+        btn.clicked.connect(_on_clicked)
+        hl.addWidget(btn)
 
         self.repo_widgets[key] = {
-            "icon": icon,
+            "icon": icon_lbl,
             "status": status_lbl,
             "button": btn,
             "status_enabled": status_enabled,
@@ -947,186 +927,230 @@ class AlmaCreativeInstaller(Gtk.Window):
         return row
 
     def _make_selinux_row(self):
-        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        row = QFrame()
+        row.setObjectName("appRow")
+        hl = QHBoxLayout(row)
+        hl.setContentsMargins(8, 6, 8, 6)
 
-        icon = Gtk.Image()
-        icon.set_pixel_size(18)
-        icon.set_size_request(24, 24)
-        row.pack_start(icon, False, False, 0)
+        icon_lbl = QLabel("…")
+        icon_lbl.setFixedWidth(28)
+        hl.addWidget(icon_lbl)
 
-        text_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
-        row.pack_start(text_box, True, True, 0)
+        text_col = QVBoxLayout()
+        title_lbl = QLabel("SELinux mode")
+        title_lbl.setObjectName("rowTitle")
+        text_col.addWidget(title_lbl)
+        sub_lbl = QLabel("Resolve needs permissive/disabled. Display and quick mode switch.")
+        sub_lbl.setObjectName("rowSubtitle")
+        text_col.addWidget(sub_lbl)
+        hl.addLayout(text_col, stretch=1)
 
-        title_lbl = Gtk.Label(label="SELinux mode")
-        title_lbl.set_xalign(0)
-        title_lbl.set_hexpand(True)
-        text_box.pack_start(title_lbl, False, False, 0)
+        status_lbl = QLabel("Checking…")
+        status_lbl.setProperty("badge", "checking")
+        status_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        hl.addWidget(status_lbl)
 
-        subtitle_lbl = Gtk.Label(label="Resolve needs permissive/disabled. Display and quick mode switch.")
-        subtitle_lbl.set_xalign(0)
-        subtitle_lbl.set_hexpand(True)
-        subtitle_lbl.get_style_context().add_class("subtle")
-        text_box.pack_start(subtitle_lbl, False, False, 0)
+        btn = QPushButton("Set")
+        btn.clicked.connect(self.prompt_set_selinux_mode)
+        hl.addWidget(btn)
 
-        status_lbl = Gtk.Label(label="Checking…")
-        row.pack_start(status_lbl, False, False, 0)
-
-        btn = Gtk.Button(label="Set")
-        btn.connect("clicked", lambda *_: self.prompt_set_selinux_mode())
-        row.pack_start(btn, False, False, 0)
-
-        self.repo_widgets["SELINUX"] = {"icon": icon, "status": status_lbl, "button": btn}
+        self.repo_widgets["SELINUX"] = {"icon": icon_lbl, "status": status_lbl, "button": btn}
         self._set_selinux_requirement_state(None)
         return row
+
+    def _set_requirement_state(self, key, state):
+        self.repo_states[key] = state
+        w = self.repo_widgets.get(key)
+        if not w:
+            return
+        if state is None:
+            w["icon"].setText("")
+            w["button"].setEnabled(False)
+            self._set_status_badge(w["status"], "Checking…", "checking")
+        elif state is True:
+            w["icon"].setText("")
+            w["button"].setEnabled(False)
+            self._set_status_badge(w["status"], w.get("status_enabled", "Enabled"), "installed")
+        else:
+            w["icon"].setText("")
+            w["button"].setEnabled(True)
+            self._set_status_badge(w["status"], w.get("status_disabled", "Not enabled"), "missing")
+        self._update_ready_banner()
 
     def _set_selinux_requirement_state(self, mode):
         w = self.repo_widgets.get("SELINUX")
         if not w:
             return
-
+        w["icon"].setText("")
         if mode is None:
-            self._set_req_icon(w["icon"], "checking")
-            w["status"].set_text("Checking…")
+            self._set_status_badge(w["status"], "Checking…", "checking")
         else:
             m = (mode or "unknown").lower()
             if m == "enforcing":
-                self._set_req_icon(w["icon"], "warn")
-                w["status"].set_text("Enforcing")
+                self._set_status_badge(w["status"], "Enforcing", "warning")
             elif m == "permissive":
-                self._set_req_icon(w["icon"], "info")
-                w["status"].set_text("Permissive")
+                self._set_status_badge(w["status"], "Permissive", "available")
             elif m == "disabled":
-                self._set_req_icon(w["icon"], "info")
-                w["status"].set_text("Disabled")
+                self._set_status_badge(w["status"], "Disabled", "warning")
             else:
-                self._set_req_icon(w["icon"], "checking")
-                w["status"].set_text("Unknown")
-
-        w["button"].set_sensitive(True)
+                self._set_status_badge(w["status"], "Unknown", "checking")
+        w["button"].setEnabled(True)
 
     def prompt_set_selinux_mode(self):
-        dialog = Gtk.MessageDialog(
-            parent=self,
-            flags=0,
-            message_type=Gtk.MessageType.WARNING,
-            buttons=Gtk.ButtonsType.NONE,
-            text="Set SELinux mode",
-        )
-        dialog.format_secondary_text(
-            "Choose the SELinux mode to apply.\n\n"
+        msg = QMessageBox(self)
+        msg.setWindowTitle("Set SELinux mode")
+        msg.setText("Choose the SELinux mode to apply.")
+        msg.setInformativeText(
             "Temporary permissive avoids reboot and resets after reboot.\n"
             "Permanent mode changes may require reboot for full effect."
         )
-        dialog.add_button("Cancel", Gtk.ResponseType.CANCEL)
-        dialog.add_button("Enforcing", 10)
-        dialog.add_button("Permissive", 11)
-        dialog.add_button("Disabled", 12)
-        dialog.add_button("Permissive (temporary)", 13)
-
-        resp = dialog.run()
-        dialog.destroy()
-
+        msg.setIcon(QMessageBox.Icon.Warning)
+        btn_enforcing  = msg.addButton("Enforcing",              QMessageBox.ButtonRole.ActionRole)
+        btn_permissive = msg.addButton("Permissive",             QMessageBox.ButtonRole.ActionRole)
+        btn_disabled   = msg.addButton("Disabled",               QMessageBox.ButtonRole.ActionRole)
+        btn_temp       = msg.addButton("Permissive (temporary)", QMessageBox.ButtonRole.ActionRole)
+        msg.addButton(QMessageBox.StandardButton.Cancel)
+        msg.exec()
         mode_map = {
-            10: "enforcing",
-            11: "permissive",
-            12: "disabled",
-            13: "permissive-temp",
+            btn_enforcing: "enforcing", btn_permissive: "permissive",
+            btn_disabled: "disabled",   btn_temp: "permissive-temp",
         }
-        mode_arg = mode_map.get(resp)
-        if not mode_arg:
-            return
+        mode_arg = mode_map.get(msg.clickedButton())
+        if mode_arg:
+            self.run_helper_with_callback(["set_selinux_mode", mode_arg],
+                                          on_success=self.refresh_repo_state)
 
-        self.run_helper_with_callback(
-            ["set_selinux_mode", mode_arg],
-            on_success=self.refresh_repo_state,
-        )
-
+    # -------------------------------------------------------------------------
+    # App rows
+    # -------------------------------------------------------------------------
     def _make_app_row(self, app):
-        lbrow = Gtk.ListBoxRow()
-        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
-        row.set_border_width(10)
-        lbrow.add(row)
+        row = QFrame()
+        row.setObjectName("appRow")
+        hl = QHBoxLayout(row)
+        hl.setContentsMargins(10, 6, 10, 6)
+        hl.setSpacing(10)
 
-        app_icon = Gtk.Image()
-        icon_name = (
-            _EMOJI_ICON.get(app.get("emoji", ""))
-            or _CATEGORY_ICON.get(app.get("category", ""))
-            or "application-x-executable-symbolic"
+        # App icon: real pixmap when available, colored letter badge as fallback
+        pm = self._find_app_pixmap(app, size=36)
+        if pm and not pm.isNull():
+            icon_lbl = QLabel()
+            icon_lbl.setFixedSize(36, 36)
+            icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            icon_lbl.setPixmap(pm)
+            icon_lbl.setStyleSheet("background: transparent;")
+        else:
+            _badge_colors = [
+                "#3b6bc7", "#c73b4a", "#3b9c5a", "#c49f27",
+                "#7b4bc7", "#2b9c9c", "#c7613b", "#9c2b7b",
+            ]
+            badge_color = _badge_colors[hash(app["name"]) % len(_badge_colors)]
+            icon_lbl = QLabel(app["name"][0].upper())
+            icon_lbl.setFixedSize(36, 36)
+            icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            icon_lbl.setStyleSheet(
+                "background: {}; border-radius: 8px; color: #ffffff;"
+                " font-weight: 700; font-size: 15px;".format(badge_color)
+            )
+        hl.addWidget(icon_lbl)
+
+        left = QVBoxLayout()
+        left.setSpacing(2)
+
+        name_row = QHBoxLayout()
+        name_row.setSpacing(6)
+        title_lbl = QLabel(app["name"])
+        title_lbl.setObjectName("rowTitle")
+        title_lbl.setStyleSheet(
+            "color: {}; font-weight: 600; font-size: 13px;".format(self._c["text"])
         )
-        app_icon.set_from_icon_name(icon_name, Gtk.IconSize.INVALID)
-        app_icon.set_pixel_size(24)
-        row.pack_start(app_icon, False, False, 0)
+        name_row.addWidget(title_lbl)
 
-        left = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
-        row.pack_start(left, True, True, 0)
+        el_versions = app.get("el")
+        _is_incompatible = False
+        if el_versions and len(el_versions) == 1:
+            el_chip = QLabel("EL{}".format(el_versions[0]))
+            el_chip.setStyleSheet(
+                "background: rgba(120,120,120,0.18); color: {};"
+                " border-radius: 4px; padding: 1px 5px;"
+                " font-size: 10px; font-weight: 600;".format(self._c["text2"])
+            )
+            if _EL_VERSION is not None and _EL_VERSION not in el_versions:
+                _is_incompatible = True
+                el_name = "AlmaLinux {}".format(el_versions[0])
+                el_chip.setToolTip(
+                    "Only available on {}.\n"
+                    "Contact the upstream project to request EL{} support.".format(
+                        el_name, _EL_VERSION
+                    )
+                )
+            name_row.addWidget(el_chip)
+        name_row.addStretch()
+        left.addLayout(name_row)
 
-        title = Gtk.Label(label=app["name"])
-        title.set_xalign(0)
-        title.set_hexpand(True)
-        left.pack_start(title, False, False, 0)
+        sub_lbl = QLabel(self._subtitle_for_app(app))
+        sub_lbl.setObjectName("rowSubtitle")
+        sub_lbl.setStyleSheet("color: {}; font-size: 11px;".format(self._c["text2"]))
+        left.addWidget(sub_lbl)
 
-        subtitle = Gtk.Label(label=self._subtitle_for_app(app))
-        subtitle.set_xalign(0)
-        subtitle.set_hexpand(True)
-        subtitle.get_style_context().add_class("subtle")
-        left.pack_start(subtitle, False, False, 0)
+        progress = QProgressBar()
+        progress.setRange(0, 100)
+        progress.setValue(0)
+        progress.setVisible(False)
+        progress.setFixedHeight(4)
+        progress.setTextVisible(False)
+        left.addWidget(progress)
 
-        progress = Gtk.ProgressBar()
-        progress.set_hexpand(True)
-        progress.set_show_text(False)
-        progress.set_no_show_all(True)
-        progress.hide()
-        left.pack_start(progress, False, False, 0)
+        hl.addLayout(left, stretch=1)
 
-        status_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
-        spinner = Gtk.Spinner()
-        spinner.set_no_show_all(True)
-        spinner.hide()
-        status_box.pack_start(spinner, False, False, 0)
+        status_lbl = QLabel("…")
+        status_lbl.setProperty("badge", "checking")
+        status_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        hl.addWidget(status_lbl)
 
-        status = Gtk.Label(label="…")
-        status_box.pack_start(status, False, False, 0)
-        row.pack_start(status_box, False, False, 0)
-
-        btn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-        row.pack_start(btn_box, False, False, 0)
+        btn_box = QHBoxLayout()
+        btn_box.setSpacing(6)
 
         version_combo = None
         if app["id"] in VERSION_SELECTABLE_APPS:
-            version_combo = Gtk.ComboBoxText()
-            version_combo.append_text("Loading versions…")
-            version_combo.set_active(0)
-            version_combo.set_sensitive(False)
-            btn_box.pack_start(version_combo, False, False, 0)
+            version_combo = QComboBox()
+            version_combo.addItem("Loading versions…")
+            version_combo.setEnabled(False)
+            version_combo.setFixedWidth(160)
+            btn_box.addWidget(version_combo)
 
-        install_btn = Gtk.Button(label="Install")
-        install_btn.get_style_context().add_class("btn-install")
-        btn_box.pack_start(install_btn, False, False, 0)
+        install_btn = QPushButton("Install")
+        install_btn.setObjectName("installBtn")
+        remove_btn  = QPushButton("Remove")
+        remove_btn.setObjectName("removeBtn")
+        btn_box.addWidget(install_btn)
+        btn_box.addWidget(remove_btn)
+        hl.addLayout(btn_box)
 
-        remove_btn = Gtk.Button(label="Remove")
-        remove_btn.get_style_context().add_class("btn-remove")
-        btn_box.pack_start(remove_btn, False, False, 0)
-
-        if app["type"] == "dnf":
-            install_btn.connect("clicked", lambda *_: self.install_app(app["id"]))
-            remove_btn.connect("clicked", lambda *_: self.remove_app(app["id"]))
-        elif app["type"] == "flatpak":
-            install_btn.connect("clicked", lambda *_: self.install_app(app["id"]))
-            remove_btn.connect("clicked", lambda *_: self.confirm_remove_flatpak_app(app["id"]))
+        app_id = app["id"]
+        if app["type"] in ("dnf", "flatpak"):
+            install_btn.clicked.connect(lambda _=False, a=app_id: self.install_app(a))
+            if app["type"] == "flatpak":
+                remove_btn.clicked.connect(lambda _=False, a=app_id: self.confirm_remove_flatpak_app(a))
+            else:
+                remove_btn.clicked.connect(lambda _=False, a=app_id: self.remove_app(a))
         elif app["type"] == "resolve":
-            install_btn.connect("clicked", lambda *_: self.install_resolve_flow())
-            remove_btn.connect("clicked", lambda *_: self.remove_resolve_flow())
+            install_btn.clicked.connect(lambda: self.install_resolve_flow())
+            remove_btn.clicked.connect(lambda: self.remove_resolve_flow())
         elif app["type"] == "3dcoat":
-            install_btn.connect("clicked", lambda *_: self.install_3dcoat_flow())
-            remove_btn.connect("clicked", lambda *_: self.remove_3dcoat_flow())
+            install_btn.clicked.connect(lambda: self.install_3dcoat_flow())
+            remove_btn.clicked.connect(lambda: self.remove_3dcoat_flow())
 
-        self.app_widgets[app["id"]] = {
+        pulse_timer = QTimer()
+        pulse_timer.setInterval(120)
+        pulse_timer.timeout.connect(lambda p=progress: p.setValue((p.value() + 3) % 101))
+
+        self.app_widgets[app_id] = {
             "app": app,
-            "row": lbrow,
-            "status": status,
-            "spinner": spinner,
+            "row": row,
+            "icon_lbl": icon_lbl,
+            "status": status_lbl,
             "progress": progress,
-            "progress_pulse_id": 0,
+            "pulse_timer": pulse_timer,
             "progress_value": 0.0,
             "progress_segment": (0.0, 0.98),
             "progress_is_flatpak": False,
@@ -1137,46 +1161,19 @@ class AlmaCreativeInstaller(Gtk.Window):
             "version_options": [],
             "busy": False,
         }
-        return lbrow
 
-    def on_category_selected(self, _listbox, row):
-        if row is None:
-            return
-        category = getattr(row, "category", "All Apps")
-        self._apply_category_filter(category)
+        if _is_incompatible:
+            self._set_status_badge(status_lbl, "Not compatible", "missing")
+            install_btn.setEnabled(False)
+            remove_btn.setEnabled(False)
+            if version_combo:
+                version_combo.setEnabled(False)
 
-    def on_search_changed(self, entry):
-        self.search_query = (entry.get_text() or "").strip().lower()
-        self._apply_filters()
-
-    def _apply_category_filter(self, category):
-        self.selected_category = category
-        self._apply_filters()
-
-    def _app_matches_search(self, app):
-        if not self.search_query:
-            return True
-
-        # Name-only filtering by request (do not match id/category/subtitle).
-        haystack = app.get("name", "").lower()
-        return self.search_query in haystack
-
-    def _apply_filters(self):
-        for app in APPS:
-            widgets = self.app_widgets.get(app["id"])
-            if not widgets:
-                continue
-            row = widgets.get("row")
-            if row is None:
-                continue
-            category_ok = self.selected_category == "All Apps" or app.get("category") == self.selected_category
-            search_ok = self._app_matches_search(app)
-            visible = category_ok and search_ok
-            row.set_visible(visible)
+        return row
 
     def _subtitle_for_app(self, app):
         if app.get("install_target"):
-            return "Installs a vendor RPM from a pinned URL"
+            return "GUI to help install AppImage"
         if app["id"] in VERSION_SELECTABLE_APPS:
             if app["type"] == "dnf":
                 return "Installed via DNF repositories (version selectable)"
@@ -1192,98 +1189,99 @@ class AlmaCreativeInstaller(Gtk.Window):
             return "Guided install: log in → download Linux tarball → pick .tar archive"
         return ""
 
-    # ---------------- Busy UI helpers ----------------
+    # -------------------------------------------------------------------------
+    # Category / search
+    # -------------------------------------------------------------------------
+    def _on_category_changed(self, row):
+        if 0 <= row < len(CATEGORIES):
+            self.selected_category = CATEGORIES[row]
+            self._apply_filters()
+
+    def _on_search_changed(self, text):
+        self.search_query = text.strip().lower()
+        self._apply_filters()
+
+    def _on_installed_filter_toggled(self, checked):
+        self.installed_only = checked
+        self._apply_filters()
+
+    def _apply_filters(self):
+        if not hasattr(self, "empty_state_lbl"):
+            return
+        any_visible = False
+        for app in APPS:
+            w = self.app_widgets.get(app["id"])
+            if not w:
+                continue
+            cat_ok       = (self.selected_category == "All Apps" or
+                            app.get("category") == self.selected_category)
+            search_ok    = (not self.search_query or
+                            self.search_query in app.get("name", "").lower())
+            installed_ok = (not self.installed_only or
+                            (w["status"].property("badge") or "").startswith("installed"))
+            visible = cat_ok and search_ok and installed_ok
+            w["row"].setVisible(visible)
+            if visible:
+                any_visible = True
+        self.empty_state_lbl.setVisible(not any_visible)
+        if not any_visible:
+            if self.installed_only:
+                self.empty_state_lbl.setText("No installed apps in this category.")
+            elif self.search_query:
+                self.empty_state_lbl.setText('No apps match  "{}"\n\nTry a different search term.'.format(
+                    self.search_query))
+
+    # -------------------------------------------------------------------------
+    # Busy / progress
+    # -------------------------------------------------------------------------
     def set_app_busy(self, app_id, busy, msg=None):
         w = self.app_widgets.get(app_id)
         if not w:
             return
         w["busy"] = busy
-
         if busy:
-            w["spinner"].show()
-            w["spinner"].start()
-            w["progress"].set_fraction(0.0)
-            w["progress"].set_show_text(False)
-            w["progress_value"] = 0.0
-            w["progress_segment"] = (0.0, 0.98)
-            w["progress_is_flatpak"] = False
-            w["progress_flatpak_step_seen"] = False
-            w["progress"].show()
-            self._start_app_progress_pulse(app_id)
+            w["progress"].setValue(0)
+            w["progress"].setVisible(True)
+            w["pulse_timer"].start()
             self._set_status_badge(w["status"], msg or "Installing…", "busy")
-            w["install"].set_sensitive(False)
-            w["remove"].set_sensitive(False)
+            w["install"].setEnabled(False)
+            w["remove"].setEnabled(False)
             if w.get("version_combo") is not None:
-                w["version_combo"].set_sensitive(False)
+                w["version_combo"].setEnabled(False)
         else:
-            w["spinner"].stop()
-            w["spinner"].hide()
-            self._stop_app_progress_pulse(app_id)
-            w["progress"].hide()
-            w["progress"].set_show_text(False)
-            w["progress"].set_fraction(0.0)
+            w["pulse_timer"].stop()
+            w["progress"].setVisible(False)
+            w["progress"].setValue(0)
             w["progress_value"] = 0.0
             w["progress_segment"] = (0.0, 0.98)
             w["progress_is_flatpak"] = False
             w["progress_flatpak_step_seen"] = False
             if w.get("version_combo") is not None:
-                w["version_combo"].set_sensitive(True)
-
-    def _start_app_progress_pulse(self, app_id):
-        w = self.app_widgets.get(app_id)
-        if not w:
-            return
-        if w.get("progress_pulse_id"):
-            return
-
-        def pulse_cb():
-            widget = self.app_widgets.get(app_id)
-            if not widget or not widget.get("busy"):
-                widget and widget.__setitem__("progress_pulse_id", 0)
-                return False
-            widget["progress"].pulse()
-            return True
-
-        w["progress_pulse_id"] = GLib.timeout_add(120, pulse_cb)
-
-    def _stop_app_progress_pulse(self, app_id):
-        w = self.app_widgets.get(app_id)
-        if not w:
-            return
-        pulse_id = w.get("progress_pulse_id") or 0
-        if pulse_id:
-            GLib.source_remove(pulse_id)
-            w["progress_pulse_id"] = 0
+                w["version_combo"].setEnabled(True)
 
     def _set_app_progress_segment(self, app_id, start, end):
         w = self.app_widgets.get(app_id)
-        if not w:
-            return
-        start = max(0.0, min(1.0, start))
-        end = max(start, min(1.0, end))
-        w["progress_segment"] = (start, end)
+        if w:
+            w["progress_segment"] = (max(0.0, min(1.0, start)), max(0.0, min(1.0, end)))
 
     def _set_app_progress_fraction(self, app_id, fraction):
         w = self.app_widgets.get(app_id)
         if not w:
             return
-        fraction = max(0.0, min(1.0, fraction))
-        # Keep progress monotonic for a smoother overall experience.
-        fraction = max(w.get("progress_value", 0.0), fraction)
+        fraction = max(w.get("progress_value", 0.0), max(0.0, min(1.0, fraction)))
         w["progress_value"] = fraction
-        self._stop_app_progress_pulse(app_id)
-        w["progress"].set_show_text(True)
-        w["progress"].set_text("{}%".format(int(round(fraction * 100))))
-        w["progress"].set_fraction(fraction)
+        w["pulse_timer"].stop()
+        w["progress"].setValue(int(round(fraction * 100)))
+        w["progress"].setFormat("{}%".format(int(round(fraction * 100))))
 
     def _set_app_progress_local_fraction(self, app_id, local_fraction):
         w = self.app_widgets.get(app_id)
         if not w:
             return
-        local_fraction = max(0.0, min(1.0, local_fraction))
         seg_start, seg_end = w.get("progress_segment", (0.0, 0.98))
-        overall = seg_start + ((seg_end - seg_start) * local_fraction)
-        self._set_app_progress_fraction(app_id, overall)
+        self._set_app_progress_fraction(
+            app_id, seg_start + (seg_end - seg_start) * max(0.0, min(1.0, local_fraction))
+        )
 
     def _update_app_progress_from_output(self, app_id, line):
         if not app_id:
@@ -1292,27 +1290,24 @@ class AlmaCreativeInstaller(Gtk.Window):
         if not w or not w.get("busy"):
             return
 
-        m = self.progress_percent_re.search(line)
         is_flatpak = bool(w.get("progress_is_flatpak"))
+        m = self.progress_percent_re.search(line)
+
         if is_flatpak:
-            step_match = self.progress_step_re.search(line)
-            if step_match:
-                cur = int(step_match.group(1))
-                total = int(step_match.group(2))
+            step = self.progress_step_re.search(line)
+            if step:
+                cur, total = int(step.group(1)), int(step.group(2))
                 if total > 1 and 1 <= cur <= total:
                     w["progress_flatpak_step_seen"] = True
-                    if cur >= total:
-                        self._set_app_progress_local_fraction(app_id, 0.98)
-                    else:
-                        self._set_app_progress_local_fraction(app_id, cur / total)
+                    self._set_app_progress_local_fraction(
+                        app_id, 0.98 if cur >= total else cur / total)
                     return
 
         if m:
             pct = int(m.group(1)) / 100.0
             if is_flatpak:
-                if w.get("progress_flatpak_step_seen"):
-                    return
-                self._set_app_progress_local_fraction(app_id, min(pct, 0.90))
+                if not w.get("progress_flatpak_step_seen"):
+                    self._set_app_progress_local_fraction(app_id, min(pct, 0.90))
             else:
                 self._set_app_progress_local_fraction(app_id, pct)
             return
@@ -1320,310 +1315,175 @@ class AlmaCreativeInstaller(Gtk.Window):
         lower = line.strip().lower()
         if is_flatpak:
             if "complete!" in lower or "done." in lower:
-                if w.get("progress_flatpak_step_seen"):
-                    self._set_app_progress_local_fraction(app_id, 0.98)
-                else:
-                    self._set_app_progress_local_fraction(app_id, 0.90)
+                self._set_app_progress_local_fraction(
+                    app_id, 0.98 if w.get("progress_flatpak_step_seen") else 0.90)
             return
 
-        stage_progress = [
-            ("dependencies resolved", 0.20),
-            ("downloading packages", 0.45),
-            ("running transaction", 0.70),
-            ("installing", 0.75),
-            ("removing", 0.75),
-            ("complete!", 0.98),
-            ("done.", 0.98),
-        ]
-        for marker, frac in stage_progress:
+        for marker, frac in [
+            ("dependencies resolved", 0.20), ("downloading packages", 0.45),
+            ("running transaction",   0.70), ("installing",           0.75),
+            ("removing",              0.75), ("complete!",            0.98),
+            ("done.",                 0.98),
+        ]:
             if marker in lower:
                 self._set_app_progress_local_fraction(app_id, frac)
                 break
 
-    # ---------------- Log helpers ----------------
-    def set_log(self, text):
-        self.textbuf.set_text(text)
+    def _finish_app_action(self, app_id):
+        self._set_app_progress_fraction(app_id, 1.0)
+        self.set_app_busy(app_id, False)
+        self.refresh_app_state(app_id)
+        self._refresh_app_icon(app_id)
 
-    def append_log(self, text):
-        end = self.textbuf.get_end_iter()
-        self.textbuf.insert(end, text)
-        mark = self.textbuf.create_mark(None, self.textbuf.get_end_iter(), True)
-        self.textview.scroll_mark_onscreen(mark)
+    def _refresh_app_icon(self, app_id):
+        w = self.app_widgets.get(app_id)
+        if not w:
+            return
+        app = w["app"]
+        if app.get("type") != "flatpak":
+            return
+        _ICON_CACHE.pop(app_id, None)
+        pm = self._find_app_pixmap(app, size=36)
+        lbl = w.get("icon_lbl")
+        if lbl is None:
+            return
+        if pm and not pm.isNull():
+            lbl.setText("")
+            lbl.setPixmap(pm)
+            lbl.setStyleSheet("background: transparent;")
 
-    # ---------------- State refresh ----------------
+    def _stop_all_busy(self):
+        for app_id in list(self.app_widgets.keys()):
+            if self.app_widgets[app_id].get("busy"):
+                self.set_app_busy(app_id, False)
+                self.refresh_app_state(app_id)
+
+    # -------------------------------------------------------------------------
+    # State refresh
+    # -------------------------------------------------------------------------
     def refresh_all_states(self):
         self.refresh_repo_state()
         self.refresh_app_versions()
         for app in APPS:
             self.refresh_app_state(app["id"])
+        self._apply_filters()
 
-    # ---------------- Version catalogs (unprivileged) ----------------
-    def refresh_app_versions(self):
-        for app in APPS:
-            if app["id"] in VERSION_SELECTABLE_APPS:
-                self._refresh_single_app_versions(app)
-
-    def _refresh_single_app_versions(self, app):
-        app_id = app["id"]
+    def refresh_app_state(self, app_id):
         w = self.app_widgets.get(app_id)
         if not w:
             return
+        app = w["app"]
 
-        combo = w.get("version_combo")
-        if combo is None:
+        el_versions = app.get("el")
+        if el_versions and _EL_VERSION is not None and _EL_VERSION not in el_versions:
+            return  # incompatible — keep the state set at row-build time
+
+        if app["type"] == "resolve":
+            installed = self._resolve_installed()
+            self._set_status_badge(w["status"], "Installed" if installed else "Guided install",
+                                   "installed" if installed else "available")
+            w["install"].setEnabled(not installed)
+            w["remove"].setEnabled(installed)
             return
 
-        combo.remove_all()
-        combo.append_text("Loading versions…")
-        combo.set_active(0)
-        combo.set_sensitive(False)
+        if app["type"] == "3dcoat":
+            installed = self._3dcoat_installed()
+            self._set_status_badge(w["status"], "Installed" if installed else "Guided install",
+                                   "installed" if installed else "available")
+            w["install"].setEnabled(not installed)
+            w["remove"].setEnabled(installed)
+            return
+
+        if app["type"] == "dnf":
+            installed = subprocess.run(
+                ["rpm", "-q", app["pkg"]],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            ).returncode == 0
+
+        elif app["type"] == "flatpak":
+            if not shutil.which("flatpak"):
+                self._set_status_badge(w["status"], "Flatpak N/A", "warning")
+                w["install"].setEnabled(True)
+                w["remove"].setEnabled(False)
+                return
+            scope = self._flatpak_install_scope(app["appid"])
+            installed = scope is not None
+        else:
+            installed = False
+
+        if installed:
+            label = "Installed (user)" if app["type"] == "flatpak" and scope == "user" else "Installed"
+            self._set_status_badge(w["status"], label, "installed")
+            w["install"].setEnabled(False)
+            w["remove"].setEnabled(True)
+        else:
+            self._set_status_badge(w["status"], "Not installed", "missing")
+            w["install"].setEnabled(True)
+            w["remove"].setEnabled(False)
+
+    # -------------------------------------------------------------------------
+    # Repo state
+    # -------------------------------------------------------------------------
+    def refresh_repo_state(self):
+        for key in ("CRB", "EPEL", "RPMFUSION_FREE", "RPMFUSION_NONFREE", "NVIDIA"):
+            self._set_requirement_state(key, None)
+        self._set_selinux_requirement_state(None)
 
         def worker():
-            if app["type"] == "dnf":
-                options = self._fetch_dnf_versions(app["pkg"])
-            elif app["type"] == "flatpak":
-                options = self._fetch_flatpak_versions(app["appid"])
-            else:
-                options = []
-            GLib.idle_add(self._set_app_version_options, app_id, options)
+            repos   = self._dnf_enabled_repo_ids()
+            crb     = self._detect_crb(repos)
+            epel    = self._detect_epel(repos)
+            rfree   = self._detect_rpmfusion_free(repos)
+            rnonfree = self._detect_rpmfusion_nonfree(repos)
+            nvidia  = self._detect_nvidia_drivers()
+            mode    = self._selinux_getenforce()
+            self._signals.idle.emit(lambda: self._set_requirement_state("CRB", crb))
+            self._signals.idle.emit(lambda: self._set_requirement_state("EPEL", epel))
+            self._signals.idle.emit(lambda: self._set_requirement_state("RPMFUSION_FREE", rfree))
+            self._signals.idle.emit(lambda: self._set_requirement_state("RPMFUSION_NONFREE", rnonfree))
+            self._signals.idle.emit(lambda: self._set_requirement_state("NVIDIA", nvidia))
+            self._signals.idle.emit(lambda: self._set_selinux_requirement_state(mode))
+            self._signals.log.emit("✅ Requirements refreshed\n")
 
         threading.Thread(target=worker, daemon=True).start()
 
-    def _fetch_dnf_versions(self, pkg):
-        options = [{"label": "Latest available", "mode": "latest"}]
-        try:
-            proc = subprocess.run(
-                ["dnf", "-q", "--showduplicates", "list", pkg],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
-                text=True,
-                check=False,
-            )
-            seen = set()
-            for line in proc.stdout.splitlines():
-                stripped = line.strip()
-                if not stripped:
-                    continue
-                parts = stripped.split()
-                if len(parts) < 2:
-                    continue
-                name_arch = parts[0]
-                version = parts[1]
-                if not name_arch.startswith(pkg + "."):
-                    continue
-                if version in seen:
-                    continue
-                seen.add(version)
-                options.append(
-                    {
-                        "label": version,
-                        "mode": "specific",
-                        "install_arg": "{}-{}".format(pkg, version),
-                    }
+    def show_enabled_repos_debug(self):
+        def worker():
+            try:
+                proc = subprocess.run(
+                    ["dnf", "repolist", "--enabled"],
+                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, check=False,
                 )
-        except Exception:
-            pass
-        return options
+                self._signals.log.emit("\n$ dnf repolist --enabled\n" + proc.stdout + "\n")
+            except Exception as e:
+                self._signals.log.emit("❌ ERROR: {}\n".format(e))
+        threading.Thread(target=worker, daemon=True).start()
 
-    def _fetch_flatpak_versions(self, appid):
-        stable_version = None
-        branch_options = []
-        if not shutil.which("flatpak"):
-            return [{"label": "Latest stable", "branch": "stable"}]
-
-        try:
-            proc = subprocess.run(
-                [
-                    "flatpak",
-                    "remote-ls",
-                    "--all",
-                    "--app",
-                    "--columns=application,branch,version",
-                    "flathub",
-                ],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
-                text=True,
-                check=False,
-            )
-            seen = set()
-            for line in proc.stdout.splitlines():
-                stripped = line.strip()
-                if not stripped:
-                    continue
-                parts = stripped.split(None, 2)
-                if len(parts) < 2:
-                    continue
-                app_col = parts[0]
-                branch = parts[1]
-                version = parts[2].strip() if len(parts) > 2 else ""
-                if app_col != appid or branch in seen:
-                    continue
-                seen.add(branch)
-                if branch == "stable":
-                    stable_version = version or stable_version
-                    continue
-                if version:
-                    label = "{} ({})".format(version, branch)
-                else:
-                    label = branch
-                branch_options.append({"label": label, "branch": branch})
-        except Exception:
-            pass
-
-        if stable_version:
-            options = [{"label": "Latest stable ({})".format(stable_version), "branch": "stable"}]
-        else:
-            options = [{"label": "Latest stable", "branch": "stable"}]
-
-        # Group as: latest stable, then older version numbers (no noisy duplicate commit labels)
-        seen_versions = {stable_version} if stable_version else set()
-        for entry in self._fetch_flatpak_commit_history(appid, "stable"):
-            version = entry.get("version")
-            if not version or version in seen_versions:
-                continue
-            seen_versions.add(version)
-            options.append(
-                {
-                    "label": version,
-                    "branch": entry.get("branch", "stable"),
-                    "commit": entry.get("commit"),
-                }
-            )
-
-        options.extend(branch_options)
-        return options
-
-    def _fetch_flatpak_commit_history(self, appid, branch, limit=8):
-        entries = []
-        try:
-            proc = subprocess.run(
-                ["flatpak", "remote-info", "--log", "flathub", "{}//{}".format(appid, branch)],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
-                text=True,
-                check=False,
-            )
-            current_commit = None
-            current_subject = ""
-
-            for line in proc.stdout.splitlines():
-                stripped = line.strip()
-                if stripped.startswith("Commit:"):
-                    current_commit = stripped.split(":", 1)[1].strip()
-                    current_subject = ""
-                elif stripped.startswith("Subject:") and current_commit:
-                    current_subject = stripped.split(":", 1)[1].strip()
-                    version = self._extract_version_from_text(current_subject)
-                    entries.append(
-                        {
-                            "branch": branch,
-                            "commit": current_commit,
-                            "version": version,
-                        }
-                    )
-                    current_commit = None
-
-            # Deduplicate while preserving order and cap list length
-            unique = []
-            seen = set()
-            for e in entries:
-                key = (e.get("branch"), e.get("commit"))
-                if key in seen:
-                    continue
-                seen.add(key)
-                unique.append(e)
-                if len(unique) >= limit:
-                    break
-            return unique
-        except Exception:
-            return []
-
-    def _extract_version_from_text(self, text):
-        if not text:
-            return None
-        # Capture version-like tokens such as 5.2.4 or 26.2.0.3
-        matches = re.findall(r"\b\d+(?:\.\d+){1,4}\b", text)
-        return matches[-1] if matches else None
-
-    def _set_app_version_options(self, app_id, options):
-        w = self.app_widgets.get(app_id)
-        if not w:
-            return
-
-        combo = w.get("version_combo")
-        if combo is None:
-            return
-
-        w["version_options"] = options[:]
-
-        combo.remove_all()
-        for option in options:
-            combo.append_text(option.get("label", "unknown"))
-        combo.set_active(0)
-        combo.set_sensitive(True)
-
-    def _get_selected_version_option(self, app_id):
-        w = self.app_widgets.get(app_id)
-        if not w:
-            return None
-        combo = w.get("version_combo")
-        options = w.get("version_options", [])
-        if combo is None or not options:
-            return None
-        idx = combo.get_active()
-        if idx < 0 or idx >= len(options):
-            return options[0]
-        return options[idx]
-
-    # ---------------- Repo probing (UNPRIVILEGED) ----------------
     def _dnf_enabled_repo_ids(self):
-        """
-        Returns a set of enabled repo IDs by parsing:
-          dnf -q repolist --enabled
-        No root needed.
-        """
         try:
             proc = subprocess.run(
                 ["dnf", "-q", "repolist", "--enabled"],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
-                text=True,
-                check=False,
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, check=False,
             )
-            out = proc.stdout.splitlines()
+            repos = set()
+            for ln in proc.stdout.splitlines():
+                ln = ln.strip()
+                low = ln.lower()
+                if not ln or low.startswith("repo id") or low.startswith("repolist:"):
+                    continue
+                parts = ln.split()
+                if parts:
+                    repos.add(parts[0].strip())
+            return repos
         except Exception:
             return set()
 
-        repos = set()
-        for ln in out:
-            ln = ln.strip()
-            if not ln:
-                continue
-            low = ln.lower()
-            if low.startswith("repo id") or low.startswith("repolist:"):
-                continue
-            # First column is repo id
-            parts = ln.split()
-            if parts:
-                repos.add(parts[0].strip())
-        return repos
-
     def _detect_crb(self, repos):
-        # AlmaLinux 9/10: crb; older naming: powertools
-        for r in repos:
-            if r == "crb" or r.startswith("crb"):
-                return True
-        for r in repos:
-            if r == "powertools" or r.startswith("powertools"):
-                return True
-        return False
+        return any(r in ("crb", "powertools") or r.startswith(("crb", "powertools"))
+                   for r in repos)
 
     def _detect_epel(self, repos):
-        for r in repos:
-            if r == "epel" or r.startswith("epel"):
-                return True
-        return False
+        return any(r == "epel" or r.startswith("epel") for r in repos)
 
     def _detect_rpmfusion_free(self, repos):
         return any(r.startswith("rpmfusion-free") for r in repos)
@@ -1634,240 +1494,234 @@ class AlmaCreativeInstaller(Gtk.Window):
     def _detect_nvidia_drivers(self):
         return subprocess.run(
             ["rpm", "-q", "nvidia-driver"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         ).returncode == 0
 
-    def _set_req_icon(self, image, state):
-        ctx = image.get_style_context()
-        for cls in ("req-icon-ok", "req-icon-warn", "req-icon-error", "req-icon-info"):
-            ctx.remove_class(cls)
-        _icons = {
-            "ok":       ("object-select-symbolic",      "req-icon-ok"),
-            "warn":     ("dialog-warning-symbolic",     "req-icon-warn"),
-            "error":    ("dialog-error-symbolic",       "req-icon-error"),
-            "info":     ("dialog-information-symbolic", "req-icon-info"),
-            "checking": ("content-loading-symbolic",    None),
-        }
-        icon_name, css_class = _icons.get(state, ("content-loading-symbolic", None))
-        if not Gtk.IconTheme.get_default().has_icon(icon_name):
-            icon_name = "emblem-synchronizing-symbolic"
-        image.set_from_icon_name(icon_name, Gtk.IconSize.INVALID)
-        image.set_pixel_size(18)
-        if css_class:
-            ctx.add_class(css_class)
-
-    def _set_requirement_state(self, key, state):
-        w = self.repo_widgets.get(key)
-        if not w:
-            return
-        if state is None:
-            self._set_req_icon(w["icon"], "checking")
-            w["status"].set_text("Checking…")
-            w["button"].set_sensitive(False)
-        elif state is True:
-            self._set_req_icon(w["icon"], "ok")
-            w["status"].set_text(w.get("status_enabled", "Enabled"))
-            w["button"].set_sensitive(False)
-        else:
-            self._set_req_icon(w["icon"], "error")
-            w["status"].set_text(w.get("status_disabled", "Not enabled"))
-            w["button"].set_sensitive(True)
-
-    def refresh_repo_state(self):
-        self._set_requirement_state("CRB", None)
-        self._set_requirement_state("EPEL", None)
-        self._set_requirement_state("RPMFUSION_FREE", None)
-        self._set_requirement_state("RPMFUSION_NONFREE", None)
-        self._set_requirement_state("NVIDIA", None)
-        self._set_selinux_requirement_state(None)
-
-        def worker():
-            repos = self._dnf_enabled_repo_ids()
-            crb = self._detect_crb(repos)
-            epel = self._detect_epel(repos)
-            rpmfusion_free = self._detect_rpmfusion_free(repos)
-            rpmfusion_nonfree = self._detect_rpmfusion_nonfree(repos)
-            nvidia = self._detect_nvidia_drivers()
-            selinux_mode = self._selinux_getenforce()
-
-            GLib.idle_add(self._set_requirement_state, "CRB", crb)
-            GLib.idle_add(self._set_requirement_state, "EPEL", epel)
-            GLib.idle_add(self._set_requirement_state, "RPMFUSION_FREE", rpmfusion_free)
-            GLib.idle_add(self._set_requirement_state, "RPMFUSION_NONFREE", rpmfusion_nonfree)
-            GLib.idle_add(self._set_requirement_state, "NVIDIA", nvidia)
-            GLib.idle_add(self._set_selinux_requirement_state, selinux_mode)
-            GLib.idle_add(self.append_log, "✅ Requirements refreshed\n")
-
-        threading.Thread(target=worker, daemon=True).start()
-
-    def show_enabled_repos_debug(self):
-        def worker():
-            try:
-                proc = subprocess.run(
-                    ["dnf", "repolist", "--enabled"],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                    text=True,
-                    check=False,
-                )
-                GLib.idle_add(self.append_log, "\n$ dnf repolist --enabled\n")
-                GLib.idle_add(self.append_log, proc.stdout + "\n")
-            except Exception as e:
-                GLib.idle_add(self.append_log, "❌ ERROR: {}\n".format(e))
-
-        threading.Thread(target=worker, daemon=True).start()
-
-    # ---------------- App status (no pkexec) ----------------
-    def _flatpak_install_scope(self, appid):
-        if not shutil.which("flatpak"):
-            return None
-        if subprocess.run(
-            ["flatpak", "info", "--system", appid],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
-        ).returncode == 0:
-            return "system"
-        if subprocess.run(
-            ["flatpak", "info", "--user", appid],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
-        ).returncode == 0:
-            return "user"
-        return None
-
-    def _prompt_flatpak_scope(self, app_name):
-        user_scope_available = self._flatpak_user_scope_available()
-
-        dialog = Gtk.MessageDialog(
-            parent=self,
-            flags=0,
-            message_type=Gtk.MessageType.QUESTION,
-            buttons=Gtk.ButtonsType.NONE,
-            text="Install {} via Flatpak".format(app_name),
-        )
-        dialog.format_secondary_text(
-            "Choose where to install this Flatpak app.\n\n"
-            "System-wide installs are available to all users.\n"
-            "User installs apply only to your account."
-        )
-        user_btn = dialog.add_button("User only", 1)
-        dialog.add_button("System-wide", 2)
-        dialog.add_button("Cancel", 0)
-        dialog.set_default_response(2)
-
-        if not user_scope_available:
-            user_btn.set_sensitive(False)
-            dialog.format_secondary_text(
-                "Choose where to install this Flatpak app.\n\n"
-                "System-wide installs are available to all users.\n"
-                "User installs apply only to your account.\n\n"
-                "User-only mode is unavailable because a user Flatpak installation "
-                "was not detected."
+    def _selinux_getenforce(self):
+        try:
+            proc = subprocess.run(
+                ["getenforce"],
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, check=False,
             )
+            out = proc.stdout.strip().lower()
+            if out:
+                return out
+        except Exception:
+            pass
+        return "unknown"
 
-        response = dialog.run()
-        dialog.destroy()
+    # -------------------------------------------------------------------------
+    # Version catalogs
+    # -------------------------------------------------------------------------
+    def refresh_app_versions(self):
+        for app in APPS:
+            if app["id"] in VERSION_SELECTABLE_APPS:
+                self._refresh_single_app_versions(app)
 
-        if response == 1:
-            return "user"
-        if response == 2:
-            return "system"
-        return None
-
-    def _flatpak_user_scope_available(self):
-        if not shutil.which("flatpak"):
-            return False
-        # Consider user-scope available only when the per-user repo is initialized.
-        # This keeps "User only" greyed out unless user flatpak mode is already set up.
-        user_repo_dir = Path.home() / ".local/share/flatpak/repo"
-        return user_repo_dir.is_dir()
-
-    def _set_status_badge(self, label, text, state):
-        ctx = label.get_style_context()
-        for cls in ("badge-installed", "badge-available", "badge-busy"):
-            ctx.remove_class(cls)
-        if state == "installed":
-            ctx.add_class("badge-installed")
-        elif state == "available":
-            ctx.add_class("badge-available")
-        elif state == "busy":
-            ctx.add_class("badge-busy")
-        label.set_text(text)
-
-    def refresh_app_state(self, app_id):
+    def _refresh_single_app_versions(self, app):
+        app_id = app["id"]
         w = self.app_widgets.get(app_id)
         if not w:
             return
-        app = w["app"]
-
-        if app["type"] == "resolve":
-            installed = self._resolve_installed()
-            if installed:
-                self._set_status_badge(w["status"], "Installed", "installed")
-                w["install"].set_sensitive(False)
-                w["remove"].set_sensitive(True)
-            else:
-                self._set_status_badge(w["status"], "Guided install", "available")
-                w["install"].set_sensitive(True)
-                w["remove"].set_sensitive(False)
+        combo = w.get("version_combo")
+        if combo is None:
             return
+        combo.clear()
+        combo.addItem("Loading versions…")
+        combo.setEnabled(False)
 
-        if app["type"] == "3dcoat":
-            installed = self._3dcoat_installed()
-            if installed:
-                self._set_status_badge(w["status"], "Installed", "installed")
-                w["install"].set_sensitive(False)
-                w["remove"].set_sensitive(True)
+        def worker():
+            if app["type"] == "dnf":
+                options = self._fetch_dnf_versions(app["pkg"])
+            elif app["type"] == "flatpak":
+                options = self._fetch_flatpak_versions(app["appid"])
             else:
-                self._set_status_badge(w["status"], "Guided install", "available")
-                w["install"].set_sensitive(True)
-                w["remove"].set_sensitive(False)
+                options = []
+            self._signals.idle.emit(lambda: self._set_app_version_options(app_id, options))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _fetch_dnf_versions(self, pkg):
+        options = [{"label": "Latest available", "mode": "latest"}]
+        try:
+            proc = subprocess.run(
+                ["dnf", "-q", "--showduplicates", "list", pkg],
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, check=False,
+            )
+            seen = set()
+            for line in proc.stdout.splitlines():
+                parts = line.strip().split()
+                if len(parts) < 2 or not parts[0].startswith(pkg + "."):
+                    continue
+                version = parts[1]
+                if version not in seen:
+                    seen.add(version)
+                    options.append({"label": version, "mode": "specific",
+                                    "install_arg": "{}-{}".format(pkg, version)})
+        except Exception:
+            pass
+        return options
+
+    def _fetch_flatpak_versions(self, appid):
+        stable_version = None
+        branch_options = []
+        if not shutil.which("flatpak"):
+            return [{"label": "Latest stable", "branch": "stable"}]
+        try:
+            proc = subprocess.run(
+                ["flatpak", "remote-ls", "--all", "--app",
+                 "--columns=application,branch,version", "flathub"],
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, check=False,
+            )
+            seen = set()
+            for line in proc.stdout.splitlines():
+                parts = line.strip().split(None, 2)
+                if len(parts) < 2 or parts[0] != appid or parts[1] in seen:
+                    continue
+                branch = parts[1]
+                version = parts[2].strip() if len(parts) > 2 else ""
+                seen.add(branch)
+                if branch == "stable":
+                    stable_version = version or stable_version
+                    continue
+                label = "{} ({})".format(version, branch) if version else branch
+                branch_options.append({"label": label, "branch": branch})
+        except Exception:
+            pass
+
+        options = ([{"label": "Latest stable ({})".format(stable_version), "branch": "stable"}]
+                   if stable_version else
+                   [{"label": "Latest stable", "branch": "stable"}])
+
+        seen_versions = {stable_version} if stable_version else set()
+        for entry in self._fetch_flatpak_commit_history(appid, "stable"):
+            v = entry.get("version")
+            if v and v not in seen_versions:
+                seen_versions.add(v)
+                options.append({"label": v, "branch": entry.get("branch", "stable"),
+                                "commit": entry.get("commit")})
+        options.extend(branch_options)
+        return options
+
+    def _fetch_flatpak_commit_history(self, appid, branch, limit=8):
+        entries = []
+        try:
+            proc = subprocess.run(
+                ["flatpak", "remote-info", "--log", "flathub",
+                 "{}//{}".format(appid, branch)],
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, check=False,
+            )
+            current_commit = None
+            for line in proc.stdout.splitlines():
+                s = line.strip()
+                if s.startswith("Commit:"):
+                    current_commit = s.split(":", 1)[1].strip()
+                elif s.startswith("Subject:") and current_commit:
+                    subject = s.split(":", 1)[1].strip()
+                    entries.append({"branch": branch, "commit": current_commit,
+                                    "version": self._extract_version_from_text(subject)})
+                    current_commit = None
+            unique, seen = [], set()
+            for e in entries:
+                key = (e.get("branch"), e.get("commit"))
+                if key not in seen:
+                    seen.add(key)
+                    unique.append(e)
+                if len(unique) >= limit:
+                    break
+            return unique
+        except Exception:
+            return []
+
+    def _extract_version_from_text(self, text):
+        if not text:
+            return None
+        matches = re.findall(r"\b\d+(?:\.\d+){1,4}\b", text)
+        return matches[-1] if matches else None
+
+    def _set_app_version_options(self, app_id, options):
+        w = self.app_widgets.get(app_id)
+        if not w:
             return
+        combo = w.get("version_combo")
+        if combo is None:
+            return
+        w["version_options"] = options[:]
+        combo.clear()
+        for option in options:
+            combo.addItem(option.get("label", "unknown"))
+        combo.setCurrentIndex(0)
+        combo.setEnabled(True)
 
-        if app["type"] == "dnf":
-            installed = subprocess.run(
-                ["rpm", "-q", app["pkg"]],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL
-            ).returncode == 0
+    def _get_selected_version_option(self, app_id):
+        w = self.app_widgets.get(app_id)
+        if not w:
+            return None
+        combo   = w.get("version_combo")
+        options = w.get("version_options", [])
+        if combo is None or not options:
+            return None
+        idx = combo.currentIndex()
+        return options[idx if 0 <= idx < len(options) else 0]
 
-        elif app["type"] == "flatpak":
-            if not shutil.which("flatpak"):
-                self._set_status_badge(w["status"], "Flatpak not installed", "available")
-                w["install"].set_sensitive(True)
-                w["remove"].set_sensitive(False)
-                return
-            scope = self._flatpak_install_scope(app["appid"])
-            installed = scope is not None
-        else:
-            installed = False
+    # -------------------------------------------------------------------------
+    # Flatpak helpers
+    # -------------------------------------------------------------------------
+    def _flatpak_install_scope(self, appid):
+        if not shutil.which("flatpak"):
+            return None
+        for scope, flag in (("system", "--system"), ("user", "--user")):
+            if subprocess.run(
+                ["flatpak", "info", flag, appid],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            ).returncode == 0:
+                return scope
+        return None
 
-        if installed:
-            if app["type"] == "flatpak" and scope == "user":
-                self._set_status_badge(w["status"], "Installed (user)", "installed")
-            else:
-                self._set_status_badge(w["status"], "Installed", "installed")
-            w["install"].set_sensitive(False)
-            w["remove"].set_sensitive(True)
-        else:
-            self._set_status_badge(w["status"], "Available", "available")
-            w["install"].set_sensitive(True)
-            w["remove"].set_sensitive(False)
+    def _flatpak_user_scope_available(self):
+        return shutil.which("flatpak") is not None and \
+               (Path.home() / ".local/share/flatpak/repo").is_dir()
 
-    # ---------------- Install/remove actions with spinner ----------------
+    def _prompt_flatpak_scope(self, app_name):
+        user_available = self._flatpak_user_scope_available()
+        msg = QMessageBox(self)
+        msg.setWindowTitle("Install {} via Flatpak".format(app_name))
+        msg.setText("Choose where to install this Flatpak app.")
+        msg.setInformativeText(
+            "System-wide installs are available to all users.\n"
+            "User installs apply only to your account."
+            + ("" if user_available else
+               "\n\nUser-only mode is unavailable: no user Flatpak installation detected.")
+        )
+        msg.setIcon(QMessageBox.Icon.Question)
+        btn_user   = msg.addButton("User only",   QMessageBox.ButtonRole.ActionRole)
+        btn_system = msg.addButton("System-wide", QMessageBox.ButtonRole.ActionRole)
+        msg.addButton(QMessageBox.StandardButton.Cancel)
+        btn_user.setEnabled(user_available)
+        msg.exec()
+        clicked = msg.clickedButton()
+        if clicked == btn_user:
+            return "user"
+        if clicked == btn_system:
+            return "system"
+        return None
+
+    # -------------------------------------------------------------------------
+    # Install / remove
+    # -------------------------------------------------------------------------
     def install_app(self, app_id):
         w = self.app_widgets.get(app_id)
         if not w or w.get("busy"):
             return
-
         app = w["app"]
+
         if app["type"] == "dnf":
             selected = self._get_selected_version_option(app_id)
             if selected and selected.get("mode") == "specific":
                 args = ["install_pkg_version", selected.get("install_arg", app["pkg"])]
             else:
                 args = ["install_pkg", app.get("install_target", app["pkg"])]
+
         elif app["type"] == "flatpak":
             scope = self._flatpak_install_scope(app["appid"])
             if scope is None:
@@ -1877,20 +1731,19 @@ class AlmaCreativeInstaller(Gtk.Window):
             selected = self._get_selected_version_option(app_id)
             branch = (selected or {}).get("branch", "stable")
             commit = (selected or {}).get("commit")
-
             if scope == "user":
-                if commit:
-                    args = ["install_flatpak_app_user_commit", app["appid"], branch, commit]
-                else:
-                    args = ["install_flatpak_app_user_branch", app["appid"], branch]
+                args = (["install_flatpak_app_user_commit", app["appid"], branch, commit]
+                        if commit else
+                        ["install_flatpak_app_user_branch", app["appid"], branch])
             else:
-                if commit:
-                    args = ["install_flatpak_app_commit", app["appid"], branch, commit]
-                else:
-                    args = ["install_flatpak_app_branch", app["appid"], branch]
+                args = (["install_flatpak_app_commit", app["appid"], branch, commit]
+                        if commit else
+                        ["install_flatpak_app_branch", app["appid"], branch])
         else:
             return
 
+        w["progress_is_flatpak"] = app["type"] == "flatpak"
+        w["progress_flatpak_step_seen"] = False
         self.set_app_busy(app_id, True, "Installing…")
         self.run_helper_with_callback(
             args,
@@ -1903,122 +1756,67 @@ class AlmaCreativeInstaller(Gtk.Window):
         w = self.app_widgets.get(app_id)
         if not w or w.get("busy"):
             return
-
         app = w["app"]
-        if app["type"] == "dnf":
-            args = ["remove_pkg", app["pkg"]]
-        else:
+        if app["type"] != "dnf":
             return
-
         self.set_app_busy(app_id, True, "Removing…")
         self.run_helper_with_callback(
-            args,
+            ["remove_pkg", app["pkg"]],
             on_success=lambda: self._finish_app_action(app_id),
             app_id=app_id,
             progress_segment=(0.0, 0.98),
         )
 
-    def _finish_app_action(self, app_id):
-        self._set_app_progress_fraction(app_id, 1.0)
-        self.set_app_busy(app_id, False)
-        self.refresh_app_state(app_id)
-
-    # ---------------- Flatpak removal prompt (with spinner) ----------------
     def confirm_remove_flatpak_app(self, app_id):
         w = self.app_widgets.get(app_id)
-        if w and w.get("busy"):
+        if not w or w.get("busy"):
             return
-        if not w:
-            return
-
-        app = w["app"]
-        appid = app.get("appid")
-        if not appid:
-            return
-
+        app      = w["app"]
+        appid    = app.get("appid")
         app_name = app.get("name", appid)
-        scope = self._flatpak_install_scope(appid)
-
-        if scope == "user":
-            dialog = Gtk.MessageDialog(
-                parent=self,
-                flags=0,
-                message_type=Gtk.MessageType.WARNING,
-                buttons=Gtk.ButtonsType.NONE,
-                text="Remove {} (user install)?".format(app_name),
-            )
-            dialog.format_secondary_text(
-                "This will remove the user-installed Flatpak app for your account."
-            )
-            dialog.add_button("Cancel", Gtk.ResponseType.CANCEL)
-            dialog.add_button("Remove {}".format(app_name), Gtk.ResponseType.OK)
-
-            resp = dialog.run()
-            dialog.destroy()
-
-            if resp == Gtk.ResponseType.OK:
-                self.set_app_busy(app_id, True, "Removing…")
-
-                def after_remove_user():
-                    self.set_app_busy(app_id, False)
-                    self.refresh_app_state(app_id)
-
-                self.run_helper_with_callback(
-                    ["remove_flatpak_app_user", appid],
-                    on_success=after_remove_user,
-                    app_id=app_id,
-                    progress_segment=(0.0, 0.98),
-                )
-            return
+        scope    = self._flatpak_install_scope(appid)
 
         if scope is None:
             self.append_log("ℹ️ {} is not installed.\n".format(app_name))
             self.refresh_app_state(app_id)
             return
 
-        dialog = Gtk.MessageDialog(
-            parent=self,
-            flags=0,
-            message_type=Gtk.MessageType.WARNING,
-            buttons=Gtk.ButtonsType.NONE,
-            text="Remove {}?".format(app_name),
+        scope_label = " (user install)" if scope == "user" else ""
+        reply = QMessageBox.question(
+            self,
+            "Remove {}?".format(app_name),
+            "This will remove {}{}.".format(app_name, scope_label),
+            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
         )
-        dialog.format_secondary_text("This will remove {}.".format(app_name))
-        dialog.add_button("Cancel", Gtk.ResponseType.CANCEL)
-        dialog.add_button("Remove {}".format(app_name), Gtk.ResponseType.OK)
+        if reply != QMessageBox.StandardButton.Ok:
+            return
 
-        resp = dialog.run()
-        dialog.destroy()
+        action = "remove_flatpak_app_user" if scope == "user" else "remove_flatpak_app"
+        self.set_app_busy(app_id, True, "Removing…")
+        self.run_helper_with_callback(
+            [action, appid],
+            on_success=lambda: self._finish_app_action(app_id),
+            app_id=app_id,
+            progress_segment=(0.0, 0.98),
+        )
 
-        if resp == Gtk.ResponseType.OK:
-            self.set_app_busy(app_id, True, "Removing…")
-
-            def after_remove():
-                self.set_app_busy(app_id, False)
-                self.refresh_app_state(app_id)
-
-            self.run_helper_with_callback(
-                ["remove_flatpak_app", appid],
-                on_success=after_remove,
-                app_id=app_id,
-                progress_segment=(0.0, 0.98),
-            )
-
-    # ---------------- Helper runner (PRIVILEGED) ----------------
+    # -------------------------------------------------------------------------
+    # Helper runner (privileged via pkexec)
+    # -------------------------------------------------------------------------
     def run_helper_with_callback(self, args, on_success=None, on_failure=None, app_id=None, progress_segment=None):
         if not Path(HELPER).exists():
-            self.append_log("❌ ERROR: Helper not found: " + HELPER + "\n")
+            self.append_log("❌ ERROR: Helper not found: {}\n".format(HELPER))
             return
 
         action = args[0] if args else ""
-        is_flatpak_action = action.startswith("install_flatpak_") or action.startswith("remove_flatpak_")
+        is_flatpak = action.startswith(("install_flatpak_", "remove_flatpak_"))
 
         if app_id and progress_segment is not None:
-            self._set_app_progress_segment(app_id, progress_segment[0], progress_segment[1])
+            self._set_app_progress_segment(app_id, *progress_segment)
         if app_id:
             w = self.app_widgets.get(app_id)
             if w:
-                w["progress_is_flatpak"] = is_flatpak_action
+                w["progress_is_flatpak"] = is_flatpak
                 w["progress_flatpak_step_seen"] = False
 
         cmd = ["pkexec", HELPER] + args
@@ -2026,80 +1824,41 @@ class AlmaCreativeInstaller(Gtk.Window):
 
         def worker():
             last_lines = deque(maxlen=40)
-
-            def summarize_failure(rc):
-                for line in reversed(last_lines):
-                    s = line.strip()
-                    if s:
-                        return s
-                return "Exit code {}".format(rc)
-
             try:
                 proc = subprocess.Popen(
                     cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                    text=True,
-                    bufsize=1,
+                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                    text=True, bufsize=1,
                 )
                 assert proc.stdout is not None
-
                 for line in proc.stdout:
                     last_lines.append(line)
-                    GLib.idle_add(self.append_log, line)
-                    GLib.idle_add(self._update_app_progress_from_output, app_id, line)
+                    self._signals.log.emit(line)
+                    self._signals.progress.emit(app_id or "", line)
 
                 rc = proc.wait()
-
                 if rc == 0:
-                    GLib.idle_add(self.append_log, "✅ Successful\n")
-                    GLib.idle_add(self.append_log, "[exit code: {}]\n".format(rc))
+                    self._signals.log.emit("✅ Successful\n[exit code: {}]\n".format(rc))
                     if on_success:
-                        GLib.idle_add(on_success)
+                        self._signals.idle.emit(on_success)
                 else:
-                    reason = summarize_failure(rc)
-                    GLib.idle_add(self.append_log, "❌ Failed: {}\n".format(reason))
-                    GLib.idle_add(self.append_log, "[exit code: {}]\n".format(rc))
-                    GLib.idle_add(self._stop_all_busy)
-                    if on_failure:
-                        GLib.idle_add(on_failure)
-
+                    reason = next((line.strip() for line in reversed(last_lines) if line.strip()),
+                                  "Exit code {}".format(rc))
+                    self._signals.log.emit("❌ Failed: {}\n[exit code: {}]\n".format(reason, rc))
+                    self._signals.idle.emit(on_failure if on_failure else self._stop_all_busy)
             except Exception as e:
-                GLib.idle_add(self.append_log, "❌ ERROR: {}\n".format(e))
-                GLib.idle_add(self._stop_all_busy)
-                if on_failure:
-                    GLib.idle_add(on_failure)
+                self._signals.log.emit("❌ ERROR: {}\n".format(e))
+                self._signals.idle.emit(self._stop_all_busy)
 
         threading.Thread(target=worker, daemon=True).start()
 
-    def _stop_all_busy(self):
-        for app_id in list(self.app_widgets.keys()):
-            w = self.app_widgets[app_id]
-            if w.get("busy"):
-                self.set_app_busy(app_id, False)
-                self.refresh_app_state(app_id)
-
-    # ---------------- DaVinci Resolve flow ----------------
+    # -------------------------------------------------------------------------
+    # DaVinci Resolve flow
+    # -------------------------------------------------------------------------
     def install_resolve_flow(self):
         self.set_app_busy("resolve", True, "Preparing install…")
         self._set_app_progress_fraction("resolve", 0.02)
         self._ensure_selinux_for_resolve()
-
-    def _selinux_getenforce(self):
-        try:
-            proc = subprocess.run(
-                ["getenforce"],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
-                text=True,
-                check=False,
-            )
-            out = proc.stdout.strip().lower()
-            if out:
-                return out
-        except Exception:
-            pass
-        return "unknown"
 
     def _ensure_selinux_for_resolve(self):
         mode = self._selinux_getenforce()
@@ -2113,35 +1872,25 @@ class AlmaCreativeInstaller(Gtk.Window):
             )
             return
 
-        dialog = Gtk.MessageDialog(
-            parent=self,
-            flags=0,
-            message_type=Gtk.MessageType.WARNING,
-            buttons=Gtk.ButtonsType.NONE,
-            text="DaVinci Resolve requires SELinux permissive or disabled.",
-        )
-        dialog.format_secondary_text(
-            "Choose how you want to proceed before installing Resolve.\n\n"
+        msg = QMessageBox(self)
+        msg.setWindowTitle("SELinux required change")
+        msg.setText("DaVinci Resolve requires SELinux permissive or disabled.")
+        msg.setInformativeText(
             "Permissive (temporary) applies now and avoids reboot.\n"
             "Permanent mode changes may require reboot to fully apply."
         )
-        dialog.add_button("Cancel", Gtk.ResponseType.CANCEL)
-        dialog.add_button("Permissive (temporary)", Gtk.ResponseType.ACCEPT)
-        dialog.add_button("Permissive (permanent)", Gtk.ResponseType.APPLY)
-        dialog.add_button("Disable SELinux (permanent)", Gtk.ResponseType.YES)
+        msg.setIcon(QMessageBox.Icon.Warning)
+        btn_temp    = msg.addButton("Permissive (temporary)",      QMessageBox.ButtonRole.ActionRole)
+        btn_perm    = msg.addButton("Permissive (permanent)",      QMessageBox.ButtonRole.ActionRole)
+        btn_disable = msg.addButton("Disable SELinux (permanent)", QMessageBox.ButtonRole.ActionRole)
+        msg.addButton(QMessageBox.StandardButton.Cancel)
+        msg.exec()
 
-        resp = dialog.run()
-        dialog.destroy()
-
-        if resp == Gtk.ResponseType.CANCEL:
+        mode_map = {btn_temp: "permissive-temp", btn_perm: "permissive", btn_disable: "disabled"}
+        mode_arg = mode_map.get(msg.clickedButton())
+        if not mode_arg:
             self.set_app_busy("resolve", False)
             return
-        if resp == Gtk.ResponseType.ACCEPT:
-            mode_arg = "permissive-temp"
-        elif resp == Gtk.ResponseType.APPLY:
-            mode_arg = "permissive"
-        else:
-            mode_arg = "disabled"
 
         self.run_helper_with_callback(
             ["set_selinux_mode", mode_arg],
@@ -2161,18 +1910,36 @@ class AlmaCreativeInstaller(Gtk.Window):
             subprocess.Popen(["xdg-open", RESOLVE_URL])
             self.append_log("Opened download page: {}\n".format(RESOLVE_URL))
         else:
-            self.append_log("Please open this URL manually: {}\n".format(RESOLVE_URL))
-
+            self.append_log("Please open manually: {}\n".format(RESOLVE_URL))
         self.pick_resolve_installer()
+
+    def pick_resolve_installer(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select DaVinci Resolve installer (.run preferred)",
+            "",
+            "Installers (*.run *.rpm);;All files (*)",
+        )
+        if not path:
+            self.set_app_busy("resolve", False)
+            return
+        if path.endswith(".run"):
+            self.run_local_run_installer(path)
+        else:
+            self._set_app_progress_fraction("resolve", 0.65)
+            self.run_helper_with_callback(
+                ["install_local_file", path],
+                on_success=self._resolve_finalize_install,
+                app_id="resolve",
+                progress_segment=(0.65, 0.98),
+            )
 
     def _resolve_finalize_install(self):
         self.append_log("Applying post-install DaVinci Resolve fixes...\n")
-
         if not Path(HELPER).exists():
             self.append_log("⚠️ Helper not found, skipping post-install fixes.\n")
             self._finish_app_action("resolve")
             return
-
         self.run_helper_with_callback(
             ["resolve_post_install_fixes"],
             on_success=lambda: self._finish_app_action("resolve"),
@@ -2180,91 +1947,34 @@ class AlmaCreativeInstaller(Gtk.Window):
             progress_segment=(0.98, 1.0),
         )
 
-    def pick_resolve_installer(self):
-        dialog = Gtk.FileChooserDialog(
-            title="Select DaVinci Resolve installer (.run preferred)",
-            parent=self,
-            action=Gtk.FileChooserAction.OPEN,
-        )
-        dialog.add_buttons(
-            Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
-            Gtk.STOCK_OPEN, Gtk.ResponseType.OK,
-        )
-
-        f = Gtk.FileFilter()
-        f.set_name("Installers (*.run, *.rpm)")
-        f.add_pattern("DaVinci_Resolve*.run")
-        f.add_pattern("DaVinci_Resolve*.rpm")
-        f.add_pattern("*.run")
-        f.add_pattern("*.rpm")
-        dialog.add_filter(f)
-
-        resp = dialog.run()
-        if resp == Gtk.ResponseType.OK:
-            path = dialog.get_filename()
-            if path:
-                if path.endswith(".run"):
-                    self.run_local_run_installer(path)
-                else:
-                    self._set_app_progress_fraction("resolve", 0.65)
-                    self.run_helper_with_callback(["install_local_file", path],
-                                                  on_success=self._resolve_finalize_install,
-                                                  app_id="resolve",
-                                                  progress_segment=(0.65, 0.98))
-            else:
-                self.set_app_busy("resolve", False)
-        else:
-            self.set_app_busy("resolve", False)
-        dialog.destroy()
-
     def _resolve_installed(self):
-        candidates = [
-            "/opt/resolve/bin/resolve",
-            "/opt/resolve/bin/resolve.sh",
-            "/opt/resolve/installer",
-            "/usr/bin/resolve",
-            "/usr/local/bin/resolve",
-        ]
-        for c in candidates:
-            if Path(c).exists():
-                return True
-        return shutil.which("resolve") is not None
+        candidates = ["/opt/resolve/bin/resolve", "/opt/resolve/bin/resolve.sh",
+                      "/opt/resolve/installer", "/usr/bin/resolve", "/usr/local/bin/resolve"]
+        return any(Path(c).exists() for c in candidates) or shutil.which("resolve") is not None
 
     def remove_resolve_flow(self):
         if not self._resolve_installed():
             self.append_log("ℹ️ DaVinci Resolve does not appear to be installed.\n")
             self.refresh_app_state("resolve")
             return
-
-        dialog = Gtk.MessageDialog(
-            parent=self,
-            flags=0,
-            message_type=Gtk.MessageType.WARNING,
-            buttons=Gtk.ButtonsType.NONE,
-            text="Uninstall DaVinci Resolve?",
+        reply = QMessageBox.question(
+            self, "Uninstall DaVinci Resolve?",
+            "This will run the vendor uninstaller.\n\nNote: The uninstaller must run as a normal user (not root).",
+            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
         )
-        dialog.format_secondary_text(
-            "This will run the vendor uninstaller.\n\n"
-            "Note: The uninstaller must run as a normal user (not root)."
-        )
-        dialog.add_button("Cancel", Gtk.ResponseType.CANCEL)
-        dialog.add_button("Uninstall", Gtk.ResponseType.OK)
+        if reply != QMessageBox.StandardButton.Ok:
+            return
+        self.set_app_busy("resolve", True, "Running uninstaller…")
+        self._set_app_progress_fraction("resolve", 0.02)
+        self._run_resolve_uninstaller()
 
-        resp = dialog.run()
-        dialog.destroy()
-
-        if resp == Gtk.ResponseType.OK:
-            self.set_app_busy("resolve", True, "Running uninstaller…")
-            self._set_app_progress_fraction("resolve", 0.02)
-            self.run_resolve_uninstaller()
-
-    def run_resolve_uninstaller(self):
+    def _run_resolve_uninstaller(self):
+        import stat
         path = "/opt/resolve/installer"
         if not Path(path).exists():
             self.append_log("❌ ERROR: Resolve uninstaller not found at {}\n".format(path))
             self.set_app_busy("resolve", False)
             return
-
         try:
             st = os.stat(path)
             if not (st.st_mode & stat.S_IXUSR):
@@ -2274,83 +1984,54 @@ class AlmaCreativeInstaller(Gtk.Window):
             self.set_app_busy("resolve", False)
             return
 
-        cmd = [path]
-        self.append_log("\n$ " + " ".join(cmd) + "\n")
+        self.append_log("\n$ {}\n".format(path))
 
         def worker():
             last_lines = deque(maxlen=40)
-
-            def summarize_failure(rc):
-                for line in reversed(last_lines):
-                    s = line.strip()
-                    if s:
-                        return s
-                return "Exit code {}".format(rc)
-
             try:
                 proc = subprocess.Popen(
-                    cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                    text=True,
-                    bufsize=1,
+                    [path], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                    text=True, bufsize=1,
                 )
                 assert proc.stdout is not None
-
                 for line in proc.stdout:
                     last_lines.append(line)
-                    GLib.idle_add(self.append_log, line)
-                    GLib.idle_add(self._update_app_progress_from_output, "resolve", line)
-
+                    self._signals.log.emit(line)
+                    self._signals.progress.emit("resolve", line)
                 rc = proc.wait()
-
                 if rc == 0:
-                    GLib.idle_add(self.append_log, "✅ Successful\n")
-                    GLib.idle_add(self.append_log, "[exit code: {}]\n".format(rc))
-                    GLib.idle_add(self._finish_app_action, "resolve")
-                    GLib.idle_add(self._prompt_reenable_selinux)
+                    self._signals.log.emit("✅ Successful\n[exit code: {}]\n".format(rc))
+                    self._signals.idle.emit(lambda: self._finish_app_action("resolve"))
+                    self._signals.idle.emit(self._prompt_reenable_selinux)
                 else:
-                    reason = summarize_failure(rc)
-                    GLib.idle_add(self.append_log, "❌ Failed: {}\n".format(reason))
-                    GLib.idle_add(self.append_log, "[exit code: {}]\n".format(rc))
-                    GLib.idle_add(self.set_app_busy, "resolve", False)
+                    reason = next((line.strip() for line in reversed(last_lines) if line.strip()),
+                                  "Exit code {}".format(rc))
+                    self._signals.log.emit("❌ Failed: {}\n[exit code: {}]\n".format(reason, rc))
+                    self._signals.idle.emit(lambda: self.set_app_busy("resolve", False))
             except Exception as e:
-                GLib.idle_add(self.append_log, "❌ ERROR: {}\n".format(e))
-                GLib.idle_add(self.set_app_busy, "resolve", False)
+                self._signals.log.emit("❌ ERROR: {}\n".format(e))
+                self._signals.idle.emit(lambda: self.set_app_busy("resolve", False))
 
         threading.Thread(target=worker, daemon=True).start()
 
     def _prompt_reenable_selinux(self):
-        mode = self._selinux_getenforce()
-        if mode == "enforcing":
+        if self._selinux_getenforce() == "enforcing":
             return
-
-        dialog = Gtk.MessageDialog(
-            parent=self,
-            flags=0,
-            message_type=Gtk.MessageType.WARNING,
-            buttons=Gtk.ButtonsType.NONE,
-            text="Re-enable SELinux enforcing?",
-        )
-        dialog.format_secondary_text(
+        reply = QMessageBox.question(
+            self, "Re-enable SELinux enforcing?",
             "DaVinci Resolve has been removed. You can restore SELinux enforcing.\n\n"
-            "A reboot may be required for the change to fully apply."
+            "A reboot may be required for the change to fully apply.",
+            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
         )
-        dialog.add_button("Leave as-is", Gtk.ResponseType.CANCEL)
-        dialog.add_button("Set Enforcing (permanent)", Gtk.ResponseType.OK)
-
-        resp = dialog.run()
-        dialog.destroy()
-
-        if resp == Gtk.ResponseType.OK:
+        if reply == QMessageBox.StandardButton.Ok:
             self.run_helper_with_callback(["set_selinux_mode", "enforcing"])
 
     def run_local_run_installer(self, path):
+        import stat
         if not path or not Path(path).exists():
             self.append_log("❌ ERROR: installer path missing or not found.\n")
             self.set_app_busy("resolve", False)
             return
-
         try:
             st = os.stat(path)
             if not (st.st_mode & stat.S_IXUSR):
@@ -2360,56 +2041,40 @@ class AlmaCreativeInstaller(Gtk.Window):
             self.set_app_busy("resolve", False)
             return
 
-        cmd = [path]
-        self.append_log("\n$ SKIP_PACKAGE_CHECK=1 " + " ".join(cmd) + "\n")
+        self.append_log("\n$ SKIP_PACKAGE_CHECK=1 {}\n".format(path))
 
         def worker():
             last_lines = deque(maxlen=40)
-
-            def summarize_failure(rc):
-                for line in reversed(last_lines):
-                    s = line.strip()
-                    if s:
-                        return s
-                return "Exit code {}".format(rc)
-
             try:
                 env = os.environ.copy()
                 env["SKIP_PACKAGE_CHECK"] = "1"
                 proc = subprocess.Popen(
-                    cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                    text=True,
-                    bufsize=1,
-                    env=env,
+                    [path], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                    text=True, bufsize=1, env=env,
                 )
                 assert proc.stdout is not None
-
                 for line in proc.stdout:
                     last_lines.append(line)
-                    GLib.idle_add(self.append_log, line)
-                    GLib.idle_add(self._update_app_progress_from_output, "resolve", line)
-
+                    self._signals.log.emit(line)
+                    self._signals.progress.emit("resolve", line)
                 rc = proc.wait()
-
                 if rc == 0:
-                    GLib.idle_add(self.append_log, "✅ Successful\n")
-                    GLib.idle_add(self.append_log, "[exit code: {}]\n".format(rc))
-                    GLib.idle_add(self._resolve_finalize_install)
+                    self._signals.log.emit("✅ Successful\n[exit code: {}]\n".format(rc))
+                    self._signals.idle.emit(self._resolve_finalize_install)
                 else:
-                    reason = summarize_failure(rc)
-                    GLib.idle_add(self.append_log, "❌ Failed: {}\n".format(reason))
-                    GLib.idle_add(self.append_log, "[exit code: {}]\n".format(rc))
-                    GLib.idle_add(self.set_app_busy, "resolve", False)
+                    reason = next((line.strip() for line in reversed(last_lines) if line.strip()),
+                                  "Exit code {}".format(rc))
+                    self._signals.log.emit("❌ Failed: {}\n[exit code: {}]\n".format(reason, rc))
+                    self._signals.idle.emit(lambda: self.set_app_busy("resolve", False))
             except Exception as e:
-                GLib.idle_add(self.append_log, "❌ ERROR: {}\n".format(e))
-                GLib.idle_add(self.set_app_busy, "resolve", False)
+                self._signals.log.emit("❌ ERROR: {}\n".format(e))
+                self._signals.idle.emit(lambda: self.set_app_busy("resolve", False))
 
         threading.Thread(target=worker, daemon=True).start()
 
-
-    # ---------------- 3DCoat flow ----------------
+    # -------------------------------------------------------------------------
+    # 3DCoat flow
+    # -------------------------------------------------------------------------
     def _3dcoat_installed(self):
         if Path("/usr/bin/3dcoat").exists():
             return True
@@ -2421,96 +2086,133 @@ class AlmaCreativeInstaller(Gtk.Window):
     def install_3dcoat_flow(self):
         self.set_app_busy("3dcoat", True, "Waiting for file…")
         self._set_app_progress_fraction("3dcoat", 0.02)
-
         if shutil.which("xdg-open"):
             subprocess.Popen(["xdg-open", THREEDC_URL])
             self.append_log("Opened 3DCoat download page.\n")
-
-        self.append_log(
-            "Log in, download the Linux tarball, then select it below to continue.\n"
-        )
+        self.append_log("Log in, download the Linux tarball, then select it below to continue.\n")
         self.pick_3dcoat_installer()
 
     def pick_3dcoat_installer(self):
-        dialog = Gtk.FileChooserDialog(
-            title="Select 3DCoat Linux tarball",
-            parent=self,
-            action=Gtk.FileChooserAction.OPEN,
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select 3DCoat Linux tarball",
+            "",
+            "Tarballs (*.tar *.tar.bz2 *.tar.gz *.tar.xz *.tar.zst *.tgz);;All files (*)",
         )
-        dialog.add_buttons(
-            Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
-            Gtk.STOCK_OPEN, Gtk.ResponseType.OK,
-        )
-
-        f = Gtk.FileFilter()
-        f.set_name("Tarballs (*.tar, *.tar.bz2, *.tar.gz, *.tar.xz, *.tar.zst)")
-        for pat in ("*.tar", "*.tar.bz2", "*.tar.gz", "*.tar.xz", "*.tar.zst", "*.tgz"):
-            f.add_pattern(pat)
-        dialog.add_filter(f)
-
-        resp = dialog.run()
-        if resp == Gtk.ResponseType.OK:
-            path = dialog.get_filename()
-            if path:
-                self._set_app_progress_fraction("3dcoat", 0.05)
-                self.run_helper_with_callback(
-                    ["install_3dcoat", path],
-                    on_success=lambda: self._finish_app_action("3dcoat"),
-                    app_id="3dcoat",
-                    progress_segment=(0.05, 0.98),
-                )
-            else:
-                self._finish_app_action("3dcoat")
-        else:
+        if not path:
             self._finish_app_action("3dcoat")
-        dialog.destroy()
+            return
+        self._set_app_progress_fraction("3dcoat", 0.05)
+        self.run_helper_with_callback(
+            ["install_3dcoat", path],
+            on_success=lambda: self._finish_app_action("3dcoat"),
+            app_id="3dcoat",
+            progress_segment=(0.05, 0.98),
+        )
 
     def remove_3dcoat_flow(self):
         if not self._3dcoat_installed():
             self.append_log("ℹ️ 3DCoat does not appear to be installed.\n")
             self.refresh_app_state("3dcoat")
             return
-
-        dialog = Gtk.MessageDialog(
-            parent=self,
-            flags=0,
-            message_type=Gtk.MessageType.WARNING,
-            buttons=Gtk.ButtonsType.NONE,
-            text="Uninstall 3DCoat?",
+        reply = QMessageBox.question(
+            self, "Uninstall 3DCoat?",
+            "This will remove /opt/3DCoat, the /usr/bin/3dcoat symlink, and the desktop entry.",
+            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
         )
-        dialog.format_secondary_text(
-            "This will remove /opt/3DCoat, the /usr/bin/3dcoat symlink, "
-            "and the desktop entry."
+        if reply != QMessageBox.StandardButton.Ok:
+            return
+        self.set_app_busy("3dcoat", True, "Removing…")
+        self._set_app_progress_fraction("3dcoat", 0.02)
+        self.run_helper_with_callback(
+            ["remove_3dcoat"],
+            on_success=lambda: self._finish_app_action("3dcoat"),
+            app_id="3dcoat",
+            progress_segment=(0.02, 0.98),
         )
-        dialog.add_button("Cancel", Gtk.ResponseType.CANCEL)
-        dialog.add_button("Uninstall", Gtk.ResponseType.OK)
 
-        resp = dialog.run()
-        dialog.destroy()
 
-        if resp == Gtk.ResponseType.OK:
-            self.set_app_busy("3dcoat", True, "Removing…")
-            self._set_app_progress_fraction("3dcoat", 0.02)
-            self.run_helper_with_callback(
-                ["remove_3dcoat"],
-                on_success=lambda: self._finish_app_action("3dcoat"),
-                app_id="3dcoat",
-                progress_segment=(0.02, 0.98),
-            )
+_THEME_COLORS = _DARK  # set by main() before window creation
+_ICON_CACHE   = {}     # app["id"] → QPixmap | None, populated on first build
+_EL_VERSION   = None   # int (9 or 10), set by main()
+
+
+def _detect_el_version():
+    try:
+        with open("/etc/os-release") as f:
+            for line in f:
+                if line.startswith("VERSION_ID="):
+                    return int(line.split("=", 1)[1].strip().strip('"').split(".")[0])
+    except Exception:
+        pass
+    return None
+
+
+def _detect_dark(app):
+    de = os.environ.get("XDG_CURRENT_DESKTOP", "").upper()
+
+    if "GNOME" in de or "UNITY" in de:
+        # GNOME 42+: color-scheme key is authoritative
+        try:
+            out = subprocess.run(
+                ["gsettings", "get", "org.gnome.desktop.interface", "color-scheme"],
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, timeout=2,
+            ).stdout.strip().strip("'\"")
+            if out == "prefer-dark":
+                return True
+            if out in ("default", "prefer-light"):
+                return False
+        except Exception:
+            pass
+        # Older GNOME: check gtk-theme name
+        try:
+            theme = subprocess.run(
+                ["gsettings", "get", "org.gnome.desktop.interface", "gtk-theme"],
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, timeout=2,
+            ).stdout.strip().strip("'\"").lower()
+            return "dark" in theme
+        except Exception:
+            pass
+
+    elif "KDE" in de or "PLASMA" in de:
+        # KDE: read ColorScheme from kdeglobals
+        try:
+            kdeglobals = os.path.expanduser("~/.config/kdeglobals")
+            with open(kdeglobals) as f:
+                for line in f:
+                    if line.strip().lower().startswith("colorscheme="):
+                        return "dark" in line.split("=", 1)[1].strip().lower()
+        except Exception:
+            pass
+        # KDE fallback: read window background luma from kdeglobals
+        try:
+            with open(os.path.expanduser("~/.config/kdeglobals")) as f:
+                content = f.read()
+            import re
+            m = re.search(r"\[Colors:Window].*?BackgroundNormal=(\d+),(\d+),(\d+)", content, re.S)
+            if m:
+                r, g, b = int(m.group(1)), int(m.group(2)), int(m.group(3))
+                return (r * 299 + g * 587 + b * 114) / 1000 < 128
+        except Exception:
+            pass
+
+    # Fallback: Qt palette (works with qt5ct/qt6ct or any other DE)
+    try:
+        return app.palette().window().color().value() < 128
+    except Exception:
+        return True
 
 
 def main():
-    ok, _argv = Gtk.init_check()
-    if not ok:
-        print("ERROR: GTK could not be initialized.")
-        print("Run inside a GNOME/KDE graphical session as a normal user (not root over SSH).")
-        return 1
-
+    global _THEME_COLORS, _EL_VERSION
+    app = QApplication(sys.argv)
+    app.setApplicationName("AlmaLinux Creative Installer")
+    _EL_VERSION   = _detect_el_version()
+    _THEME_COLORS = _DARK if _detect_dark(app) else _LIGHT
+    app.setStyleSheet(_build_qss(_THEME_COLORS))
     win = AlmaCreativeInstaller()
-    win.connect("destroy", Gtk.main_quit)
-    win.show_all()
-    Gtk.main()
-    return 0
+    win.show()
+    return app.exec()
 
 
 if __name__ == "__main__":
