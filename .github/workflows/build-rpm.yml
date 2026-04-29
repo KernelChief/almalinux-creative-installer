@@ -18,13 +18,52 @@ permissions:
   pull-requests: write
 
 jobs:
+  lint:
+    name: Lint Python
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'documentation')
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: Run ruff
+        run: ruff check src/almalinux-creative-installer src/qtcompat.py
+
+  shellcheck:
+    name: ShellCheck helper
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'documentation')
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v6
+
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@2.0.0
+        with:
+          additional_files: src/almalinux-creative-installer-helper
+
   build:
     name: Build (EL${{ matrix.el }})
     runs-on: ubuntu-latest
+    needs: [lint, shellcheck]
     if: github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'documentation')
     strategy:
       matrix:
-        el: [9, 10]
+        include:
+          - el: 9
+            qt_pkg: python3-qt5
+          - el: 10
+            qt_pkg: python3-pyqt6
 
     container:
       image: almalinux:${{ matrix.el }}
@@ -32,11 +71,18 @@ jobs:
     steps:
       - name: Install build dependencies
         run: |
+          # EL10: enable CRB before EPEL so python3-pyqt6 is resolvable
+          if [ "${{ matrix.el }}" -ge "10" ]; then
+            dnf config-manager --enable crb
+          fi
+          dnf -y install epel-release
           dnf -y install \
             rpm-build rpmdevtools git bash \
-            python3 python3-gobject gtk3 \
+            python3 \
+            ${{ matrix.qt_pkg }} \
             polkit xdg-utils \
             rsync tar findutils
+
       - name: Checkout source
         uses: actions/checkout@v6
         with:
@@ -48,6 +94,7 @@ jobs:
           INPUT_VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
           # 1) workflow_dispatch explicit input wins
           if [ -n "${INPUT_VERSION}" ]; then
@@ -68,7 +115,6 @@ jobs:
 
           # 3) PR builds create beta pre-release from latest stable tag
           if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
-            git config --global --add safe.directory "$GITHUB_WORKSPACE"
             BASE_TAG="$(git tag --list 'v*' --sort=-v:refname | head -n 1 || true)"
             BASE_VERSION="${BASE_TAG#v}"
             if [ -z "${BASE_VERSION}" ]; then
@@ -83,7 +129,6 @@ jobs:
           fi
 
           # 4) Fallback for branch manual runs without input
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           VERSION="$(git tag --list 'v*' --sort=-v:refname | head -n 1 || true)"
           VERSION="${VERSION#v}"
           if [ -z "${VERSION}" ]; then
@@ -102,38 +147,26 @@ jobs:
           GIT_DISCOVERY_ACROSS_FILESYSTEM: 1
         run: |
           mkdir -p "$TOPDIR" "$DISTDIR"
-          # Ensure rpmbuild writes inside the shared workspace (not ~)
           export HOME="${{ github.workspace }}"
           mkdir -p "$HOME"/rpmbuild
-          echo "GITHUB_REF=$GITHUB_REF"
-          echo "GITHUB_REF_NAME=$GITHUB_REF_NAME"
-          echo "GITHUB_REF_TYPE=$GITHUB_REF_TYPE"
-          echo "VERSION (env)=$VERSION"
-
-          # Needed in containerized GitHub Actions runs to allow git commands.
+          
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
-
-          # workflow_dispatch on branches may have empty VERSION.
-          # Fallback to latest v* tag so manual runs still work without input.
-          if [ -z "$VERSION" ]; then
-            VERSION="$(git tag --list 'v*' --sort=-v:refname | head -n 1 || true)"
-            VERSION="${VERSION#v}"
-            export VERSION
-            echo "VERSION (latest-tag fallback)=$VERSION"
-          fi
-
-          if [ -z "$VERSION" ] && [ "${GITHUB_REF#refs/tags/}" != "${GITHUB_REF}" ]; then
-            VERSION="${GITHUB_REF#refs/tags/}"
-            VERSION="${VERSION#v}"
-            export VERSION
-            echo "VERSION (fallback)=$VERSION"
-          fi
 
           chmod +x src/packaging/build-rpm.sh
           ./src/packaging/build-rpm.sh
 
-          # Collect RPMs into dist/
           find "$HOME/rpmbuild/RPMS" -type f -name "*.rpm" -exec cp -v {} "$DISTDIR/" \;
+
+      - name: Smoke test — install RPM and verify files
+        env:
+          DISTDIR: ${{ github.workspace }}/dist
+        run: |
+          dnf install -y "$DISTDIR"/*.rpm
+          test -x /usr/bin/almalinux-creative-installer              || { echo "FAIL: binary missing"; exit 1; }
+          test -x /usr/libexec/almalinux-creative-installer-helper   || { echo "FAIL: helper missing"; exit 1; }
+          test -f /usr/share/almalinux-creative-installer/qtcompat.py || { echo "FAIL: qtcompat missing"; exit 1; }
+          test -f /usr/share/applications/almalinux-creative-installer.desktop || { echo "FAIL: .desktop missing"; exit 1; }
+          echo "Smoke test passed on EL${{ matrix.el }}."
 
       - name: Upload RPM artifacts
         uses: actions/upload-artifact@v7
@@ -187,13 +220,6 @@ jobs:
           name: rpm-el10-release
           path: dist
 
-      - name: List files (debug)
-        if: steps.resolve_tag.outputs.do_release == 'true'
-        run: |
-          ls -lah dist
-          echo "Found RPMs:"
-          ls -lah dist/*.rpm || true
-
       - name: Create GitHub Release
         if: steps.resolve_tag.outputs.do_release == 'true'
         uses: softprops/action-gh-release@v3
@@ -206,18 +232,13 @@ jobs:
           generate_release_notes: false
           body: |
             ## :tada: AlmaLinux Creative Installer ${{ steps.resolve_tag.outputs.tag_name }}
-            
-            :white_check_mark: Highlights
-            - (fill me in)
-            
-            ❤️ Special Thanks
-            - Major thanks for the icon design to **Cristian Slavik** from **NOX Visual Effects**
-              - GitHub: https://github.com/crisslavik
-              - LinkedIn: https://www.linkedin.com/in/crisslavik/
 
-            :package: Assets
-            - EL9 RPM
-            - EL10 RPM (experimental)
+            ### Highlights
+            - (fill me in)
+
+            ### Assets
+            - EL9 RPM (Qt5 / PyQt5)
+            - EL10 RPM (Qt6 / PyQt6)
 
   pr-beta-comment:
     name: Comment beta RPM location on PR
@@ -226,12 +247,14 @@ jobs:
     if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'documentation')
 
     steps:
-      - name: Add/update PR comment with beta RPM download link
+      - name: Post new comment with beta RPM download link
         uses: marocchino/sticky-pull-request-comment@v3
         with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           header: beta-rpm
+          recreate: true
           message: |
-            ✅ Beta RPMs are ready for this PR.
+            ✅ Beta RPMs are ready for commit `${{ github.sha }}`.
 
             Download them from this run's artifacts:
             https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}#artifacts
@@ -239,4 +262,3 @@ jobs:
             Expected artifact names:
             - `rpm-el9-pr${{ github.event.pull_request.number }}`
             - `rpm-el10-pr${{ github.event.pull_request.number }}`
-
