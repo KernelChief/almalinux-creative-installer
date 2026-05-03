@@ -1139,6 +1139,9 @@ class AlmaCreativeInstaller(QMainWindow):
         elif app["type"] == "3dcoat":
             install_btn.clicked.connect(lambda: self.install_3dcoat_flow())
             remove_btn.clicked.connect(lambda: self.remove_3dcoat_flow())
+        elif app["type"] == "InstaMat":
+            install_btn.clicked.connect(lambda: self.install_InstaMat_flow())
+            remove_btn.clicked.connect(lambda: self.remove_InstaMat_flow())
 
         pulse_timer = QTimer()
         pulse_timer.setInterval(120)
