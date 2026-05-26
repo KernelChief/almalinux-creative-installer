@@ -26,6 +26,9 @@ https://chat.almalinux.org/almalinux/channels/sig-media-entertainment
 ![AlmaLinux Creative Installer – main window](docs/screenshots/main.png)
 *Main window showing system requirements, install status, and guided workflows.*
 
+![AlmaLinux Creative Installer – apps window](docs/screenshots/apps.png)
+*Apps tab showing the full catalog with install/remove buttons, EL version badges, and installed-only filter.*
+
 ![AlmaLinux Creative Installer – logs window](docs/screenshots/logs.png)
 *Logs window showing the live log while installing, removing apps / repos. Able to show enabled repos for debug and clear log in that window with button*
 
@@ -49,61 +52,48 @@ https://chat.almalinux.org/almalinux/channels/sig-media-entertainment
 
 ## 🚀 Quick Start (Recommended)
 
-### 1️⃣ Download the RPM
+AlmaLinux Creative Installer v2.0.1 is the official current release — a full Qt rewrite supporting AlmaLinux 9 (PyQt5) and AlmaLinux 10 (PyQt6). Install it in two commands via COPR.
 
-Go to the GitHub Releases page:
+### 1️⃣ Enable the COPR Repository
 
-https://github.com/KernelChief/almalinux-creative-installer/releases
+```bash
+sudo dnf copr enable tristantheroux/almalinux-creative-installer
+```
 
-Download **one RPM file** that matches your AlmaLinux version.
-
-You will see files named like:
-
-- almalinux-creative-installer-1.0.1-1.el9.noarch.rpm
-- almalinux-creative-installer-1.0.1-1.el10.noarch.rpm
-
-### 📌 Understanding the version number (X.X.X-X)
-
-Example filename:
-
-almalinux-creative-installer-1.0.1-1.el9.noarch.rpm
-
-- 1.0.1 → application version  
-- -1 → RPM release number  
-
-Whenever this README refers to `X.X.X-X`, **replace it with the exact version shown in the filename you downloaded**.
-
-Example:
-
-If the filename is  
-almalinux-creative-installer-1.0.1-1.el9.noarch.rpm  
-
-Then:
-
-- X.X.X-X = 1.0.1-1
+This registers the official repository for both AlmaLinux 9 and AlmaLinux 10. DNF will automatically select the correct build for your version.
 
 ---
 
-### 2️⃣ Install the RPM
+### 2️⃣ Install the Application
 
-Open a terminal and change to the directory where the RPM was downloaded.
-
-Run the command below, **replacing X.X.X-X with your version number**:
-
-From the directory where you downloaded the file:
-
-`sudo dnf install ./almalinux-creative-installer-X.X.X-X.rpm`
-
-
-Example for AlmaLinux 9: sudo dnf install ./almalinux-creative-installer-1.0.1-1.el9.noarch.rpm
-
-
-Example for AlmaLinux 10 (experimental): sudo dnf install ./almalinux-creative-installer-1.0.1-1.el10.noarch.rpm
+```bash
+sudo dnf install almalinux-creative-installer
+```
 
 This will:
 - install the application (and its Qt dependencies)
 - register the polkit helper
 - add a desktop entry
+
+---
+
+### Alternative: Manual RPM Install
+
+If you prefer not to use COPR, download the RPM directly from the GitHub Releases page:
+
+https://github.com/KernelChief/almalinux-creative-installer/releases
+
+Then install it from the directory where you downloaded it:
+
+```bash
+# AlmaLinux 9
+sudo dnf install ./almalinux-creative-installer-2.0.1-1.el9.noarch.rpm
+
+# AlmaLinux 10
+sudo dnf install ./almalinux-creative-installer-2.0.1-1.el10.noarch.rpm
+```
+
+> Note: with this method you will need to repeat the download and install manually for each future release. COPR is recommended.
 
 ---
 
@@ -296,11 +286,23 @@ These tools are advisory and do not imply certification or formal auditing.
 
 ---
 
+## 🔄 Keeping Up to Date
+
+Once installed via COPR, future releases are picked up automatically with a normal system update:
+
+```bash
+sudo dnf upgrade almalinux-creative-installer
+```
+
+---
+
 ## 🧹 Uninstalling the Application
 
 To remove the application, run:
 
-`sudo dnf remove almalinux-creative-installer`
+```bash
+sudo dnf remove almalinux-creative-installer
+```
 
 ---
 
@@ -365,7 +367,7 @@ via Flatpak, and the installer adds Flathub system-wide to enable them.
 
 **The RPM build script fails.**  
 `build-rpm.sh` uses the **latest git tag** for the version. Create a tag like
-`v1.0.5` before building.
+`v2.0.1` before building.
 
 ---
 

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 
 Name:           almalinux-creative-installer
-%{!?app_version:%global app_version 1.0.5}
+%{!?app_version:%global app_version 2.0.1}
 Version:        %{app_version}
 Release:        1%{?dist}
 Summary:        One-click creative app installer UI for AlmaLinux
@@ -88,6 +88,8 @@ fi
 %{_datadir}/icons/hicolor/*/apps/almalinux-creative-installer.*
 
 %changelog
+* Mon May 26 2026 KernelChief - 2.0.1-1
+- Fix COPR build: bump default version to 2.0.1 so tarball includes src/qtcompat.py
 * Mon Apr 27 2026 KernelChief - 1.0.5-1
 - Qt migration: PyQt5 on EL9, PyQt6 on EL10 via qtcompat.py shim
 - Real app icons from Flathub AppStream cache with bundled fallback
