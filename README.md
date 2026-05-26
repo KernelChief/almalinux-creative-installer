@@ -74,6 +74,26 @@ This will:
 
 ---
 
+### Alternative: Manual RPM Install
+
+If you prefer not to use COPR, download the RPM directly from the GitHub Releases page:
+
+https://github.com/KernelChief/almalinux-creative-installer/releases
+
+Then install it from the directory where you downloaded it:
+
+```bash
+# AlmaLinux 9
+sudo dnf install ./almalinux-creative-installer-2.0.1-1.el9.noarch.rpm
+
+# AlmaLinux 10
+sudo dnf install ./almalinux-creative-installer-2.0.1-1.el10.noarch.rpm
+```
+
+> Note: with this method you will need to repeat the download and install manually for each future release. COPR is recommended.
+
+---
+
 ### 3️⃣ Launch the Application
 
 The application itself runs **unprivileged**.
