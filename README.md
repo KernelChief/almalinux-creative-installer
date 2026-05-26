@@ -26,6 +26,9 @@ https://chat.almalinux.org/almalinux/channels/sig-media-entertainment
 ![AlmaLinux Creative Installer – main window](docs/screenshots/main.png)
 *Main window showing system requirements, install status, and guided workflows.*
 
+![AlmaLinux Creative Installer – apps window](docs/screenshots/apps.png)
+*Apps tab showing the full catalog with install/remove buttons, EL version badges, and installed-only filter.*
+
 ![AlmaLinux Creative Installer – logs window](docs/screenshots/logs.png)
 *Logs window showing the live log while installing, removing apps / repos. Able to show enabled repos for debug and clear log in that window with button*
 
