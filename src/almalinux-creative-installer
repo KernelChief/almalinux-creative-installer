@@ -76,6 +76,7 @@ APPS = [
     {"id": "obs-studio",        "name": "OBS Studio",       "type": "flatpak", "appid": "com.obsproject.Studio",                        "category": "Animation & Video"},
     {"id": "handbrake",         "name": "HandBrake",        "type": "flatpak", "appid": "fr.handbrake.ghb",                             "category": "Animation & Video"},
     {"id": "shotcut",           "name": "Shotcut",          "type": "flatpak", "appid": "org.shotcut.Shotcut",                          "category": "Animation & Video"},
+    {"id": "fogpanther",        "name": "FogPanther",       "type": "flatpak", "appid": "com.fogpanther.FogPanther",                     "category": "Animation & Video"},
     {"id": "scribus",           "name": "Scribus",          "type": "flatpak", "appid": "net.scribus.Scribus",                          "category": "Productivity"},
     {"id": "ardour",            "name": "Ardour",           "type": "flatpak", "appid": "org.ardour.Ardour",                            "category": "Audio"},
     {"id": "bitwig studio",     "name": "Bitwig Studio",    "type": "flatpak", "appid": "com.bitwig.BitwigStudio",                      "category": "Audio"},
