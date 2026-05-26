@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 
 Name:           almalinux-creative-installer
-%{!?app_version:%global app_version 2.0.1}
+%{!?app_version:%global app_version 2.0.2}
 Version:        %{app_version}
 Release:        1%{?dist}
 Summary:        One-click creative app installer UI for AlmaLinux
@@ -88,6 +88,11 @@ fi
 %{_datadir}/icons/hicolor/*/apps/almalinux-creative-installer.*
 
 %changelog
+* Tue May 26 2026 KernelChief - 2.0.2-1
+- Add InstaMaterial (3D, guided RPM install via install.sh)
+- Add PopcornFX Editor (Animation & Video, Flatpak)
+- Add JangaFX Elemental Suite (Animation & Video, guided portable binary install)
+- Add FogPanther (Image Processing, Flatpak)
 * Mon May 26 2026 KernelChief - 2.0.1-1
 - Fix COPR build: bump default version to 2.0.1 so tarball includes src/qtcompat.py
 * Mon Apr 27 2026 KernelChief - 1.0.5-1

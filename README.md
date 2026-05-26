@@ -178,6 +178,10 @@ Not every app is available on both EL versions. The installer shows a small **EL
 | Blender           | ✅  | ✅   | Via EPEL |
 | DaVinci Resolve   | ✅  | ✅   | Guided vendor install |
 | 3DCoat            | ✅  | ✅   | Guided vendor install |
+| InstaMaterial     | ✅  | ✅   | Guided vendor install (RPM via install.sh) |
+| PopcornFX Editor  | ✅  | ✅   | Via Flathub |
+| JangaFX Elemental Suite | ✅ | ✅ | Guided portable binary install |
+| FogPanther        | ✅  | ✅   | Via Flathub |
 
 > This table reflects current EPEL availability and will be updated as packages land in EL10.
 
@@ -196,6 +200,7 @@ post-production, and content creation environments:
   - RawTherapee
   - digiKam
   - FontForge
+  - FogPanther
 
 - **3D**
   - Blender
@@ -204,6 +209,7 @@ post-production, and content creation environments:
   - Material Maker
   - FreeCAD
   - 3DCoat
+  - InstaMaterial *(guided vendor install)*
 
 - **Animation & Video**
   - Kdenlive *(EL9 only — not yet in EPEL 10)*
@@ -213,6 +219,8 @@ post-production, and content creation environments:
   - HandBrake
   - Shotcut
   - DaVinci Resolve
+  - PopcornFX Editor
+  - JangaFX Elemental Suite *(guided portable binary install — EmberGen, GeoGen, IlluGen, LiquiGen)*
 
 - **Productivity**
   - Krusader
