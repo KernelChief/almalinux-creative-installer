@@ -28,6 +28,8 @@ from collections import deque
 HELPER = "/usr/libexec/almalinux-creative-installer-helper"
 RESOLVE_URL = "https://www.blackmagicdesign.com/products/davinciresolve/"
 THREEDC_URL = "https://3dcoat.com/#auth"
+INSTAMATERIAL_URL = "https://instamaterial.com/"
+JANGAFX_URL = "https://jangafx.com/software/elemental-suite/try"
 APPIMAGELAUNCHER_VERSION = "3.0.0-beta-2-gha287.96cb937"
 APPIMAGELAUNCHER_RPM_URL = (
     "https://github.com/TheAssassin/AppImageLauncher/releases/download/"
@@ -66,7 +68,10 @@ APPS = [
     {"id": "materialmaker",     "name": "Material Maker",   "type": "flatpak", "appid": "io.github.RodZill4.Material-Maker",            "category": "3D"},
     {"id": "freecad",           "name": "FreeCAD",          "type": "flatpak", "appid": "org.freecad.FreeCAD",                          "category": "3D"},
     {"id": "3dcoat",            "name": "3DCoat",           "type": "3dcoat",                                                           "category": "3D"},
+    {"id": "instamaterial",     "name": "InstaMaterial",    "type": "instamaterial",                                                    "category": "3D"},
     {"id": "opentoonz",         "name": "OpenToonz",        "type": "flatpak", "appid": "io.github.OpenToonz",                          "category": "Animation & Video"},
+    {"id": "popcornfx",         "name": "PopcornFX Editor", "type": "flatpak", "appid": "com.popcornfx.PopcornFXEditor",                "category": "Animation & Video"},
+    {"id": "jangafx",           "name": "JangaFX Elemental Suite", "type": "jangafx",                                                   "category": "Animation & Video"},
     {"id": "vlc",               "name": "VLC",              "type": "flatpak", "appid": "org.videolan.VLC",                             "category": "Animation & Video"},
     {"id": "obs-studio",        "name": "OBS Studio",       "type": "flatpak", "appid": "com.obsproject.Studio",                        "category": "Animation & Video"},
     {"id": "handbrake",         "name": "HandBrake",        "type": "flatpak", "appid": "fr.handbrake.ghb",                             "category": "Animation & Video"},
@@ -1139,6 +1144,12 @@ class AlmaCreativeInstaller(QMainWindow):
         elif app["type"] == "3dcoat":
             install_btn.clicked.connect(lambda: self.install_3dcoat_flow())
             remove_btn.clicked.connect(lambda: self.remove_3dcoat_flow())
+        elif app["type"] == "instamaterial":
+            install_btn.clicked.connect(lambda: self.install_instamaterial_flow())
+            remove_btn.clicked.connect(lambda: self.remove_instamaterial_flow())
+        elif app["type"] == "jangafx":
+            install_btn.clicked.connect(lambda: self.install_jangafx_flow())
+            remove_btn.clicked.connect(lambda: self.remove_jangafx_flow())
 
         pulse_timer = QTimer()
         pulse_timer.setInterval(120)
@@ -1187,6 +1198,10 @@ class AlmaCreativeInstaller(QMainWindow):
             return "Guided install: deps → open download page → pick .run/.rpm"
         if app["type"] == "3dcoat":
             return "Guided install: log in → download Linux tarball → pick .tar archive"
+        if app["type"] == "instamaterial":
+            return "Guided install: create account → download zip → run install.sh"
+        if app["type"] == "jangafx":
+            return "Guided install: download suite zip → extracts EmberGen, GeoGen, IlluGen, LiquiGen to /opt/jangafx"
         return ""
 
     # -------------------------------------------------------------------------
@@ -1388,6 +1403,22 @@ class AlmaCreativeInstaller(QMainWindow):
 
         if app["type"] == "3dcoat":
             installed = self._3dcoat_installed()
+            self._set_status_badge(w["status"], "Installed" if installed else "Guided install",
+                                   "installed" if installed else "available")
+            w["install"].setEnabled(not installed)
+            w["remove"].setEnabled(installed)
+            return
+
+        if app["type"] == "instamaterial":
+            installed = self._instamaterial_installed()
+            self._set_status_badge(w["status"], "Installed" if installed else "Guided install",
+                                   "installed" if installed else "available")
+            w["install"].setEnabled(not installed)
+            w["remove"].setEnabled(installed)
+            return
+
+        if app["type"] == "jangafx":
+            installed = self._jangafx_installed()
             self._set_status_badge(w["status"], "Installed" if installed else "Guided install",
                                    "installed" if installed else "available")
             w["install"].setEnabled(not installed)
@@ -2128,6 +2159,129 @@ class AlmaCreativeInstaller(QMainWindow):
             ["remove_3dcoat"],
             on_success=lambda: self._finish_app_action("3dcoat"),
             app_id="3dcoat",
+            progress_segment=(0.02, 0.98),
+        )
+
+    # -------------------------------------------------------------------------
+    # InstaMaterial flow
+    # -------------------------------------------------------------------------
+    def _instamaterial_installed(self):
+        try:
+            out = subprocess.run(
+                ["rpm", "-qa", "--qf", "%{NAME}\n"],
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True,
+            ).stdout
+            return any("instamaterial" in line.lower() for line in out.splitlines() if line.strip())
+        except Exception:
+            return False
+
+    def install_instamaterial_flow(self):
+        self.set_app_busy("instamaterial", True, "Waiting for file…")
+        self._set_app_progress_fraction("instamaterial", 0.02)
+        if shutil.which("xdg-open"):
+            subprocess.Popen(["xdg-open", INSTAMATERIAL_URL])
+            self.append_log("Opened InstaMaterial download page.\n")
+        self.append_log(
+            "Create a free account, download the Linux zip, then select it below.\n"
+        )
+        self.pick_instamaterial_zip()
+
+    def pick_instamaterial_zip(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select InstaMaterial Linux zip",
+            "",
+            "Zip archives (*.zip);;All files (*)",
+        )
+        if not path:
+            self._finish_app_action("instamaterial")
+            return
+        self._set_app_progress_fraction("instamaterial", 0.05)
+        self.run_helper_with_callback(
+            ["install_instamaterial", path],
+            on_success=lambda: self._finish_app_action("instamaterial"),
+            app_id="instamaterial",
+            progress_segment=(0.05, 0.98),
+        )
+
+    def remove_instamaterial_flow(self):
+        if not self._instamaterial_installed():
+            self.append_log("ℹ️ InstaMaterial does not appear to be installed.\n")
+            self.refresh_app_state("instamaterial")
+            return
+        reply = QMessageBox.question(
+            self, "Uninstall InstaMaterial?",
+            "This will run the vendor uninstaller (if present) or remove the installation directory.",
+            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
+        )
+        if reply != QMessageBox.StandardButton.Ok:
+            return
+        self.set_app_busy("instamaterial", True, "Removing…")
+        self._set_app_progress_fraction("instamaterial", 0.02)
+        self.run_helper_with_callback(
+            ["remove_instamaterial"],
+            on_success=lambda: self._finish_app_action("instamaterial"),
+            app_id="instamaterial",
+            progress_segment=(0.02, 0.98),
+        )
+
+    # -------------------------------------------------------------------------
+    # JangaFX Elemental Suite flow
+    # -------------------------------------------------------------------------
+    def _jangafx_installed(self):
+        p = Path("/opt/jangafx")
+        if p.is_dir() and any(p.iterdir()):
+            return True
+        return any(shutil.which(app) is not None
+                   for app in ("embergen", "geogen", "illugen", "liquigen"))
+
+    def install_jangafx_flow(self):
+        self.set_app_busy("jangafx", True, "Waiting for file…")
+        self._set_app_progress_fraction("jangafx", 0.02)
+        if shutil.which("xdg-open"):
+            subprocess.Popen(["xdg-open", JANGAFX_URL])
+            self.append_log("Opened JangaFX download page.\n")
+        self.append_log(
+            "Download jangafx-elemental-suite-linux.zip, then select it below.\n"
+        )
+        self.pick_jangafx_zip()
+
+    def pick_jangafx_zip(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select JangaFX Elemental Suite zip",
+            "",
+            "Zip archives (*.zip);;All files (*)",
+        )
+        if not path:
+            self._finish_app_action("jangafx")
+            return
+        self._set_app_progress_fraction("jangafx", 0.05)
+        self.run_helper_with_callback(
+            ["install_jangafx", path],
+            on_success=lambda: self._finish_app_action("jangafx"),
+            app_id="jangafx",
+            progress_segment=(0.05, 0.98),
+        )
+
+    def remove_jangafx_flow(self):
+        if not self._jangafx_installed():
+            self.append_log("ℹ️ JangaFX Elemental Suite does not appear to be installed.\n")
+            self.refresh_app_state("jangafx")
+            return
+        reply = QMessageBox.question(
+            self, "Uninstall JangaFX Elemental Suite?",
+            "This will remove /opt/jangafx, all launchers, and desktop entries.",
+            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
+        )
+        if reply != QMessageBox.StandardButton.Ok:
+            return
+        self.set_app_busy("jangafx", True, "Removing…")
+        self._set_app_progress_fraction("jangafx", 0.02)
+        self.run_helper_with_callback(
+            ["remove_jangafx"],
+            on_success=lambda: self._finish_app_action("jangafx"),
+            app_id="jangafx",
             progress_segment=(0.02, 0.98),
         )
 
