@@ -575,7 +575,8 @@ install_instamaterial() {
   command -v unzip >/dev/null 2>&1 || dnf -y install unzip
 
   tmp_dir="$(mktemp -d /tmp/instamaterial-XXXXXX)"
-  trap 'rm -rf "${tmp_dir}"' EXIT
+  # shellcheck disable=SC2064
+  trap "rm -rf '${tmp_dir}'" EXIT
 
   log "Extracting InstaMaterial archive..."
   unzip -q "${zip_path}" -d "${tmp_dir}"
@@ -625,7 +626,8 @@ install_jangafx() {
   command -v unzip >/dev/null 2>&1 || dnf -y install unzip
 
   tmp_dir="$(mktemp -d /tmp/jangafx-XXXXXX)"
-  trap 'rm -rf "${tmp_dir}"' EXIT
+  # shellcheck disable=SC2064
+  trap "rm -rf '${tmp_dir}'" EXIT
 
   local user home
   user="$(require_invoking_user)"
@@ -703,7 +705,7 @@ StartupWMClass=${app_name}
 EOF
     chown "${user}:${user}" "${desktop_dir}/${display_name}.desktop"
     log "${display_name} installed to ${dest_dir}"
-  done < <(find "${tmp_dir}/suite" -maxdepth 2 -name '*-latest.zip' | sort)
+  done < <(find "${tmp_dir}/suite" -maxdepth 2 -name '*-latest.zip' ! -path '*/__MACOSX/*' ! -name '._*' | sort)
 
   log "JangaFX Elemental Suite installation complete."
 }
@@ -756,7 +758,8 @@ install_gaffer() {
   home="$(require_invoking_user_home)"
 
   tmp_dir="$(mktemp -d /tmp/gaffer-XXXXXX)"
-  trap 'rm -rf "${tmp_dir}"' EXIT
+  # shellcheck disable=SC2064
+  trap "rm -rf '${tmp_dir}'" EXIT
 
   log "Extracting Gaffer tarball..."
   tar xzf "${tarball}" -C "${tmp_dir}"
