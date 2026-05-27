@@ -740,6 +740,92 @@ remove_jangafx() {
   log "JangaFX Elemental Suite removed."
 }
 
+install_gaffer() {
+  local tarball="${1:-}"
+  local install_dir="/opt/gaffer"
+  local tmp_dir
+
+  [[ -n "${tarball}" ]] || { echo "ERROR: missing tarball path" >&2; exit 2; }
+  [[ -f "${tarball}" ]] || { echo "ERROR: tarball not found: ${tarball}" >&2; exit 2; }
+
+  log "Ensuring tar is available..."
+  command -v tar >/dev/null 2>&1 || dnf -y install tar
+
+  local user home
+  user="$(require_invoking_user)"
+  home="$(require_invoking_user_home)"
+
+  tmp_dir="$(mktemp -d /tmp/gaffer-XXXXXX)"
+  trap 'rm -rf "${tmp_dir}"' EXIT
+
+  log "Extracting Gaffer tarball..."
+  tar xzf "${tarball}" -C "${tmp_dir}"
+
+  # The tarball extracts to a single top-level directory (e.g. gaffer-1.5.0.0-linux)
+  local extracted_dir
+  extracted_dir="$(find "${tmp_dir}" -maxdepth 1 -mindepth 1 -type d | head -1)"
+  [[ -n "${extracted_dir}" ]] || { echo "ERROR: nothing extracted from tarball" >&2; exit 2; }
+
+  log "Installing to ${install_dir}..."
+  rm -rf "${install_dir}"
+  mv "${extracted_dir}" "${install_dir}"
+  chown -R "${user}:${user}" "${install_dir}"
+
+  chmod +x "${install_dir}/bin/gaffer"
+
+  # Wrapper so Gaffer can find its own lib/resource directories
+  local wrapper="/opt/gaffer.sh"
+  printf '#!/bin/bash\ncd "%s" && ./bin/gaffer "$@"\n' "${install_dir}" > "${wrapper}"
+  chmod +x "${wrapper}"
+
+  # Symlink in /usr/bin
+  [[ -L /usr/bin/gaffer ]] && unlink /usr/bin/gaffer || true
+  ln -sf "${wrapper}" /usr/bin/gaffer
+  log "Created /usr/bin/gaffer"
+
+  # Desktop entry
+  local desktop_dir="${home}/.local/share/applications"
+  mkdir -p "${desktop_dir}"
+  chown "${user}:${user}" "${desktop_dir}"
+  cat > "${desktop_dir}/Gaffer.desktop" <<EOF
+[Desktop Entry]
+Name=Gaffer
+Comment=Node-based VFX application
+Exec=${wrapper}
+Type=Application
+Terminal=false
+Categories=Graphics;Video;
+StartupWMClass=gaffer
+EOF
+  chown "${user}:${user}" "${desktop_dir}/Gaffer.desktop"
+
+  log "Gaffer installation complete."
+}
+
+remove_gaffer() {
+  local user home
+  user="$(require_invoking_user)"
+  home="$(require_invoking_user_home)"
+
+  log "Removing Gaffer..."
+
+  [[ -L /usr/bin/gaffer ]] && unlink /usr/bin/gaffer && log "Removed /usr/bin/gaffer" || true
+  [[ -f /opt/gaffer.sh ]]  && rm -f /opt/gaffer.sh   && log "Removed /opt/gaffer.sh"  || true
+
+  if [[ -d /opt/gaffer ]]; then
+    rm -rf /opt/gaffer
+    log "Removed /opt/gaffer"
+  fi
+
+  local desktop="${home}/.local/share/applications/Gaffer.desktop"
+  if [[ -f "${desktop}" ]]; then
+    rm -f "${desktop}"
+    log "Removed desktop entry"
+  fi
+
+  log "Gaffer removed."
+}
+
 remove_3dcoat() {
   local user home
   user="$(require_invoking_user)"
@@ -812,6 +898,10 @@ case "${action}" in
   # JangaFX Elemental Suite
   install_jangafx)       install_jangafx "${2:-}";;
   remove_jangafx)        remove_jangafx;;
+
+  # Gaffer
+  install_gaffer)        install_gaffer "${2:-}";;
+  remove_gaffer)         remove_gaffer;;
 
   *)
     cat >&2 <<'EOF'

@@ -182,6 +182,7 @@ Not every app is available on both EL versions. The installer shows a small **EL
 | PopcornFX Editor  | ✅  | ✅   | Via Flathub |
 | JangaFX Elemental Suite | ✅ | ✅ | Guided portable binary install |
 | FogPanther        | ✅  | ✅   | Via Flathub |
+| Gaffer            | ✅  | ❌   | EL9 only — officially supported on RHEL/AlmaLinux 9 |
 
 > This table reflects current EPEL availability and will be updated as packages land in EL10.
 
@@ -221,6 +222,7 @@ post-production, and content creation environments:
   - DaVinci Resolve
   - PopcornFX Editor
   - JangaFX Elemental Suite *(guided portable binary install — EmberGen, GeoGen, IlluGen, LiquiGen)*
+  - Gaffer *(EL9 only — guided portable binary install)*
 
 - **Productivity**
   - Krusader

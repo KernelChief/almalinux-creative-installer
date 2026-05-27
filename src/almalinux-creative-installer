@@ -30,6 +30,7 @@ RESOLVE_URL = "https://www.blackmagicdesign.com/products/davinciresolve/"
 THREEDC_URL = "https://3dcoat.com/#auth"
 INSTAMATERIAL_URL = "https://instamaterial.com/"
 JANGAFX_URL = "https://jangafx.com/software/elemental-suite/try"
+GAFFER_URL  = "https://github.com/GafferHQ/gaffer/releases"
 APPIMAGELAUNCHER_VERSION = "3.0.0-beta-2-gha287.96cb937"
 APPIMAGELAUNCHER_RPM_URL = (
     "https://github.com/TheAssassin/AppImageLauncher/releases/download/"
@@ -72,6 +73,7 @@ APPS = [
     {"id": "opentoonz",         "name": "OpenToonz",        "type": "flatpak", "appid": "io.github.OpenToonz",                          "category": "Animation & Video"},
     {"id": "popcornfx",         "name": "PopcornFX Editor", "type": "flatpak", "appid": "com.popcornfx.PopcornFXEditor",                "category": "Animation & Video"},
     {"id": "jangafx",           "name": "JangaFX Elemental Suite", "type": "jangafx",                                                   "category": "Animation & Video"},
+    {"id": "gaffer",            "name": "Gaffer",                  "type": "gaffer",                                                    "category": "Animation & Video",   "el": [9]},
     {"id": "vlc",               "name": "VLC",              "type": "flatpak", "appid": "org.videolan.VLC",                             "category": "Animation & Video"},
     {"id": "obs-studio",        "name": "OBS Studio",       "type": "flatpak", "appid": "com.obsproject.Studio",                        "category": "Animation & Video"},
     {"id": "handbrake",         "name": "HandBrake",        "type": "flatpak", "appid": "fr.handbrake.ghb",                             "category": "Animation & Video"},
@@ -1151,6 +1153,9 @@ class AlmaCreativeInstaller(QMainWindow):
         elif app["type"] == "jangafx":
             install_btn.clicked.connect(lambda: self.install_jangafx_flow())
             remove_btn.clicked.connect(lambda: self.remove_jangafx_flow())
+        elif app["type"] == "gaffer":
+            install_btn.clicked.connect(lambda: self.install_gaffer_flow())
+            remove_btn.clicked.connect(lambda: self.remove_gaffer_flow())
 
         pulse_timer = QTimer()
         pulse_timer.setInterval(120)
@@ -1203,6 +1208,8 @@ class AlmaCreativeInstaller(QMainWindow):
             return "Guided install: create account → download zip → run install.sh"
         if app["type"] == "jangafx":
             return "Guided install: download suite zip → extracts EmberGen, GeoGen, IlluGen, LiquiGen to /opt/jangafx"
+        if app["type"] == "gaffer":
+            return "Guided install: download Linux tarball from GitHub → extracts to /opt/gaffer (EL9 only)"
         return ""
 
     # -------------------------------------------------------------------------
@@ -1420,6 +1427,14 @@ class AlmaCreativeInstaller(QMainWindow):
 
         if app["type"] == "jangafx":
             installed = self._jangafx_installed()
+            self._set_status_badge(w["status"], "Installed" if installed else "Guided install",
+                                   "installed" if installed else "available")
+            w["install"].setEnabled(not installed)
+            w["remove"].setEnabled(installed)
+            return
+
+        if app["type"] == "gaffer":
+            installed = self._gaffer_installed()
             self._set_status_badge(w["status"], "Installed" if installed else "Guided install",
                                    "installed" if installed else "available")
             w["install"].setEnabled(not installed)
@@ -2283,6 +2298,60 @@ class AlmaCreativeInstaller(QMainWindow):
             ["remove_jangafx"],
             on_success=lambda: self._finish_app_action("jangafx"),
             app_id="jangafx",
+            progress_segment=(0.02, 0.98),
+        )
+
+
+    def _gaffer_installed(self):
+        return Path("/opt/gaffer/bin/gaffer").is_file() or shutil.which("gaffer") is not None
+
+    def install_gaffer_flow(self):
+        self.set_app_busy("gaffer", True, "Waiting for file…")
+        self._set_app_progress_fraction("gaffer", 0.02)
+        if shutil.which("xdg-open"):
+            subprocess.Popen(["xdg-open", GAFFER_URL])
+            self.append_log("Opened Gaffer releases page.\n")
+        self.append_log(
+            "Download the Linux tarball (e.g. gaffer-X.X.X.X-linux.tar.gz), then select it below.\n"
+        )
+        self.pick_gaffer_tarball()
+
+    def pick_gaffer_tarball(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select Gaffer Linux tarball",
+            "",
+            "Tarballs (*.tar.gz *.tgz);;All files (*)",
+        )
+        if not path:
+            self._finish_app_action("gaffer")
+            return
+        self._set_app_progress_fraction("gaffer", 0.05)
+        self.run_helper_with_callback(
+            ["install_gaffer", path],
+            on_success=lambda: self._finish_app_action("gaffer"),
+            app_id="gaffer",
+            progress_segment=(0.05, 0.98),
+        )
+
+    def remove_gaffer_flow(self):
+        if not self._gaffer_installed():
+            self.append_log("ℹ️ Gaffer does not appear to be installed.\n")
+            self.refresh_app_state("gaffer")
+            return
+        reply = QMessageBox.question(
+            self, "Uninstall Gaffer?",
+            "This will remove /opt/gaffer, the /usr/bin/gaffer symlink, and the desktop entry.",
+            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
+        )
+        if reply != QMessageBox.StandardButton.Ok:
+            return
+        self.set_app_busy("gaffer", True, "Removing…")
+        self._set_app_progress_fraction("gaffer", 0.02)
+        self.run_helper_with_callback(
+            ["remove_gaffer"],
+            on_success=lambda: self._finish_app_action("gaffer"),
+            app_id="gaffer",
             progress_segment=(0.02, 0.98),
         )
 
