@@ -156,6 +156,8 @@ jobs:
           ./src/packaging/build-rpm.sh
 
           find "$HOME/rpmbuild/RPMS" -type f -name "*.rpm" -exec cp -v {} "$DISTDIR/" \;
+          mkdir -p "$DISTDIR/srpms"
+          find "$HOME/rpmbuild/SRPMS" -type f -name "*.src.rpm" -exec cp -v {} "$DISTDIR/srpms/" \;
 
       - name: Smoke test — install RPM and verify files
         env:
@@ -173,6 +175,13 @@ jobs:
         with:
           name: rpm-el${{ matrix.el }}-${{ github.event_name == 'pull_request' && format('pr{0}', github.event.pull_request.number) || 'release' }}
           path: dist/*.rpm
+
+      - name: Upload SRPM artifact
+        if: matrix.el == 9 && github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v7
+        with:
+          name: srpm-pr${{ github.event.pull_request.number }}
+          path: dist/srpms/*.src.rpm
 
   release:
     name: Release
@@ -240,11 +249,47 @@ jobs:
             - EL9 RPM (Qt5 / PyQt5)
             - EL10 RPM (Qt6 / PyQt6)
 
-  pr-beta-comment:
-    name: Comment beta RPM location on PR
+  copr-beta:
+    name: Submit to COPR testing
     needs: build
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'documentation')
+
+    steps:
+      - name: Download SRPM
+        uses: actions/download-artifact@v8
+        with:
+          name: srpm-pr${{ github.event.pull_request.number }}
+          path: dist
+
+      - name: Install copr-cli
+        run: pip install copr-cli
+
+      - name: Configure copr-cli
+        env:
+          COPR_LOGIN: ${{ secrets.COPR_LOGIN }}
+          COPR_TOKEN: ${{ secrets.COPR_TOKEN }}
+        run: |
+          mkdir -p ~/.config
+          cat > ~/.config/copr <<EOF
+          [copr-cli]
+          login          = ${COPR_LOGIN}
+          username       = tristantheroux
+          token          = ${COPR_TOKEN}
+          copr_url       = https://copr.fedorainfracloud.org
+          EOF
+
+      - name: Submit SRPM to COPR testing
+        run: |
+          copr-cli build --nowait \
+            tristantheroux/almalinux-creative-installer-testing \
+            dist/*.src.rpm
+
+  pr-beta-comment:
+    name: Comment beta RPM location on PR
+    needs: [build, copr-beta]
+    runs-on: ubuntu-latest
+    if: always() && github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'documentation') && needs.build.result == 'success'
 
     steps:
       - name: Post new comment with beta RPM download link
@@ -256,9 +301,19 @@ jobs:
           message: |
             ✅ Beta RPMs are ready for commit `${{ github.sha }}`.
 
-            Download them from this run's artifacts:
+            **Option 1 — COPR (recommended, installs via DNF):**
+            ```bash
+            sudo dnf copr enable tristantheroux/almalinux-creative-installer-testing
+            sudo dnf install almalinux-creative-installer
+            # To remove the testing repo after QA:
+            sudo dnf copr disable tristantheroux/almalinux-creative-installer-testing
+            ```
+            > The COPR build runs asynchronously — wait ~5 min after this comment before installing.
+
+            **Option 2 — manual RPM download:**
+            Download from this run's artifacts:
             https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}#artifacts
 
-            Expected artifact names:
+            Artifact names:
             - `rpm-el9-pr${{ github.event.pull_request.number }}`
             - `rpm-el10-pr${{ github.event.pull_request.number }}`
