@@ -74,6 +74,7 @@ APPS = [
     {"id": "popcornfx",         "name": "PopcornFX Editor", "type": "flatpak", "appid": "com.popcornfx.PopcornFXEditor",                "category": "Animation & Video"},
     {"id": "jangafx",           "name": "JangaFX Elemental Suite", "type": "jangafx",                                                   "category": "Animation & Video"},
     {"id": "gaffer",            "name": "Gaffer",                  "type": "gaffer",                                                    "category": "Animation & Video",   "el": [9]},
+    {"id": "natron",            "name": "Natron",                  "type": "flatpak", "appid": "fr.natron.Natron",                      "category": "Animation & Video"},
     {"id": "vlc",               "name": "VLC",              "type": "flatpak", "appid": "org.videolan.VLC",                             "category": "Animation & Video"},
     {"id": "obs-studio",        "name": "OBS Studio",       "type": "flatpak", "appid": "com.obsproject.Studio",                        "category": "Animation & Video"},
     {"id": "handbrake",         "name": "HandBrake",        "type": "flatpak", "appid": "fr.handbrake.ghb",                             "category": "Animation & Video"},

@@ -93,6 +93,8 @@ fi
 - Add PopcornFX Editor (Animation & Video, Flatpak)
 - Add JangaFX Elemental Suite (Animation & Video, guided portable binary install)
 - Add FogPanther (Image Processing, Flatpak)
+- Add Gaffer (Animation & Video, EL9 only, guided portable binary install)
+- Add Natron (Animation & Video, Flatpak)
 * Mon May 26 2026 KernelChief - 2.0.1-1
 - Fix COPR build: bump default version to 2.0.1 so tarball includes src/qtcompat.py
 * Mon Apr 27 2026 KernelChief - 1.0.5-1
