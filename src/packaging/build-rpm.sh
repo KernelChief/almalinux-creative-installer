@@ -75,6 +75,10 @@ RPMBUILD_ARGS=(
   --define "app_version ${RPM_VERSION}"
 )
 
+if [[ -n "${RPM_PRERELEASE}" ]]; then
+  RPMBUILD_ARGS+=(--define "app_release 0.${RPM_PRERELEASE}.1")
+fi
+
 rpmbuild "${RPMBUILD_ARGS[@]}" "${SPEC}"
 
 echo "Done."
