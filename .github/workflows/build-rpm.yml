@@ -11,7 +11,7 @@ on:
     tags:
       - "v*"
   pull_request:
-    types: [opened, synchronize, reopened, labeled, unlabeled]
+    types: [opened, synchronize, reopened, labeled, unlabeled, ready_for_review]
 
 permissions:
   contents: write
@@ -56,7 +56,7 @@ jobs:
     name: Build (EL${{ matrix.el }})
     runs-on: ubuntu-latest
     needs: [lint, shellcheck]
-    if: github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'documentation')
+    if: github.event.pull_request.draft != true && (github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'documentation'))
     strategy:
       matrix:
         include:
