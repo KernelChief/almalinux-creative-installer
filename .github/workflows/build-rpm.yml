@@ -282,7 +282,7 @@ jobs:
       - name: Submit SRPM to COPR testing
         run: |
           copr-cli build --nowait \
-            tristantheroux/almalinux-creative-installer-testing \
+            tristantheroux/AlmaLinux-Creative-Installer-Testing \
             dist/*.src.rpm
 
   pr-beta-comment:
