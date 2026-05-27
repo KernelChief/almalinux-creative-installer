@@ -635,6 +635,7 @@ install_jangafx() {
 
   log "Extracting main archive..."
   unzip -q "${zip_path}" -d "${tmp_dir}/suite"
+  rm -rf "${tmp_dir}/suite/__MACOSX"
   log "Main archive extracted."
 
   mkdir -p "${install_base}"
@@ -705,7 +706,7 @@ StartupWMClass=${app_name}
 EOF
     chown "${user}:${user}" "${desktop_dir}/${display_name}.desktop"
     log "${display_name} installed to ${dest_dir}"
-  done < <(find "${tmp_dir}/suite" -maxdepth 2 -name '*-latest.zip' ! -path '*/__MACOSX/*' ! -name '._*' | sort)
+  done < <(find "${tmp_dir}/suite" -maxdepth 2 -name '*-latest.zip' | sort)
 
   log "JangaFX Elemental Suite installation complete."
 }
