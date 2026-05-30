@@ -57,25 +57,15 @@ AlmaLinux Creative Installer v2.0.1 is the official current release — a full Q
 
 ### 1️⃣ Enable the COPR Repository
 
-Pick the command that matches your AlmaLinux release:
-
-**AlmaLinux 9**
-
 ```bash
-sudo dnf copr enable tristantheroux/AlmaLinux-Creative-Installer almalinux-9-x86_64
+sudo dnf copr enable tristantheroux/AlmaLinux-Creative-Installer
 ```
 
-**AlmaLinux 10**
-
-```bash
-sudo dnf copr enable tristantheroux/AlmaLinux-Creative-Installer almalinux-10-x86_64_v2
-```
+This works on both AlmaLinux 9 and AlmaLinux 10. DNF auto-detects your release and selects the matching build.
 
 ---
 
 ### 2️⃣ Install the Application
-
-The same command works on both AlmaLinux 9 and AlmaLinux 10:
 
 ```bash
 sudo dnf install almalinux-creative-installer
