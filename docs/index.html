@@ -1081,45 +1081,25 @@
         <span class="section-label">Installation</span>
         <h2 class="section-title">Ready in minutes,<br />v2.0.2</h2>
         <p class="section-sub" style="margin-bottom:28px;">
-          <strong>Not sure which to choose? Pick your AlmaLinux version below.</strong> Those tabs use <strong>COPR</strong>, the recommended way: two commands, and it updates automatically with the rest of your system via <code>sudo dnf upgrade</code>. Only use <strong>Manual RPM</strong> if you can't enable COPR; it's a one-time download with <em>no</em> automatic updates.
+          <strong>Two ways to install.</strong> <strong>COPR</strong> is the recommended one: two commands that work on both AlmaLinux 9 and 10, and it updates automatically with the rest of your system via <code>sudo dnf upgrade</code>. Only use <strong>Manual RPM</strong> if you can't enable COPR; it's a one-time download with <em>no</em> automatic updates.
         </p>
       </div>
       <div class="reveal reveal-delay-2">
         <div class="install-tabs" role="tablist">
-          <button class="tab-btn active" onclick="switchTab('el9')" role="tab">AlmaLinux 9 · COPR ✅</button>
-          <button class="tab-btn" onclick="switchTab('el10')" role="tab">AlmaLinux 10 · COPR ✅</button>
+          <button class="tab-btn active" onclick="switchTab('copr')" role="tab">COPR (Recommended) ✅</button>
           <button class="tab-btn" onclick="switchTab('rpm')" role="tab">Manual RPM · advanced</button>
         </div>
 
-        <div id="tab-el9" class="tab-panel active">
+        <div id="tab-copr" class="tab-panel active">
           <div class="terminal">
             <div class="terminal-bar">
               <div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div>
-              <div class="term-title">bash — AlmaLinux 9 (x86_64)</div>
+              <div class="term-title">bash — AlmaLinux 9 &amp; 10</div>
             </div>
             <div class="terminal-body">
-              <button class="copy-btn" onclick="copyCmd('el9-cmd')" id="copy-el9">Copy</button>
-              <pre id="el9-cmd"><span class="comment"># 1. Enable the COPR repository (AlmaLinux 9)</span>
-<span class="prompt">$ </span><span class="cmd">sudo dnf copr enable \
-  tristantheroux/AlmaLinux-Creative-Installer almalinux-9-x86_64</span>
-
-<span class="comment"># 2. Install the application</span>
-<span class="prompt">$ </span><span class="cmd">sudo dnf install almalinux-creative-installer</span></pre>
-            </div>
-          </div>
-        </div>
-
-        <div id="tab-el10" class="tab-panel">
-          <div class="terminal">
-            <div class="terminal-bar">
-              <div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div>
-              <div class="term-title">bash — AlmaLinux 10 (x86_64_v2)</div>
-            </div>
-            <div class="terminal-body">
-              <button class="copy-btn" onclick="copyCmd('el10-cmd')" id="copy-el10">Copy</button>
-              <pre id="el10-cmd"><span class="comment"># 1. Enable the COPR repository (AlmaLinux 10)</span>
-<span class="prompt">$ </span><span class="cmd">sudo dnf copr enable \
-  tristantheroux/AlmaLinux-Creative-Installer almalinux-10-x86_64_v2</span>
+              <button class="copy-btn" onclick="copyCmd('copr-cmd')" id="copy-copr">Copy</button>
+              <pre id="copr-cmd"><span class="comment"># 1. Enable the COPR repository (auto-detects AlmaLinux 9 or 10)</span>
+<span class="prompt">$ </span><span class="cmd">sudo dnf copr enable tristantheroux/AlmaLinux-Creative-Installer</span>
 
 <span class="comment"># 2. Install the application</span>
 <span class="prompt">$ </span><span class="cmd">sudo dnf install almalinux-creative-installer</span></pre>
@@ -1146,7 +1126,7 @@
           </div>
           <div class="copr-note" style="background:rgba(234,179,8,0.08);border-color:rgba(234,179,8,0.30);color:#eab308;">
             <span class="icon">⚠️</span>
-            <span><strong>Advanced / fallback only.</strong> A manual RPM install gets <strong>no automatic updates</strong>. You must download and reinstall by hand for every new release. If you can, use the <strong>COPR</strong> tabs above instead.</span>
+            <span><strong>Advanced / fallback only.</strong> A manual RPM install gets <strong>no automatic updates</strong>. You must download and reinstall by hand for every new release. If you can, use the <strong>COPR</strong> tab above instead.</span>
           </div>
         </div>
 
