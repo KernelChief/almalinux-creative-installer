@@ -754,6 +754,12 @@ install_gaffer() {
   log "Ensuring tar is available..."
   command -v tar >/dev/null 2>&1 || dnf -y install tar
 
+  # Gaffer's GL widgets link specifically against the 64-bit libGLU.so.1
+  # soname, absent on minimal AlmaLinux installs. Resolve by soname so we
+  # always pull the exact runtime library (currently shipped by mesa-libGLU).
+  log "Ensuring OpenGL utility library (libGLU.so.1)..."
+  dnf -y install "libGLU.so.1()(64bit)" || dnf -y install mesa-libGLU || exit 1
+
   local user home
   user="$(require_invoking_user)"
   home="$(require_invoking_user_home)"
