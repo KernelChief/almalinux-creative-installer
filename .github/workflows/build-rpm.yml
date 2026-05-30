@@ -122,7 +122,12 @@ jobs:
             fi
 
             SHORT_SHA="$(printf '%s' "$GITHUB_SHA" | cut -c1-8)"
-            VERSION="${BASE_VERSION}-beta.pr${{ github.event.pull_request.number }}.${SHORT_SHA}"
+            # UTC build timestamp as the FIRST prerelease segment: it increases
+            # monotonically, so every commit AND every rebuild produces an NVR
+            # that dnf/COPR recognise as strictly newer. The short SHA stays for
+            # traceability (which commit), but is no longer relied on for ordering.
+            STAMP="$(date -u +%Y%m%d%H%M%S)"
+            VERSION="${BASE_VERSION}-beta.${STAMP}.pr${{ github.event.pull_request.number }}.g${SHORT_SHA}"
             echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
             echo "Resolved version for PR beta build: ${VERSION}"
             exit 0
