@@ -53,7 +53,7 @@ https://chat.almalinux.org/almalinux/channels/sig-media-entertainment
 
 ## 🚀 Quick Start (Recommended)
 
-AlmaLinux Creative Installer v2.0.1 is the official current release — a full Qt rewrite supporting AlmaLinux 9 (PyQt5) and AlmaLinux 10 (PyQt6). Install it in two commands via COPR.
+AlmaLinux Creative Installer v2.0.2 is the current release, supporting AlmaLinux 9 (PyQt5) and AlmaLinux 10 (PyQt6). This release adds several new creative apps. Install it in two commands via COPR.
 
 ### 1️⃣ Enable the COPR Repository
 
@@ -102,10 +102,10 @@ Then install it from the directory where you downloaded it:
 
 ```bash
 # AlmaLinux 9
-sudo dnf install ./almalinux-creative-installer-2.0.1-1.el9.noarch.rpm
+sudo dnf install ./almalinux-creative-installer-2.0.2-1.el9.noarch.rpm
 
 # AlmaLinux 10
-sudo dnf install ./almalinux-creative-installer-2.0.1-1.el10.noarch.rpm
+sudo dnf install ./almalinux-creative-installer-2.0.2-1.el10.noarch.rpm
 ```
 
 > Note: with this method you will need to repeat the download and install manually for each future release. COPR is recommended.
@@ -411,7 +411,7 @@ via Flatpak, and the installer adds Flathub system-wide to enable them.
 
 **The RPM build script fails.**  
 `build-rpm.sh` uses the **latest git tag** for the version. Create a tag like
-`v2.0.1` before building.
+`v2.0.2` before building.
 
 ---
 
