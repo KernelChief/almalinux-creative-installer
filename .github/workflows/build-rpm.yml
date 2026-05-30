@@ -113,7 +113,12 @@ jobs:
             exit 0
           fi
 
-          # 3) PR builds create beta pre-release from latest stable tag
+          # 3) PR builds: beta pre-release of the NEXT version, numbered by the
+          #    workflow run. Base = latest stable tag with the patch bumped by one
+          #    (v2.0.1 -> 2.0.2), so betas sort ABOVE stable 2.0.1 and BELOW the
+          #    eventual 2.0.2 final. github.run_number increases on every commit
+          #    and every rebuild, so each build is a strictly-newer NVR. No
+          #    hardcoded version; rolls forward automatically once v2.0.2 is tagged.
           if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
             BASE_TAG="$(git tag --list 'v*' --sort=-v:refname | head -n 1 || true)"
             BASE_VERSION="${BASE_TAG#v}"
@@ -121,13 +126,15 @@ jobs:
               BASE_VERSION="0.0.0"
             fi
 
-            SHORT_SHA="$(printf '%s' "$GITHUB_SHA" | cut -c1-8)"
-            # UTC build timestamp as the FIRST prerelease segment: it increases
-            # monotonically, so every commit AND every rebuild produces an NVR
-            # that dnf/COPR recognise as strictly newer. The short SHA stays for
-            # traceability (which commit), but is no longer relied on for ordering.
-            STAMP="$(date -u +%Y%m%d%H%M%S)"
-            VERSION="${BASE_VERSION}-beta.${STAMP}.pr${{ github.event.pull_request.number }}.g${SHORT_SHA}"
+            MAJ="${BASE_VERSION%%.*}"
+            REST="${BASE_VERSION#*.}"
+            MIN="${REST%%.*}"
+            PAT="${REST#*.}"
+            PAT="${PAT%%.*}"
+            [ -n "${PAT}" ] || PAT=0
+            NEXT_VERSION="${MAJ}.${MIN}.$((PAT + 1))"
+
+            VERSION="${NEXT_VERSION}-beta.${{ github.run_number }}"
             echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
             echo "Resolved version for PR beta build: ${VERSION}"
             exit 0
