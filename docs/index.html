@@ -1081,13 +1081,50 @@
         <span class="section-label">Installation</span>
         <h2 class="section-title">Ready in minutes,<br />v2.0.1 — Qt Rewrite</h2>
         <p class="section-sub" style="margin-bottom:28px;">
-          Enable the official COPR repository and install with two commands. DNF handles dependencies and future updates automatically. Works on AlmaLinux 9 and 10.
+          <strong>Not sure which to choose? Pick your AlmaLinux version below.</strong> Those tabs use <strong>COPR</strong>, the recommended way: two commands, and it updates automatically with the rest of your system via <code>sudo dnf upgrade</code>. Only use <strong>Manual RPM</strong> if you can't enable COPR; it's a one-time download with <em>no</em> automatic updates.
         </p>
       </div>
       <div class="reveal reveal-delay-2">
         <div class="install-tabs" role="tablist">
-          <button class="tab-btn active" onclick="switchTab('copr')" role="tab">COPR (Recommended)</button>
-          <button class="tab-btn" onclick="switchTab('rpm')" role="tab">Manual RPM</button>
+          <button class="tab-btn active" onclick="switchTab('el9')" role="tab">AlmaLinux 9 · COPR ✅</button>
+          <button class="tab-btn" onclick="switchTab('el10')" role="tab">AlmaLinux 10 · COPR ✅</button>
+          <button class="tab-btn" onclick="switchTab('rpm')" role="tab">Manual RPM · advanced</button>
+        </div>
+
+        <div id="tab-el9" class="tab-panel active">
+          <div class="terminal">
+            <div class="terminal-bar">
+              <div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div>
+              <div class="term-title">bash — AlmaLinux 9 (x86_64)</div>
+            </div>
+            <div class="terminal-body">
+              <button class="copy-btn" onclick="copyCmd('el9-cmd')" id="copy-el9">Copy</button>
+              <pre id="el9-cmd"><span class="comment"># 1. Enable the COPR repository (AlmaLinux 9)</span>
+<span class="prompt">$ </span><span class="cmd">sudo dnf copr enable \
+  tristantheroux/AlmaLinux-Creative-Installer almalinux-9-x86_64</span>
+
+<span class="comment"># 2. Install the application</span>
+<span class="prompt">$ </span><span class="cmd">sudo dnf install almalinux-creative-installer</span></pre>
+            </div>
+          </div>
+        </div>
+
+        <div id="tab-el10" class="tab-panel">
+          <div class="terminal">
+            <div class="terminal-bar">
+              <div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div>
+              <div class="term-title">bash — AlmaLinux 10 (x86_64_v2)</div>
+            </div>
+            <div class="terminal-body">
+              <button class="copy-btn" onclick="copyCmd('el10-cmd')" id="copy-el10">Copy</button>
+              <pre id="el10-cmd"><span class="comment"># 1. Enable the COPR repository (AlmaLinux 10)</span>
+<span class="prompt">$ </span><span class="cmd">sudo dnf copr enable \
+  tristantheroux/AlmaLinux-Creative-Installer almalinux-10-x86_64_v2</span>
+
+<span class="comment"># 2. Install the application</span>
+<span class="prompt">$ </span><span class="cmd">sudo dnf install almalinux-creative-installer</span></pre>
+            </div>
+          </div>
         </div>
 
         <div id="tab-rpm" class="tab-panel">
@@ -1107,27 +1144,50 @@
 <span class="prompt">$ </span><span class="cmd">almalinux-creative-installer</span></pre>
             </div>
           </div>
+          <div class="copr-note" style="background:rgba(234,179,8,0.08);border-color:rgba(234,179,8,0.30);color:#eab308;">
+            <span class="icon">⚠️</span>
+            <span><strong>Advanced / fallback only.</strong> A manual RPM install gets <strong>no automatic updates</strong>. You must download and reinstall by hand for every new release. If you can, use the <strong>COPR</strong> tabs above instead.</span>
+          </div>
         </div>
 
-        <div id="tab-copr" class="tab-panel active">
-          <div class="terminal">
-            <div class="terminal-bar">
-              <div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div>
-              <div class="term-title">bash — AlmaLinux 9 / 10</div>
-            </div>
-            <div class="terminal-body">
-              <button class="copy-btn" onclick="copyCmd('copr-cmd')" id="copy-copr">Copy</button>
-              <pre id="copr-cmd"><span class="comment"># Enable the official COPR repository</span>
-<span class="prompt">$ </span><span class="cmd">sudo dnf copr enable \
-  tristantheroux/almalinux-creative-installer</span>
+        <div class="copr-note">
+          <span class="icon">✅</span>
+          <span>COPR is live for <strong>v2.0.1 (Qt Rewrite)</strong>. Future releases update automatically via <code>sudo dnf upgrade</code>.</span>
+        </div>
+      </div>
 
-<span class="comment"># One-command installation & updates</span>
-<span class="prompt">$ </span><span class="cmd">sudo dnf install almalinux-creative-installer</span></pre>
-            </div>
+      <div class="reveal" style="margin-top:56px;">
+        <h3 class="section-title" style="font-size:1.5rem;margin-bottom:8px;">Uninstalling</h3>
+        <p class="section-sub" style="margin-bottom:16px;">Pick the case that matches <strong>how you installed</strong>. The AlmaLinux version makes no difference here.</p>
+        <div class="copr-note" style="background:rgba(234,179,8,0.08);border-color:rgba(234,179,8,0.30);color:#eab308;margin-bottom:24px;">
+          <span class="icon">⚠️</span>
+          <span><strong>This only removes the installer app itself.</strong> It does <strong>not</strong> undo anything the installer did for you. Any apps you installed, drivers you enabled, and repositories or settings it applied stay installed and active. Remove those separately if you want them gone.</span>
+        </div>
+
+        <div class="terminal">
+          <div class="terminal-bar">
+            <div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div>
+            <div class="term-title">bash — If you installed via COPR (recommended)</div>
           </div>
-          <div class="copr-note">
-            <span class="icon">✅</span>
-            <span>COPR is live for <strong>v2.0.1 (Qt Rewrite)</strong>. Future releases update automatically via <code>sudo dnf upgrade</code>.</span>
+          <div class="terminal-body">
+            <button class="copy-btn" onclick="copyCmd('remove-copr-cmd')" id="copy-remove-copr">Copy</button>
+            <pre id="remove-copr-cmd"><span class="comment"># 1. Remove the application</span>
+<span class="prompt">$ </span><span class="cmd">sudo dnf remove almalinux-creative-installer</span>
+
+<span class="comment"># 2. Remove the COPR repository</span>
+<span class="prompt">$ </span><span class="cmd">sudo dnf copr remove tristantheroux/AlmaLinux-Creative-Installer</span></pre>
+          </div>
+        </div>
+
+        <div class="terminal" style="margin-top:20px;">
+          <div class="terminal-bar">
+            <div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div>
+            <div class="term-title">bash — If you installed the manual RPM</div>
+          </div>
+          <div class="terminal-body">
+            <button class="copy-btn" onclick="copyCmd('remove-rpm-cmd')" id="copy-remove-rpm">Copy</button>
+            <pre id="remove-rpm-cmd"><span class="comment"># No COPR repository to disable, so just remove the application</span>
+<span class="prompt">$ </span><span class="cmd">sudo dnf remove almalinux-creative-installer</span></pre>
           </div>
         </div>
       </div>
@@ -1212,7 +1272,7 @@
       .replaceAll(/\n{2,}/g, '\n')
       .trim();
     navigator.clipboard.writeText(text).then(() => {
-      const btnId = id === 'rpm-cmd' ? 'copy-rpm' : 'copy-copr';
+      const btnId = 'copy-' + id.replace('-cmd', '');
       const btn = document.getElementById(btnId);
       const orig = btn.textContent;
       btn.textContent = 'Copied!';
