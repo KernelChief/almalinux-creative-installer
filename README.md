@@ -43,6 +43,7 @@ https://chat.almalinux.org/almalinux/channels/sig-media-entertainment
 - [🎬 Target Applications](#-target-applications)
 - [🎞️ DaVinci Resolve Guided Flow](#-davinci-resolve-guided-install-flow)
 - [🔐 Privilege & Security Model](#-privilege--security-model)
+- [🧹 Uninstalling](#-uninstalling-the-application)
 - [❓ FAQ](#-faq)
 - [🧰 Troubleshooting](#-troubleshooting)
 - [🤝 Community](#-community)
@@ -56,15 +57,25 @@ AlmaLinux Creative Installer v2.0.1 is the official current release — a full Q
 
 ### 1️⃣ Enable the COPR Repository
 
+Pick the command that matches your AlmaLinux release:
+
+**AlmaLinux 9**
+
 ```bash
-sudo dnf copr enable tristantheroux/almalinux-creative-installer
+sudo dnf copr enable tristantheroux/AlmaLinux-Creative-Installer almalinux-9-x86_64
 ```
 
-This registers the official repository for both AlmaLinux 9 and AlmaLinux 10. DNF will automatically select the correct build for your version.
+**AlmaLinux 10**
+
+```bash
+sudo dnf copr enable tristantheroux/AlmaLinux-Creative-Installer almalinux-10-x86_64_v2
+```
 
 ---
 
 ### 2️⃣ Install the Application
+
+The same command works on both AlmaLinux 9 and AlmaLinux 10:
 
 ```bash
 sudo dnf install almalinux-creative-installer
@@ -78,6 +89,10 @@ This will:
 ---
 
 ### Alternative: Manual RPM Install
+
+> **Which method should I use?**
+> - **COPR (recommended, above):** two commands, and you get **automatic updates** with every `sudo dnf upgrade`. Use this unless you have a reason not to.
+> - **Manual RPM (below):** a one-time download with **no automatic updates**. You must re-download and reinstall by hand for every new release. Only use this if you can't enable COPR.
 
 If you prefer not to use COPR, download the RPM directly from the GitHub Releases page:
 
@@ -298,7 +313,24 @@ sudo dnf upgrade almalinux-creative-installer
 
 ## 🧹 Uninstalling the Application
 
-To remove the application, run:
+> ⚠️ **This only removes the installer app itself.** It does **not** undo anything the
+> installer did for you. Any apps you installed, drivers you enabled, and repositories or
+> settings it applied stay installed and active. If you want those gone, remove them
+> separately.
+
+How you uninstall depends on **how you installed**. The AlmaLinux version makes no difference here.
+
+**If you installed via COPR** (the recommended method), remove both the application and the repository:
+
+```bash
+# 1. Remove the application
+sudo dnf remove almalinux-creative-installer
+
+# 2. Remove the COPR repository
+sudo dnf copr remove tristantheroux/AlmaLinux-Creative-Installer
+```
+
+**If you installed the manual RPM**, there is no repository to disable, so just remove the application:
 
 ```bash
 sudo dnf remove almalinux-creative-installer
