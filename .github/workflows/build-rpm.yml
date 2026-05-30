@@ -315,17 +315,11 @@ jobs:
 
             ## Option 1: COPR testing repo (recommended, installs via DNF)
 
-            Enable the **testing** repo for your AlmaLinux release, then install.
+            Enable the **testing** repo, then install. Works on both AlmaLinux 9
+            and AlmaLinux 10 (DNF auto-detects the right epel-9 / epel-10 build).
 
-            **AlmaLinux 9**
             ```bash
-            sudo dnf copr enable tristantheroux/AlmaLinux-Creative-Installer-Testing almalinux-9-x86_64
-            sudo dnf install almalinux-creative-installer
-            ```
-
-            **AlmaLinux 10**
-            ```bash
-            sudo dnf copr enable tristantheroux/AlmaLinux-Creative-Installer-Testing almalinux-10-x86_64_v2
+            sudo dnf copr enable tristantheroux/AlmaLinux-Creative-Installer-Testing
             sudo dnf install almalinux-creative-installer
             ```
 
