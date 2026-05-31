@@ -2188,7 +2188,8 @@ class AlmaCreativeInstaller(QMainWindow):
                 ["rpm", "-qa", "--qf", "%{NAME}\n"],
                 stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True,
             ).stdout
-            return any("instamaterial" in line.lower() for line in out.splitlines() if line.strip())
+            # The vendor RPM is named "instamat-studio" (not "instamaterial").
+            return any("instamat" in line.lower() for line in out.splitlines() if line.strip())
         except Exception:
             return False
 

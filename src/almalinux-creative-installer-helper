@@ -599,7 +599,8 @@ remove_instamaterial() {
   log "Removing InstaMaterial..."
 
   local pkg
-  pkg="$(rpm -qa --qf '%{NAME}\n' 2>/dev/null | grep -i instamaterial | head -1 || true)"
+  # The vendor RPM is named "instamat-studio" (not "instamaterial").
+  pkg="$(rpm -qa --qf '%{NAME}\n' 2>/dev/null | grep -i instamat | head -1 || true)"
 
   if [[ -z "${pkg}" ]]; then
     echo "ERROR: No InstaMaterial RPM package found. Is it installed?" >&2
@@ -664,14 +665,19 @@ install_jangafx() {
     rm -rf "${dest_dir}"
     mv "${app_dir}" "${dest_dir}"
 
-    # Find and chmod the main executable (file named after the app, no extension)
-    exe="$(find "${dest_dir}" -maxdepth 1 -type f -iname "${app_name}" -print -quit 2>/dev/null)"
+    # Find the main executable. It is usually named after the app but may carry a
+    # version suffix (e.g. embergen -> embergen2), so match the app-name prefix.
+    # Exclude recovery/helper binaries (e.g. recovery.ember-recover) and docs/libs.
+    exe="$(find "${dest_dir}" -maxdepth 1 -type f -iname "${app_name}*" \
+             ! -iname '*recover*' ! -name '*.so*' ! -name '*.txt' \
+             ! -name '*.md' ! -name '*.sh' ! -name 'README*' \
+             -print 2>/dev/null | sort | head -1)"
     if [[ -z "${exe}" ]]; then
-      # Fallback: first non-text, non-library file at root level
+      # Fallback: first non-text, non-library, non-recovery file at root level
       exe="$(find "${dest_dir}" -maxdepth 1 -type f \
-               ! -name '*.so*' ! -name '*.txt' ! -name '*.md' \
+               ! -iname '*recover*' ! -name '*.so*' ! -name '*.txt' ! -name '*.md' \
                ! -name '*.sh'  ! -name 'README*' \
-               -print -quit 2>/dev/null)"
+               -print 2>/dev/null | sort | head -1)"
     fi
     if [[ -z "${exe}" ]]; then
       echo "WARNING: executable not found for ${app_name}, skipping" >&2
