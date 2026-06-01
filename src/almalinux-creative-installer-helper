@@ -688,7 +688,36 @@ install_jangafx() {
 
     # Launcher wrapper so the app can find its own data directory
     sh_path="${install_base}/${app_name}.sh"
-    printf '#!/bin/bash\ncd "%s" && ./%s "$@"\n' "${dest_dir}" "$(basename "${exe}")" > "${sh_path}"
+    local exe_base
+    exe_base="$(basename "${exe}")"
+    if [[ "${app_name}" == "embergen" ]]; then
+      # EmberGen 1.2.2 segfaults at startup if it enumerates a software
+      # (llvmpipe) or inactive/secondary Vulkan ICD: it probes a device it
+      # cannot use and crashes during graphics init. Pin Vulkan to the ICD
+      # matching the GPU driver actually bound in the kernel; fall back to
+      # every non-software ICD if no bound driver is detected. The newer
+      # suite apps tolerate the mixed-ICD case, so only EmberGen needs this.
+      cat > "${sh_path}" <<'WRAP'
+#!/bin/bash
+icd_dir=/usr/share/vulkan/icd.d
+icds=""
+for d in /sys/class/drm/card[0-9]*/device/driver; do
+  case "$(basename "$(readlink -f "$d")")" in
+    nvidia)        f="$icd_dir/nvidia_icd.x86_64.json" ;;
+    amdgpu|radeon) f="$icd_dir/radeon_icd.x86_64.json" ;;
+    i915|xe)       f="$icd_dir/intel_icd.x86_64.json" ;;
+    nouveau)       f="$icd_dir/nouveau_icd.x86_64.json" ;;
+    *) continue ;;
+  esac
+  [ -f "$f" ] && case ":$icds:" in *":$f:"*) ;; *) icds="${icds:+$icds:}$f" ;; esac
+done
+[ -z "$icds" ] && icds="$(ls "$icd_dir"/*.json 2>/dev/null | grep -v lvp_icd | paste -sd:)"
+[ -n "$icds" ] && export VK_DRIVER_FILES="$icds" VK_ICD_FILENAMES="$icds"
+WRAP
+      printf 'cd "%s" && ./%s "$@"\n' "${dest_dir}" "${exe_base}" >> "${sh_path}"
+    else
+      printf '#!/bin/bash\ncd "%s" && ./%s "$@"\n' "${dest_dir}" "${exe_base}" > "${sh_path}"
+    fi
     chmod +x "${sh_path}"
 
     # Symlink in /usr/bin
