@@ -53,7 +53,7 @@ https://chat.almalinux.org/almalinux/channels/sig-media-entertainment
 
 ## 🚀 Quick Start (Recommended)
 
-AlmaLinux Creative Installer v2.0.2 is the current release, supporting AlmaLinux 9 (PyQt5) and AlmaLinux 10 (PyQt6). This release adds several new creative apps. Install it in two commands via COPR.
+AlmaLinux Creative Installer v2.0.1 is the current stable release, supporting AlmaLinux 9 (PyQt5) and AlmaLinux 10 (PyQt6). Install it in two commands via COPR. v2.0.2 is a pre-release that adds several new creative apps; it is available only as a manual RPM download from GitHub Releases, not yet on COPR.
 
 ### 1️⃣ Enable the COPR Repository
 
@@ -187,7 +187,7 @@ Not every app is available on both EL versions. The installer shows a small **EL
 | PopcornFX Editor  | ✅  | ✅   | Via Flathub |
 | JangaFX Elemental Suite | ✅ | ✅ | Guided portable binary install |
 | FogPanther        | ✅  | ✅   | Via Flathub |
-| Gaffer            | ✅  | ❌   | EL9 only — officially supported on RHEL/AlmaLinux 9 |
+| Gaffer            | ✅  | ✅   | Guided portable binary install (works on EL9 and EL10) |
 | Natron            | ✅  | ✅   | Via Flathub |
 
 > This table reflects current EPEL availability and will be updated as packages land in EL10.
@@ -228,7 +228,7 @@ post-production, and content creation environments:
   - DaVinci Resolve
   - PopcornFX Editor
   - JangaFX Elemental Suite *(guided portable binary install — EmberGen, GeoGen, IlluGen, LiquiGen)*
-  - Gaffer *(EL9 only — guided portable binary install)*
+  - Gaffer *(guided portable binary install, works on EL9 and EL10)*
   - Natron
 
 - **Productivity**

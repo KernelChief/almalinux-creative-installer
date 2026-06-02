@@ -73,7 +73,7 @@ APPS = [
     {"id": "opentoonz",         "name": "OpenToonz",        "type": "flatpak", "appid": "io.github.OpenToonz",                          "category": "Animation & Video"},
     {"id": "popcornfx",         "name": "PopcornFX Editor", "type": "flatpak", "appid": "com.popcornfx.PopcornFXEditor",                "category": "Animation & Video"},
     {"id": "jangafx",           "name": "JangaFX Elemental Suite", "type": "jangafx",                                                   "category": "Animation & Video"},
-    {"id": "gaffer",            "name": "Gaffer",                  "type": "gaffer",                                                    "category": "Animation & Video",   "el": [9]},
+    {"id": "gaffer",            "name": "Gaffer",                  "type": "gaffer",                                                    "category": "Animation & Video"},
     {"id": "natron",            "name": "Natron",                  "type": "flatpak", "appid": "fr.natron.Natron",                      "category": "Animation & Video"},
     {"id": "vlc",               "name": "VLC",              "type": "flatpak", "appid": "org.videolan.VLC",                             "category": "Animation & Video"},
     {"id": "obs-studio",        "name": "OBS Studio",       "type": "flatpak", "appid": "com.obsproject.Studio",                        "category": "Animation & Video"},
@@ -1210,7 +1210,7 @@ class AlmaCreativeInstaller(QMainWindow):
         if app["type"] == "jangafx":
             return "Guided install: download suite zip → extracts EmberGen, GeoGen, IlluGen, LiquiGen to /opt/jangafx"
         if app["type"] == "gaffer":
-            return "Guided install: download Linux tarball from GitHub → extracts to /opt/gaffer (EL9 only)"
+            return "Guided install: download Linux tarball from GitHub → extracts to /opt/gaffer (EL9 and EL10)"
         return ""
 
     # -------------------------------------------------------------------------
