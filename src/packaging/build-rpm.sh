@@ -30,13 +30,22 @@ VERSION="${VERSION#v}"
 RPM_VERSION="${VERSION}"
 RPM_PRERELEASE=""
 
-# Convert semver prerelease tags like 1.0.5-rc1 into RPM-friendly fields:
-#   Version: 1.0.5
-#   Release: 0.rc1.1%{?dist}
+# Convert semver prerelease versions like 2.0.2-beta.42 into RPM-friendly fields:
+#   Version: 2.0.2
+#   Release: 0.beta.42%{?dist}
 if [[ "${VERSION}" == *-* ]]; then
   RPM_VERSION="${VERSION%%-*}"
   RPM_PRERELEASE="${VERSION#*-}"
   RPM_PRERELEASE="${RPM_PRERELEASE//-/.}"
+fi
+
+# Compute the RPM Release:
+#   prerelease build -> 0.<prerelease>      (sorts BELOW the final release)
+#   final build      -> ${APP_RELEASE:-1}   (1, or a hotfix repackage number)
+if [[ -n "${RPM_PRERELEASE}" ]]; then
+  RPM_RELEASE="0.${RPM_PRERELEASE}"
+else
+  RPM_RELEASE="${APP_RELEASE:-1}"
 fi
 
 if [[ -z "${NAME}" || -z "${VERSION}" || -z "${RPM_VERSION}" ]]; then
@@ -68,18 +77,28 @@ TARBALL="${HOME}/rpmbuild/SOURCES/v${RPM_VERSION}.tar.gz"
 tar -C "${TMPDIR}" -czf "${TARBALL}" "${NAME}-${RPM_VERSION}"
 
 echo "Created source tarball: ${TARBALL}"
-echo "Building ${NAME} version ${VERSION} using spec: ${SPEC}"
+echo "Building ${NAME} ${RPM_VERSION}-${RPM_RELEASE} (from VERSION=${VERSION}) using spec: ${SPEC}"
 
-RPMBUILD_ARGS=(
-  -ba
-  --define "app_version ${RPM_VERSION}"
-)
+# Bake the resolved version + release into a throwaway copy of the spec, then
+# build from THAT. rpmbuild --define does not persist into the SRPM, so COPR
+# (which rebuilds the SRPM with no --define) would otherwise fall back to the
+# spec's hardcoded defaults and ship the same NVR every time. Editing a copy
+# keeps the committed spec clean for local development.
+SPEC_BUILD="${TMPDIR}/$(basename "${SPEC}")"
+sed -e "s|^%{!?app_version:%global app_version .*}|%{!?app_version:%global app_version ${RPM_VERSION}}|" \
+    -e "s|^%{!?app_release:%global app_release .*}|%{!?app_release:%global app_release ${RPM_RELEASE}}|" \
+    "${SPEC}" > "${SPEC_BUILD}"
 
-if [[ -n "${RPM_PRERELEASE}" ]]; then
-  RPMBUILD_ARGS+=(--define "app_release 0.${RPM_PRERELEASE}.1")
+if ! grep -q "app_version ${RPM_VERSION}}" "${SPEC_BUILD}" \
+   || ! grep -q "app_release ${RPM_RELEASE}}" "${SPEC_BUILD}"; then
+  echo "ERROR: failed to bake version/release into spec copy." >&2
+  exit 4
 fi
 
-rpmbuild "${RPMBUILD_ARGS[@]}" "${SPEC}"
+rpmbuild -ba \
+  --define "app_version ${RPM_VERSION}" \
+  --define "app_release ${RPM_RELEASE}" \
+  "${SPEC_BUILD}"
 
 echo "Done."
 echo "RPMs are in: ${HOME}/rpmbuild/RPMS/"

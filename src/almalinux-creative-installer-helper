@@ -561,6 +561,287 @@ EOF
   log "3DCoat installation complete."
 }
 
+# -------------------------------------------------
+# InstaMaterial
+# -------------------------------------------------
+install_instamaterial() {
+  local zip_path="${1:-}"
+  local tmp_dir
+
+  [[ -n "${zip_path}" ]] || { echo "ERROR: missing zip path" >&2; exit 2; }
+  [[ -f "${zip_path}" ]] || { echo "ERROR: zip not found: ${zip_path}" >&2; exit 2; }
+
+  log "Ensuring unzip is available..."
+  command -v unzip >/dev/null 2>&1 || dnf -y install unzip
+
+  tmp_dir="$(mktemp -d /tmp/instamaterial-XXXXXX)"
+  # shellcheck disable=SC2064
+  trap "rm -rf '${tmp_dir}'" EXIT
+
+  log "Extracting InstaMaterial archive..."
+  unzip -q "${zip_path}" -d "${tmp_dir}"
+  log "Extraction complete."
+
+  # Find install.sh (may be nested inside a subdirectory)
+  local install_sh
+  install_sh="$(find "${tmp_dir}" -maxdepth 3 -name 'install.sh' -print -quit 2>/dev/null)"
+  [[ -n "${install_sh}" ]] || { echo "ERROR: install.sh not found in archive" >&2; exit 1; }
+
+  chmod +x "${install_sh}"
+  # Pipe 'y' so that the unsupported-distro prompt (e.g. AlmaLinux 10) proceeds automatically.
+  log "Running install.sh..."
+  (cd "$(dirname "${install_sh}")" && echo "y" | bash install.sh)
+
+  log "InstaMaterial installation complete."
+}
+
+remove_instamaterial() {
+  log "Removing InstaMaterial..."
+
+  local pkg
+  # The vendor RPM is named "instamat-studio" (not "instamaterial").
+  pkg="$(rpm -qa --qf '%{NAME}\n' 2>/dev/null | grep -i instamat | head -1 || true)"
+
+  if [[ -z "${pkg}" ]]; then
+    echo "ERROR: No InstaMaterial RPM package found. Is it installed?" >&2
+    exit 3
+  fi
+
+  log "Removing RPM package: ${pkg}"
+  dnf -y remove "${pkg}"
+  log "InstaMaterial removed."
+}
+
+# -------------------------------------------------
+# JangaFX Elemental Suite
+# -------------------------------------------------
+install_jangafx() {
+  local zip_path="${1:-}"
+  local install_base="/opt/jangafx"
+  local tmp_dir
+
+  [[ -n "${zip_path}" ]] || { echo "ERROR: missing zip path" >&2; exit 2; }
+  [[ -f "${zip_path}" ]] || { echo "ERROR: zip not found: ${zip_path}" >&2; exit 2; }
+
+  log "Ensuring unzip is available..."
+  command -v unzip >/dev/null 2>&1 || dnf -y install unzip
+
+  tmp_dir="$(mktemp -d /tmp/jangafx-XXXXXX)"
+  # shellcheck disable=SC2064
+  trap "rm -rf '${tmp_dir}'" EXIT
+
+  local user home
+  user="$(require_invoking_user)"
+  home="$(require_invoking_user_home)"
+
+  log "Extracting main archive..."
+  unzip -q "${zip_path}" -d "${tmp_dir}/suite"
+  rm -rf "${tmp_dir}/suite/__MACOSX"
+  log "Main archive extracted."
+
+  mkdir -p "${install_base}"
+
+  # Find all sub-zips (e.g. embergen-latest.zip, liquigen-latest.zip, …)
+  local sub_zip app_name tmp_app_dir app_dir dest_dir display_name exe sh_path
+  while IFS= read -r sub_zip; do
+    app_name="$(basename "${sub_zip}" | sed 's/-latest\.zip$//')"
+    log "Installing ${app_name}..."
+
+    tmp_app_dir="${tmp_dir}/${app_name}"
+    mkdir -p "${tmp_app_dir}"
+    unzip -q "${sub_zip}" -d "${tmp_app_dir}"
+
+    # The zip typically contains a single top-level versioned directory (e.g. LiquiGen-1.0.0)
+    app_dir="$(find "${tmp_app_dir}" -maxdepth 1 -mindepth 1 -type d | head -1)"
+    # If no subdirectory, files were extracted flat — use tmp_app_dir directly
+    [[ -n "${app_dir}" ]] || app_dir="${tmp_app_dir}"
+
+    # Derive display name from directory name (e.g. LiquiGen-1.0.0 → LiquiGen)
+    display_name="$(basename "${app_dir}")"
+    display_name="${display_name%%-*}"
+
+    # Move to final install location
+    dest_dir="${install_base}/${app_name}"
+    rm -rf "${dest_dir}"
+    mv "${app_dir}" "${dest_dir}"
+
+    # Find the main executable. It is usually named after the app but may carry a
+    # version suffix (e.g. embergen -> embergen2), so match the app-name prefix.
+    # Exclude recovery/helper binaries (e.g. recovery.ember-recover) and docs/libs.
+    exe="$(find "${dest_dir}" -maxdepth 1 -type f -iname "${app_name}*" \
+             ! -iname '*recover*' ! -name '*.so*' ! -name '*.txt' \
+             ! -name '*.md' ! -name '*.sh' ! -name 'README*' \
+             -print 2>/dev/null | sort | head -1)"
+    if [[ -z "${exe}" ]]; then
+      # Fallback: first non-text, non-library, non-recovery file at root level
+      exe="$(find "${dest_dir}" -maxdepth 1 -type f \
+               ! -iname '*recover*' ! -name '*.so*' ! -name '*.txt' ! -name '*.md' \
+               ! -name '*.sh'  ! -name 'README*' \
+               -print 2>/dev/null | sort | head -1)"
+    fi
+    if [[ -z "${exe}" ]]; then
+      echo "WARNING: executable not found for ${app_name}, skipping" >&2
+      continue
+    fi
+    chmod +x "${exe}"
+    chown -R "${user}:${user}" "${dest_dir}"
+
+    # Launcher wrapper so the app can find its own data directory
+    sh_path="${install_base}/${app_name}.sh"
+    printf '#!/bin/bash\ncd "%s" && ./%s "$@"\n' "${dest_dir}" "$(basename "${exe}")" > "${sh_path}"
+    chmod +x "${sh_path}"
+
+    # Symlink in /usr/bin
+    [[ -L "/usr/bin/${app_name}" ]] && unlink "/usr/bin/${app_name}" || true
+    ln -sf "${sh_path}" "/usr/bin/${app_name}"
+    log "Created /usr/bin/${app_name}"
+
+    # Desktop entry in user's applications directory
+    local desktop_dir="${home}/.local/share/applications"
+    mkdir -p "${desktop_dir}"
+    chown "${user}:${user}" "${desktop_dir}"
+    cat > "${desktop_dir}/${display_name}.desktop" <<EOF
+[Desktop Entry]
+Name=${display_name}
+Comment=JangaFX ${display_name}
+Exec=${sh_path}
+Type=Application
+Terminal=false
+Categories=Graphics;Video;
+StartupWMClass=${app_name}
+EOF
+    chown "${user}:${user}" "${desktop_dir}/${display_name}.desktop"
+    log "${display_name} installed to ${dest_dir}"
+  done < <(find "${tmp_dir}/suite" -maxdepth 2 -name '*-latest.zip' | sort)
+
+  log "JangaFX Elemental Suite installation complete."
+}
+
+remove_jangafx() {
+  local user home
+  user="$(require_invoking_user)"
+  home="$(require_invoking_user_home)"
+
+  log "Removing JangaFX Elemental Suite..."
+
+  if [[ -d /opt/jangafx ]]; then
+    rm -rf /opt/jangafx
+    log "Removed /opt/jangafx"
+  fi
+
+  local app
+  for app in embergen geogen illugen liquigen; do
+    if [[ -L "/usr/bin/${app}" ]]; then
+      unlink "/usr/bin/${app}"
+      log "Removed /usr/bin/${app}"
+    fi
+  done
+
+  local display_name
+  for display_name in EmberGen GeoGen IlluGen LiquiGen; do
+    local desktop="${home}/.local/share/applications/${display_name}.desktop"
+    if [[ -f "${desktop}" ]]; then
+      rm -f "${desktop}"
+      log "Removed ${desktop}"
+    fi
+  done
+
+  log "JangaFX Elemental Suite removed."
+}
+
+install_gaffer() {
+  local tarball="${1:-}"
+  local install_dir="/opt/gaffer"
+  local tmp_dir
+
+  [[ -n "${tarball}" ]] || { echo "ERROR: missing tarball path" >&2; exit 2; }
+  [[ -f "${tarball}" ]] || { echo "ERROR: tarball not found: ${tarball}" >&2; exit 2; }
+
+  log "Ensuring tar is available..."
+  command -v tar >/dev/null 2>&1 || dnf -y install tar
+
+  # Gaffer's GL widgets link specifically against the 64-bit libGLU.so.1
+  # soname, absent on minimal AlmaLinux installs. Resolve by soname so we
+  # always pull the exact runtime library (currently shipped by mesa-libGLU).
+  log "Ensuring OpenGL utility library (libGLU.so.1)..."
+  dnf -y install "libGLU.so.1()(64bit)" || dnf -y install mesa-libGLU || exit 1
+
+  local user home
+  user="$(require_invoking_user)"
+  home="$(require_invoking_user_home)"
+
+  tmp_dir="$(mktemp -d /tmp/gaffer-XXXXXX)"
+  # shellcheck disable=SC2064
+  trap "rm -rf '${tmp_dir}'" EXIT
+
+  log "Extracting Gaffer tarball..."
+  tar xzf "${tarball}" -C "${tmp_dir}"
+
+  # The tarball extracts to a single top-level directory (e.g. gaffer-1.5.0.0-linux)
+  local extracted_dir
+  extracted_dir="$(find "${tmp_dir}" -maxdepth 1 -mindepth 1 -type d | head -1)"
+  [[ -n "${extracted_dir}" ]] || { echo "ERROR: nothing extracted from tarball" >&2; exit 2; }
+
+  log "Installing to ${install_dir}..."
+  rm -rf "${install_dir}"
+  mv "${extracted_dir}" "${install_dir}"
+  chown -R "${user}:${user}" "${install_dir}"
+
+  chmod +x "${install_dir}/bin/gaffer"
+
+  # Wrapper so Gaffer can find its own lib/resource directories
+  local wrapper="/opt/gaffer.sh"
+  printf '#!/bin/bash\ncd "%s" && ./bin/gaffer "$@"\n' "${install_dir}" > "${wrapper}"
+  chmod +x "${wrapper}"
+
+  # Symlink in /usr/bin
+  [[ -L /usr/bin/gaffer ]] && unlink /usr/bin/gaffer || true
+  ln -sf "${wrapper}" /usr/bin/gaffer
+  log "Created /usr/bin/gaffer"
+
+  # Desktop entry
+  local desktop_dir="${home}/.local/share/applications"
+  mkdir -p "${desktop_dir}"
+  chown "${user}:${user}" "${desktop_dir}"
+  cat > "${desktop_dir}/Gaffer.desktop" <<EOF
+[Desktop Entry]
+Name=Gaffer
+Comment=Node-based VFX application
+Exec=${wrapper}
+Type=Application
+Terminal=false
+Categories=Graphics;Video;
+StartupWMClass=gaffer
+EOF
+  chown "${user}:${user}" "${desktop_dir}/Gaffer.desktop"
+
+  log "Gaffer installation complete."
+}
+
+remove_gaffer() {
+  local user home
+  user="$(require_invoking_user)"
+  home="$(require_invoking_user_home)"
+
+  log "Removing Gaffer..."
+
+  [[ -L /usr/bin/gaffer ]] && unlink /usr/bin/gaffer && log "Removed /usr/bin/gaffer" || true
+  [[ -f /opt/gaffer.sh ]]  && rm -f /opt/gaffer.sh   && log "Removed /opt/gaffer.sh"  || true
+
+  if [[ -d /opt/gaffer ]]; then
+    rm -rf /opt/gaffer
+    log "Removed /opt/gaffer"
+  fi
+
+  local desktop="${home}/.local/share/applications/Gaffer.desktop"
+  if [[ -f "${desktop}" ]]; then
+    rm -f "${desktop}"
+    log "Removed desktop entry"
+  fi
+
+  log "Gaffer removed."
+}
+
 remove_3dcoat() {
   local user home
   user="$(require_invoking_user)"
@@ -626,6 +907,18 @@ case "${action}" in
   install_3dcoat)        install_3dcoat "${2:-}";;
   remove_3dcoat)         remove_3dcoat;;
 
+  # InstaMaterial
+  install_instamaterial) install_instamaterial "${2:-}";;
+  remove_instamaterial)  remove_instamaterial;;
+
+  # JangaFX Elemental Suite
+  install_jangafx)       install_jangafx "${2:-}";;
+  remove_jangafx)        remove_jangafx;;
+
+  # Gaffer
+  install_gaffer)        install_gaffer "${2:-}";;
+  remove_gaffer)         remove_gaffer;;
+
   *)
     cat >&2 <<'EOF'
 Usage: almalinux-creative-installer-helper <action>
@@ -664,6 +957,14 @@ Local installers:
 3DCoat:
   install_3dcoat <path_to_tarball>
   remove_3dcoat
+
+InstaMaterial:
+  install_instamaterial <path_to_zip>
+  remove_instamaterial
+
+JangaFX Elemental Suite:
+  install_jangafx <path_to_suite_zip>
+  remove_jangafx
 EOF
     exit 1
     ;;
