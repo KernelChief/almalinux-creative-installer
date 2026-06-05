@@ -81,8 +81,7 @@ jobs:
             python3 \
             ${{ matrix.qt_pkg }} \
             polkit xdg-utils \
-            rsync tar findutils \
-            curl
+            rsync tar findutils
 
       - name: Checkout source
         uses: actions/checkout@v6
