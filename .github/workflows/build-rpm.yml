@@ -81,7 +81,8 @@ jobs:
             python3 \
             ${{ matrix.qt_pkg }} \
             polkit xdg-utils \
-            rsync tar findutils
+            rsync tar findutils \
+            curl
 
       - name: Checkout source
         uses: actions/checkout@v6
@@ -151,11 +152,58 @@ jobs:
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "Resolved version from latest tag fallback: ${VERSION}"
 
+      - name: Resolve RPM release digit
+        id: resolve_release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          VERSION: ${{ steps.resolve_version.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          # Beta/prerelease builds (version contains a '-') own their release
+          # digit via build-rpm.sh (0.beta.<n>) and ignore APP_RELEASE, so the
+          # value here is irrelevant for them. Emit 1 and stop.
+          if [[ "${VERSION}" == *-* ]]; then
+            echo "release=1" >> "$GITHUB_OUTPUT"
+            echo "Prerelease build; release digit handled by build-rpm.sh."
+            exit 0
+          fi
+
+          # Final build: a repackage of the SAME version must be a strictly-newer
+          # NVR so dnf upgrades. Look at the RPMs already published for this exact
+          # version across all releases, take the highest Release digit, add one.
+          # First build of a version -> 1; each rebuild -> 2, 3, ...
+          VRE="${VERSION//./\\.}"
+          resp="$(curl -fsSL \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPO}/releases?per_page=100" || true)"
+
+          max="$(printf '%s' "${resp}" \
+            | grep -oE "almalinux-creative-installer-${VRE}-[0-9]+\.el[0-9]+\.noarch\.rpm" \
+            | sed -E "s/.*-${VRE}-([0-9]+)\.el[0-9]+\.noarch\.rpm/\1/" \
+            | sort -n | tail -n1 || true)"
+
+          if [[ -z "${max}" ]]; then
+            release=1
+          else
+            release=$((max + 1))
+          fi
+          echo "release=${release}" >> "$GITHUB_OUTPUT"
+          echo "Resolved RPM release digit for ${VERSION}: ${release}"
+
       - name: Build RPM
         env:
           TOPDIR: ${{ github.workspace }}/rpmbuild
           DISTDIR: ${{ github.workspace }}/dist
           VERSION: ${{ steps.resolve_version.outputs.version }}
+          # Final (non-beta) builds set the RPM Release to one more than the
+          # highest digit already published for this version (see the
+          # "Resolve RPM release digit" step), so a repackage of the same
+          # version (2.0.2-1 -> 2.0.2-2 -> ...) upgrades cleanly. Beta builds
+          # ignore this and keep their 0.beta.<n> release (build-rpm.sh).
+          APP_RELEASE: ${{ steps.resolve_release.outputs.release }}
           GIT_DISCOVERY_ACROSS_FILESYSTEM: 1
         run: |
           mkdir -p "$TOPDIR" "$DISTDIR"

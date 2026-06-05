@@ -62,6 +62,8 @@ enable_nvidia_drivers() {
   dnf -y install almalinux-release-nvidia-driver
   log "NVIDIA driver repository configured."
   dnf -y install --allowerasing nvidia-open-kmod nvidia-driver
+  dnf -y install nvidia-driver-cuda
+  dnf -y install cuda
   log "NVIDIA drivers installed. A reboot is required to load the kernel module."
 }
 
