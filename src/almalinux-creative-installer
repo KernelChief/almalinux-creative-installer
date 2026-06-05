@@ -21,6 +21,8 @@ import subprocess
 import threading
 import shutil
 import re
+import platform
+import errno
 import importlib.metadata
 from pathlib import Path
 from collections import deque
@@ -50,6 +52,10 @@ APPIMAGELAUNCHER_RPM_URL = (
 # 4) Optional: add the app id to VERSION_SELECTABLE_APPS.
 # 5) Optional: add "el": [9] or "el": [10] if the app only works on one EL
 #    version. Omit (or use [9, 10]) for apps that work on both.
+# 5b) Optional: add "arch": ["x86_64"] if upstream ships no build for the
+#    running CPU architecture. On a non-matching host the app shows
+#    "Not compatible" and Install/Remove are disabled. Omit for arch-agnostic
+#    apps (dnf/flatpak resolve arch themselves).
 # 6) If adding a truly new app type, update type handlers here and in the helper.
 # -----------------------------------------------------------------------------
 
@@ -99,7 +105,7 @@ APPS = [
     {"id": "godots",            "name": "Godots",           "type": "flatpak", "appid": "io.github.MakovWait.Godots",                   "category": "Game Engines"},
     {"id": "appimagelauncher",  "name": "AppImageLauncher", "type": "dnf", "pkg": "appimagelauncher",
      "install_target": APPIMAGELAUNCHER_RPM_URL,                                                                                        "category": "Productivity",        "el": [10]},
-    {"id": "resolve",           "name": "DaVinci Resolve",  "type": "resolve",                                                          "category": "Animation & Video"},
+    {"id": "resolve",           "name": "DaVinci Resolve",  "type": "resolve",                                                          "category": "Animation & Video",   "arch": ["x86_64"]},
 ]
 
 VERSION_SELECTABLE_APPS = {"gimp", "krita", "blender"}
@@ -1093,6 +1099,24 @@ class AlmaCreativeInstaller(QMainWindow):
                     )
                 )
             name_row.addWidget(el_chip)
+
+        arch_required = app.get("arch")
+        if arch_required and _arch_incompatible(app):
+            _is_incompatible = True
+            arch_chip = QLabel(arch_required[0])
+            arch_chip.setStyleSheet(
+                "background: rgba(120,120,120,0.18); color: {};"
+                " border-radius: 4px; padding: 1px 5px;"
+                " font-size: 10px; font-weight: 600;".format(self._c["text2"])
+            )
+            arch_chip.setToolTip(
+                "Only available for {}.\n"
+                "Upstream ships no build for this system's architecture ({}).".format(
+                    "/".join(arch_required), _ARCH or "unknown"
+                )
+            )
+            name_row.addWidget(arch_chip)
+
         name_row.addStretch()
         left.addLayout(name_row)
 
@@ -1398,9 +1422,8 @@ class AlmaCreativeInstaller(QMainWindow):
             return
         app = w["app"]
 
-        el_versions = app.get("el")
-        if el_versions and _EL_VERSION is not None and _EL_VERSION not in el_versions:
-            return  # incompatible — keep the state set at row-build time
+        if _app_incompatible(app):
+            return  # incompatible (EL or arch); keep the state set at row-build time
 
         if app["type"] == "resolve":
             installed = self._resolve_installed()
@@ -2114,6 +2137,16 @@ class AlmaCreativeInstaller(QMainWindow):
                                   "Exit code {}".format(rc))
                     self._signals.log.emit("❌ Failed: {}\n[exit code: {}]\n".format(reason, rc))
                     self._signals.idle.emit(lambda: self.set_app_busy("resolve", False))
+            except OSError as e:
+                if e.errno == errno.ENOEXEC:
+                    self._signals.log.emit(
+                        "❌ ERROR: This installer cannot run on your CPU architecture "
+                        "({}). DaVinci Resolve for Linux is x86_64 only; there is no "
+                        "ARM (aarch64) Linux build.\n".format(platform.machine())
+                    )
+                else:
+                    self._signals.log.emit("❌ ERROR: {}\n".format(e))
+                self._signals.idle.emit(lambda: self.set_app_busy("resolve", False))
             except Exception as e:
                 self._signals.log.emit("❌ ERROR: {}\n".format(e))
                 self._signals.idle.emit(lambda: self.set_app_busy("resolve", False))
@@ -2361,6 +2394,7 @@ class AlmaCreativeInstaller(QMainWindow):
 _THEME_COLORS = _DARK  # set by main() before window creation
 _ICON_CACHE   = {}     # app["id"] → QPixmap | None, populated on first build
 _EL_VERSION   = None   # int (9 or 10), set by main()
+_ARCH         = None   # CPU arch string, e.g. "x86_64" / "aarch64", set by main()
 
 
 def _detect_el_version():
@@ -2372,6 +2406,27 @@ def _detect_el_version():
     except Exception:
         pass
     return None
+
+
+def _detect_arch():
+    try:
+        return platform.machine()
+    except Exception:
+        return None
+
+
+def _el_incompatible(app):
+    el = app.get("el")
+    return bool(el and len(el) == 1 and _EL_VERSION is not None and _EL_VERSION not in el)
+
+
+def _arch_incompatible(app):
+    arch = app.get("arch")
+    return bool(arch and _ARCH is not None and _ARCH not in arch)
+
+
+def _app_incompatible(app):
+    return _el_incompatible(app) or _arch_incompatible(app)
 
 
 def _detect_dark(app):
@@ -2430,10 +2485,11 @@ def _detect_dark(app):
 
 
 def main():
-    global _THEME_COLORS, _EL_VERSION
+    global _THEME_COLORS, _EL_VERSION, _ARCH
     app = QApplication(sys.argv)
     app.setApplicationName("AlmaLinux Creative Installer")
     _EL_VERSION   = _detect_el_version()
+    _ARCH         = _detect_arch()
     _THEME_COLORS = _DARK if _detect_dark(app) else _LIGHT
     app.setStyleSheet(_build_qss(_THEME_COLORS))
     win = AlmaCreativeInstaller()
