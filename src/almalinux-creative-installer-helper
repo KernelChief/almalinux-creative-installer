@@ -977,13 +977,11 @@ install_unreal() {
   local desktop_dir="${home}/.local/share/applications"
   mkdir -p "${desktop_dir}"
   chown "${user}:${user}" "${desktop_dir}"
-  local icon_png="/usr/share/almalinux-creative-installer/icons/apps/com.epicgames.UnrealEngine.png"
   cat > "${desktop_dir}/UnrealEngine.desktop" <<EOF
 [Desktop Entry]
 Name=Unreal Engine 5.8 (preview)
 Comment=Unreal Editor
 Exec=${install_dir}/${editor}
-Icon=${icon_png}
 Type=Application
 Terminal=false
 Categories=Development;Graphics;
@@ -1085,13 +1083,11 @@ install_unigine() {
   local desktop_dir="${home}/.local/share/applications"
   mkdir -p "${desktop_dir}"
   chown "${user}:${user}" "${desktop_dir}"
-  local icon_png="/usr/share/almalinux-creative-installer/icons/apps/com.unigine.Browser.png"
   cat > "${desktop_dir}/UnigineBrowser.desktop" <<EOF
 [Desktop Entry]
 Name=UNIGINE SDK Browser
 Comment=UNIGINE engine launcher
 Exec=${browser_exe}
-Icon=${icon_png}
 Type=Application
 Terminal=false
 Categories=Development;Graphics;
