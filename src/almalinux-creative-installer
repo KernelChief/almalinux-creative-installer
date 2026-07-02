@@ -1180,6 +1180,9 @@ class AlmaCreativeInstaller(QMainWindow):
         elif app["type"] == "unreal":
             install_btn.clicked.connect(lambda: self.install_unreal_flow())
             remove_btn.clicked.connect(lambda: self.remove_unreal_flow())
+        elif app["type"] == "unigine":
+            install_btn.clicked.connect(lambda: self.install_unigine_flow())
+            remove_btn.clicked.connect(lambda: self.remove_unigine_flow())
 
         pulse_timer = QTimer()
         pulse_timer.setInterval(120)
@@ -1238,6 +1241,8 @@ class AlmaCreativeInstaller(QMainWindow):
             return "Installed via COPR (hellaenergy/o3de), latest release line"
         if app["type"] == "unreal":
             return "Guided install: log in to Epic → download Linux zip → extracts to /opt/unreal-engine (EL9 and EL10)"
+        if app["type"] == "unigine":
+            return "Guided install: agree to EULA → pick vendor .run → SDK Browser in /opt/unigine"
         return ""
 
     # -------------------------------------------------------------------------
@@ -1479,6 +1484,14 @@ class AlmaCreativeInstaller(QMainWindow):
 
         if app["type"] == "unreal":
             installed = self._unreal_installed()
+            self._set_status_badge(w["status"], "Installed" if installed else "Guided install",
+                                   "installed" if installed else "available")
+            w["install"].setEnabled(not installed)
+            w["remove"].setEnabled(installed)
+            return
+
+        if app["type"] == "unigine":
+            installed = self._unigine_installed()
             self._set_status_badge(w["status"], "Installed" if installed else "Guided install",
                                    "installed" if installed else "available")
             w["install"].setEnabled(not installed)
@@ -2488,6 +2501,80 @@ class AlmaCreativeInstaller(QMainWindow):
             ["remove_unreal"],
             on_success=lambda: self._finish_app_action("unreal"),
             app_id="unreal",
+            progress_segment=(0.02, 0.98),
+        )
+
+    def _unigine_installed(self):
+        base = Path("/opt/unigine")
+        return base.is_dir() and any(base.iterdir())
+
+    def install_unigine_flow(self):
+        msg = QMessageBox(self)
+        msg.setWindowTitle("UNIGINE SDK License Agreement")
+        msg.setTextFormat(Qt.TextFormat.RichText)
+        msg.setText(
+            'Installing Unigine runs the vendor installer, which is governed by the '
+            '<a href="{}">UNIGINE SDK License Agreement</a>.'.format(UNIGINE_EULA_URL)
+        )
+        msg.setInformativeText(
+            "The vendor installer normally shows this EULA in a terminal. Because the "
+            "install runs unattended here, it will be accepted on your behalf.\n\n"
+            'Click "I Agree" only if you have read and accept the EULA.'
+        )
+        msg.setIcon(QMessageBox.Icon.Question)
+        btn_agree = msg.addButton("I Agree", QMessageBox.ButtonRole.AcceptRole)
+        msg.addButton(QMessageBox.StandardButton.Cancel)
+        msg.exec()
+        if msg.clickedButton() != btn_agree:
+            return
+
+        self.set_app_busy("unigine", True, "Waiting for file…")
+        self._set_app_progress_fraction("unigine", 0.02)
+        if shutil.which("xdg-open"):
+            subprocess.Popen(["xdg-open", UNIGINE_URL])
+            self.append_log("Opened the UNIGINE downloads page.\n")
+        self.append_log(
+            "Download the Linux .run installer (the filename changes with each version), then select it below.\n"
+        )
+        self.pick_unigine_run()
+
+    def pick_unigine_run(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select UNIGINE .run installer",
+            "",
+            "Run installers (*.run);;All files (*)",
+        )
+        if not path:
+            self._finish_app_action("unigine")
+            return
+        self._set_app_progress_fraction("unigine", 0.05)
+        self.run_helper_with_callback(
+            ["install_unigine", path],
+            on_success=lambda: self._finish_app_action("unigine"),
+            app_id="unigine",
+            progress_segment=(0.05, 0.98),
+        )
+
+    def remove_unigine_flow(self):
+        if not self._unigine_installed():
+            self.append_log("ℹ️ Unigine does not appear to be installed.\n")
+            self.refresh_app_state("unigine")
+            return
+        reply = QMessageBox.question(
+            self, "Uninstall Unigine?",
+            "This will remove /opt/unigine (including the SDK Browser and any SDKs "
+            "downloaded into it) and the desktop entry.",
+            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
+        )
+        if reply != QMessageBox.StandardButton.Ok:
+            return
+        self.set_app_busy("unigine", True, "Removing…")
+        self._set_app_progress_fraction("unigine", 0.02)
+        self.run_helper_with_callback(
+            ["remove_unigine"],
+            on_success=lambda: self._finish_app_action("unigine"),
+            app_id="unigine",
             progress_segment=(0.02, 0.98),
         )
 

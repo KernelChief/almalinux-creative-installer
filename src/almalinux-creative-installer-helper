@@ -1016,6 +1016,113 @@ remove_unreal() {
 }
 
 # -------------------------------------------------
+# Unigine (guided .run install)
+# -------------------------------------------------
+install_unigine() {
+  local run_path="${1:-}"
+  local install_dir="/opt/unigine"
+
+  [[ -n "${run_path}" ]] || { echo "ERROR: missing .run path" >&2; exit 2; }
+  [[ -f "${run_path}" ]] || { echo "ERROR: file not found: ${run_path}" >&2; exit 2; }
+  case "${run_path}" in
+    *.run) ;;
+    *) echo "ERROR: expected a .run installer, got: ${run_path}" >&2; exit 2;;
+  esac
+
+  local user home
+  user="$(require_invoking_user)"
+  home="$(require_invoking_user_home)"
+
+  log "Preparing ${install_dir}..."
+  rm -rf "${install_dir}"
+  mkdir -p "${install_dir}"
+
+  # The vendor installer creates the SDK Browser folder next to the .run
+  # file, so run it from inside the install dir.
+  local run_copy
+  run_copy="${install_dir}/$(basename "${run_path}")"
+  cp "${run_path}" "${run_copy}"
+  chmod +x "${run_copy}"
+
+  # The installer shows its EULA on the terminal and asks for confirmation.
+  # The GUI already collected explicit agreement, so feed the acceptance
+  # here. "yes" dies with SIGPIPE when the installer stops reading, which
+  # pipefail would misreport as failure, so toggle it around the pipeline.
+  log "Running the UNIGINE installer (EULA accepted in the GUI)..."
+  local status=0
+  set +o pipefail
+  ( cd "${install_dir}" && yes | "${run_copy}" ) || status=$?
+  set -o pipefail
+  rm -f "${run_copy}"
+  if (( status != 0 )); then
+    echo "ERROR: UNIGINE installer exited with status ${status}." >&2
+    rm -rf "${install_dir}"
+    exit 1
+  fi
+
+  # Locate the Browser (launcher) executable the installer created.
+  local browser_exe
+  browser_exe="$(find "${install_dir}" -maxdepth 3 -type f -perm -u+x \
+                   \( -iname '*browser*' -o -iname '*launcher*' \) 2>/dev/null | sort | head -1)"
+  if [[ -z "${browser_exe}" ]]; then
+    browser_exe="$(find "${install_dir}" -maxdepth 3 -type f -perm -u+x \
+                     ! -name '*.so*' ! -name '*.run' 2>/dev/null | sort | head -1)"
+  fi
+  if [[ -z "${browser_exe}" ]]; then
+    echo "ERROR: UNIGINE Browser executable not found under ${install_dir}." >&2
+    exit 2
+  fi
+  log "Found Browser executable: ${browser_exe}"
+
+  # The Browser self-updates and downloads SDKs into its own folder, so the
+  # invoking user must own the tree.
+  chown -R "${user}:${user}" "${install_dir}"
+
+  # Under pkexec the vendor writes its nameless, iconless desktop entry into
+  # root's home. Discard it and write a proper one for the invoking user.
+  rm -f /root/.local/share/applications/*nigine*.desktop 2>/dev/null || true
+
+  local desktop_dir="${home}/.local/share/applications"
+  mkdir -p "${desktop_dir}"
+  chown "${user}:${user}" "${desktop_dir}"
+  local icon_png="/usr/share/almalinux-creative-installer/icons/apps/com.unigine.Browser.png"
+  cat > "${desktop_dir}/UnigineBrowser.desktop" <<EOF
+[Desktop Entry]
+Name=UNIGINE SDK Browser
+Comment=UNIGINE engine launcher
+Exec=${browser_exe}
+Icon=${icon_png}
+Type=Application
+Terminal=false
+Categories=Development;Graphics;
+EOF
+  chown "${user}:${user}" "${desktop_dir}/UnigineBrowser.desktop"
+
+  log "UNIGINE installed. Create your UNIGINE account inside the SDK Browser (vendor policy)."
+}
+
+remove_unigine() {
+  local user home
+  user="$(require_invoking_user)"
+  home="$(require_invoking_user_home)"
+
+  log "Removing Unigine..."
+
+  if [[ -d /opt/unigine ]]; then
+    rm -rf /opt/unigine
+    log "Removed /opt/unigine"
+  fi
+
+  local desktop="${home}/.local/share/applications/UnigineBrowser.desktop"
+  if [[ -f "${desktop}" ]]; then
+    rm -f "${desktop}"
+    log "Removed desktop entry"
+  fi
+
+  log "Unigine removed."
+}
+
+# -------------------------------------------------
 # Dispatcher
 # -------------------------------------------------
 case "${action}" in
@@ -1073,6 +1180,10 @@ case "${action}" in
   # Unreal Engine
   install_unreal)        install_unreal "${2:-}";;
   remove_unreal)         remove_unreal;;
+
+  # Unigine
+  install_unigine)       install_unigine "${2:-}";;
+  remove_unigine)        remove_unigine;;
 
   *)
     cat >&2 <<'EOF'
@@ -1132,6 +1243,10 @@ Open 3D Engine:
 Unreal Engine:
   install_unreal <zip>
   remove_unreal
+
+Unigine:
+  install_unigine <run>
+  remove_unigine
 EOF
     exit 1
     ;;
