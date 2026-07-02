@@ -1174,6 +1174,9 @@ class AlmaCreativeInstaller(QMainWindow):
         elif app["type"] == "gaffer":
             install_btn.clicked.connect(lambda: self.install_gaffer_flow())
             remove_btn.clicked.connect(lambda: self.remove_gaffer_flow())
+        elif app["type"] == "o3de":
+            install_btn.clicked.connect(lambda: self.install_o3de_flow())
+            remove_btn.clicked.connect(lambda: self.remove_o3de_flow())
 
         pulse_timer = QTimer()
         pulse_timer.setInterval(120)
@@ -1228,6 +1231,8 @@ class AlmaCreativeInstaller(QMainWindow):
             return "Guided install: download suite zip → extracts EmberGen, GeoGen, IlluGen, LiquiGen to /opt/jangafx"
         if app["type"] == "gaffer":
             return "Guided install: download Linux tarball from GitHub → extracts to /opt/gaffer (EL9 and EL10)"
+        if app["type"] == "o3de":
+            return "Installed via COPR (hellaenergy/o3de), latest release line"
         return ""
 
     # -------------------------------------------------------------------------
@@ -1455,6 +1460,14 @@ class AlmaCreativeInstaller(QMainWindow):
             installed = self._gaffer_installed()
             self._set_status_badge(w["status"], "Installed" if installed else "Guided install",
                                    "installed" if installed else "available")
+            w["install"].setEnabled(not installed)
+            w["remove"].setEnabled(installed)
+            return
+
+        if app["type"] == "o3de":
+            installed = self._o3de_installed()
+            self._set_status_badge(w["status"], "Installed" if installed else "Not installed",
+                                   "installed" if installed else "missing")
             w["install"].setEnabled(not installed)
             w["remove"].setEnabled(installed)
             return
@@ -2371,6 +2384,44 @@ class AlmaCreativeInstaller(QMainWindow):
             ["remove_gaffer"],
             on_success=lambda: self._finish_app_action("gaffer"),
             app_id="gaffer",
+            progress_segment=(0.02, 0.98),
+        )
+
+    def _o3de_installed(self):
+        out = subprocess.run(
+            ["rpm", "-qa", "--qf", "%{NAME}\n", "o3de*"],
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True,
+        ).stdout
+        return any(re.fullmatch(r"o3de\d{4}", line.strip()) for line in out.splitlines())
+
+    def install_o3de_flow(self):
+        self.set_app_busy("o3de", True, "Installing…")
+        self._set_app_progress_fraction("o3de", 0.02)
+        self.run_helper_with_callback(
+            ["install_o3de"],
+            on_success=lambda: self._finish_app_action("o3de"),
+            app_id="o3de",
+            progress_segment=(0.02, 0.98),
+        )
+
+    def remove_o3de_flow(self):
+        if not self._o3de_installed():
+            self.append_log("ℹ️ Open 3D Engine does not appear to be installed.\n")
+            self.refresh_app_state("o3de")
+            return
+        reply = QMessageBox.question(
+            self, "Uninstall Open 3D Engine?",
+            "This will remove all installed o3de packages and disable the hellaenergy/o3de COPR repo.",
+            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
+        )
+        if reply != QMessageBox.StandardButton.Ok:
+            return
+        self.set_app_busy("o3de", True, "Removing…")
+        self._set_app_progress_fraction("o3de", 0.02)
+        self.run_helper_with_callback(
+            ["remove_o3de"],
+            on_success=lambda: self._finish_app_action("o3de"),
+            app_id="o3de",
             progress_segment=(0.02, 0.98),
         )
 

@@ -871,6 +871,53 @@ remove_3dcoat() {
 }
 
 # -------------------------------------------------
+# Open 3D Engine (COPR)
+# -------------------------------------------------
+O3DE_COPR="hellaenergy/o3de"
+# The COPR publishes EL builds only for the centos-stream-10 chroot; a bare
+# "copr enable" on AlmaLinux 10 would look for epel-10, which does not exist
+# in this project, so the chroot must be passed explicitly.
+O3DE_COPR_CHROOT="centos-stream-10-x86_64"
+
+install_o3de() {
+  log "Ensuring dnf copr plugin..."
+  dnf -y install 'dnf-command(copr)'
+
+  log "Enabling COPR ${O3DE_COPR} (chroot ${O3DE_COPR_CHROOT})..."
+  dnf -y copr enable "${O3DE_COPR}" "${O3DE_COPR_CHROOT}"
+
+  # Packages use versioned-major naming (o3deNNNN, NNNN = YYMM). Majors are
+  # co-installable; install the newest release line.
+  log "Detecting the latest Open 3D Engine release line..."
+  local latest
+  latest="$(dnf -q repoquery --qf '%{name}\n' 'o3de[0-9][0-9][0-9][0-9]' 2>/dev/null \
+              | grep -E '^o3de[0-9]{4}$' | sort -u -V | tail -1 || true)"
+  if [[ -z "${latest}" ]]; then
+    echo "ERROR: no o3deNNNN package found in ${O3DE_COPR} (repo unreachable or chroot missing)." >&2
+    exit 4
+  fi
+
+  log "Installing ${latest}..."
+  dnf -y install "${latest}"
+  log "Open 3D Engine installed (${latest})."
+}
+
+remove_o3de() {
+  log "Removing Open 3D Engine packages..."
+  local pkgs
+  mapfile -t pkgs < <(rpm -qa --qf '%{NAME}\n' 'o3de*' | grep -E '^o3de[0-9]{4}(-devel)?$' || true)
+  if (( ${#pkgs[@]} )); then
+    dnf -y remove "${pkgs[@]}"
+  else
+    log "No o3de packages installed."
+  fi
+
+  log "Disabling COPR ${O3DE_COPR}..."
+  dnf -y copr remove "${O3DE_COPR}" || true
+  log "Open 3D Engine removed."
+}
+
+# -------------------------------------------------
 # Dispatcher
 # -------------------------------------------------
 case "${action}" in
@@ -921,6 +968,10 @@ case "${action}" in
   install_gaffer)        install_gaffer "${2:-}";;
   remove_gaffer)         remove_gaffer;;
 
+  # Open 3D Engine
+  install_o3de)          install_o3de;;
+  remove_o3de)           remove_o3de;;
+
   *)
     cat >&2 <<'EOF'
 Usage: almalinux-creative-installer-helper <action>
@@ -967,6 +1018,14 @@ InstaMaterial:
 JangaFX Elemental Suite:
   install_jangafx <path_to_suite_zip>
   remove_jangafx
+
+Gaffer:
+  install_gaffer <path_to_tarball>
+  remove_gaffer
+
+Open 3D Engine:
+  install_o3de
+  remove_o3de
 EOF
     exit 1
     ;;
