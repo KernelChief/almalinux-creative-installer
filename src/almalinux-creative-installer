@@ -31,6 +31,9 @@ THREEDC_URL = "https://3dcoat.com/#auth"
 INSTAMATERIAL_URL = "https://instamaterial.com/"
 JANGAFX_URL = "https://jangafx.com/software/elemental-suite/try"
 GAFFER_URL  = "https://github.com/GafferHQ/gaffer/releases"
+UNREAL_URL  = "https://www.unrealengine.com/linux"
+UNIGINE_URL = "https://developer.unigine.com/en/downloads"
+UNIGINE_EULA_URL = "https://developer.unigine.com/en/eula"
 APPIMAGELAUNCHER_VERSION = "3.0.0-beta-2-gha287.96cb937"
 APPIMAGELAUNCHER_RPM_URL = (
     "https://github.com/TheAssassin/AppImageLauncher/releases/download/"
@@ -42,7 +45,7 @@ APPIMAGELAUNCHER_RPM_URL = (
 # HOW TO ADD / EDIT APPS (quick maintainer guide)
 # -----------------------------------------------------------------------------
 # 1) Add or update an item inside APPS with a unique "id".
-# 2) Pick a supported "type": dnf, flatpak, resolve, 3dcoat
+# 2) Pick a supported "type": dnf, flatpak, resolve, 3dcoat, o3de, unreal, unigine
 # 3) Set metadata keys used by the UI for that type:
 #      - dnf:     pkg
 #      - flatpak: appid
@@ -50,6 +53,8 @@ APPIMAGELAUNCHER_RPM_URL = (
 # 4) Optional: add the app id to VERSION_SELECTABLE_APPS.
 # 5) Optional: add "el": [9] or "el": [10] if the app only works on one EL
 #    version. Omit (or use [9, 10]) for apps that work on both.
+# 5b) Optional: add "beta": True for pre-release or experimental apps.
+#    The row shows an amber BETA chip next to the app name.
 # 6) If adding a truly new app type, update type handlers here and in the helper.
 # -----------------------------------------------------------------------------
 
@@ -97,6 +102,9 @@ APPS = [
     {"id": "epicassetmanager",  "name": "Epic Asset Manager","type": "flatpak", "appid": "io.github.achetagames.epic_asset_manager",    "category": "Game Engines"},
     {"id": "assetmanagerstudio","name": "Asset Manager Studio","type": "flatpak","appid": "studio.assetmanager.ams",                    "category": "Game Engines"},
     {"id": "godots",            "name": "Godots",           "type": "flatpak", "appid": "io.github.MakovWait.Godots",                   "category": "Game Engines"},
+    {"id": "o3de",              "name": "Open 3D Engine",   "type": "o3de",    "icon_appid": "org.o3de.O3DE",                           "category": "Game Engines",        "el": [10], "beta": True},
+    {"id": "unreal",            "name": "Unreal Engine 5.8","type": "unreal",  "icon_appid": "com.epicgames.UnrealEngine",              "category": "Game Engines",        "beta": True},
+    {"id": "unigine",           "name": "Unigine",          "type": "unigine", "icon_appid": "com.unigine.Browser",                     "category": "Game Engines"},
     {"id": "appimagelauncher",  "name": "AppImageLauncher", "type": "dnf", "pkg": "appimagelauncher",
      "install_target": APPIMAGELAUNCHER_RPM_URL,                                                                                        "category": "Productivity",        "el": [10]},
     {"id": "resolve",           "name": "DaVinci Resolve",  "type": "resolve",                                                          "category": "Animation & Video"},
@@ -1093,6 +1101,15 @@ class AlmaCreativeInstaller(QMainWindow):
                     )
                 )
             name_row.addWidget(el_chip)
+        if app.get("beta"):
+            beta_chip = QLabel("BETA")
+            beta_chip.setStyleSheet(
+                "background: rgba(230,160,50,0.20); color: #d29a3d;"
+                " border-radius: 4px; padding: 1px 5px;"
+                " font-size: 10px; font-weight: 600;"
+            )
+            beta_chip.setToolTip("Pre-release / experimental build")
+            name_row.addWidget(beta_chip)
         name_row.addStretch()
         left.addLayout(name_row)
 
