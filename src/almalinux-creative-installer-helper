@@ -918,6 +918,104 @@ remove_o3de() {
 }
 
 # -------------------------------------------------
+# Unreal Engine (guided zip install)
+# -------------------------------------------------
+install_unreal() {
+  local zip_path="${1:-}"
+  local install_dir="/opt/unreal-engine"
+  local tmp_dir
+
+  [[ -n "${zip_path}" ]] || { echo "ERROR: missing zip path" >&2; exit 2; }
+  [[ -f "${zip_path}" ]] || { echo "ERROR: zip not found: ${zip_path}" >&2; exit 2; }
+  case "${zip_path}" in
+    *.zip) ;;
+    *) echo "ERROR: expected a .zip archive, got: ${zip_path}" >&2; exit 2;;
+  esac
+
+  log "Ensuring unzip is available..."
+  command -v unzip >/dev/null 2>&1 || dnf -y install unzip
+
+  local user home
+  user="$(require_invoking_user)"
+  home="$(require_invoking_user_home)"
+
+  # Extract under /opt, not /tmp: the engine is tens of GB and /tmp is
+  # commonly a size-limited tmpfs. Same filesystem also makes mv instant.
+  tmp_dir="$(mktemp -d /opt/.unreal-tmp-XXXXXX)"
+  # shellcheck disable=SC2064
+  trap "rm -rf '${tmp_dir}'" EXIT
+
+  log "Extracting Unreal Engine archive (large, this can take several minutes)..."
+  unzip -q "${zip_path}" -d "${tmp_dir}"
+
+  # The zip either contains Engine/ at the root or a single top-level
+  # versioned folder (e.g. Linux_Unreal_Engine_5.8.0_preview-1/).
+  local src_dir
+  if [[ -d "${tmp_dir}/Engine" ]]; then
+    src_dir="${tmp_dir}"
+  else
+    src_dir="$(find "${tmp_dir}" -maxdepth 1 -mindepth 1 -type d | head -1)"
+  fi
+  if [[ -z "${src_dir}" || ! -d "${src_dir}/Engine" ]]; then
+    echo "ERROR: no Engine/ directory found in the archive." >&2
+    exit 2
+  fi
+
+  local editor="Engine/Binaries/Linux/UnrealEditor"
+  [[ -f "${src_dir}/${editor}" ]] || { echo "ERROR: ${editor} not found in the archive." >&2; exit 2; }
+
+  log "Installing to ${install_dir}..."
+  rm -rf "${install_dir}"
+  mv "${src_dir}" "${install_dir}"
+  chmod +x "${install_dir}/${editor}"
+
+  # The editor writes into its own tree (DerivedDataCache, Intermediate),
+  # so the invoking user must own it.
+  log "Setting ownership (large tree, this can take a moment)..."
+  chown -R "${user}:${user}" "${install_dir}"
+
+  local desktop_dir="${home}/.local/share/applications"
+  mkdir -p "${desktop_dir}"
+  chown "${user}:${user}" "${desktop_dir}"
+  local icon_png="/usr/share/almalinux-creative-installer/icons/apps/com.epicgames.UnrealEngine.png"
+  cat > "${desktop_dir}/UnrealEngine.desktop" <<EOF
+[Desktop Entry]
+Name=Unreal Engine 5.8 (preview)
+Comment=Unreal Editor
+Exec=${install_dir}/${editor}
+Icon=${icon_png}
+Type=Application
+Terminal=false
+Categories=Development;Graphics;
+StartupWMClass=UnrealEditor
+EOF
+  chown "${user}:${user}" "${desktop_dir}/UnrealEngine.desktop"
+
+  log "Unreal Engine installation complete. First launch compiles shaders and can take a long time."
+}
+
+remove_unreal() {
+  local user home
+  user="$(require_invoking_user)"
+  home="$(require_invoking_user_home)"
+
+  log "Removing Unreal Engine..."
+
+  if [[ -d /opt/unreal-engine ]]; then
+    rm -rf /opt/unreal-engine
+    log "Removed /opt/unreal-engine"
+  fi
+
+  local desktop="${home}/.local/share/applications/UnrealEngine.desktop"
+  if [[ -f "${desktop}" ]]; then
+    rm -f "${desktop}"
+    log "Removed desktop entry"
+  fi
+
+  log "Unreal Engine removed."
+}
+
+# -------------------------------------------------
 # Dispatcher
 # -------------------------------------------------
 case "${action}" in
@@ -971,6 +1069,10 @@ case "${action}" in
   # Open 3D Engine
   install_o3de)          install_o3de;;
   remove_o3de)           remove_o3de;;
+
+  # Unreal Engine
+  install_unreal)        install_unreal "${2:-}";;
+  remove_unreal)         remove_unreal;;
 
   *)
     cat >&2 <<'EOF'
@@ -1026,6 +1128,10 @@ Gaffer:
 Open 3D Engine:
   install_o3de
   remove_o3de
+
+Unreal Engine:
+  install_unreal <zip>
+  remove_unreal
 EOF
     exit 1
     ;;

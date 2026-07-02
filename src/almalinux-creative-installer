@@ -1177,6 +1177,9 @@ class AlmaCreativeInstaller(QMainWindow):
         elif app["type"] == "o3de":
             install_btn.clicked.connect(lambda: self.install_o3de_flow())
             remove_btn.clicked.connect(lambda: self.remove_o3de_flow())
+        elif app["type"] == "unreal":
+            install_btn.clicked.connect(lambda: self.install_unreal_flow())
+            remove_btn.clicked.connect(lambda: self.remove_unreal_flow())
 
         pulse_timer = QTimer()
         pulse_timer.setInterval(120)
@@ -1233,6 +1236,8 @@ class AlmaCreativeInstaller(QMainWindow):
             return "Guided install: download Linux tarball from GitHub → extracts to /opt/gaffer (EL9 and EL10)"
         if app["type"] == "o3de":
             return "Installed via COPR (hellaenergy/o3de), latest release line"
+        if app["type"] == "unreal":
+            return "Guided install: log in to Epic → download Linux zip → extracts to /opt/unreal-engine (EL9 and EL10)"
         return ""
 
     # -------------------------------------------------------------------------
@@ -1468,6 +1473,14 @@ class AlmaCreativeInstaller(QMainWindow):
             installed = self._o3de_installed()
             self._set_status_badge(w["status"], "Installed" if installed else "Not installed",
                                    "installed" if installed else "missing")
+            w["install"].setEnabled(not installed)
+            w["remove"].setEnabled(installed)
+            return
+
+        if app["type"] == "unreal":
+            installed = self._unreal_installed()
+            self._set_status_badge(w["status"], "Installed" if installed else "Guided install",
+                                   "installed" if installed else "available")
             w["install"].setEnabled(not installed)
             w["remove"].setEnabled(installed)
             return
@@ -2422,6 +2435,59 @@ class AlmaCreativeInstaller(QMainWindow):
             ["remove_o3de"],
             on_success=lambda: self._finish_app_action("o3de"),
             app_id="o3de",
+            progress_segment=(0.02, 0.98),
+        )
+
+    def _unreal_installed(self):
+        return Path("/opt/unreal-engine/Engine/Binaries/Linux/UnrealEditor").is_file()
+
+    def install_unreal_flow(self):
+        self.set_app_busy("unreal", True, "Waiting for file…")
+        self._set_app_progress_fraction("unreal", 0.02)
+        if shutil.which("xdg-open"):
+            subprocess.Popen(["xdg-open", UNREAL_URL])
+            self.append_log("Opened the Unreal Engine Linux page (Epic account required).\n")
+        self.append_log(
+            "Download the Linux zip (e.g. Linux_Unreal_Engine_5.8.0_preview-1.zip), then select it below.\n"
+        )
+        self.pick_unreal_zip()
+
+    def pick_unreal_zip(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select Unreal Engine Linux zip",
+            "",
+            "Zip archives (*.zip);;All files (*)",
+        )
+        if not path:
+            self._finish_app_action("unreal")
+            return
+        self._set_app_progress_fraction("unreal", 0.05)
+        self.run_helper_with_callback(
+            ["install_unreal", path],
+            on_success=lambda: self._finish_app_action("unreal"),
+            app_id="unreal",
+            progress_segment=(0.05, 0.98),
+        )
+
+    def remove_unreal_flow(self):
+        if not self._unreal_installed():
+            self.append_log("ℹ️ Unreal Engine does not appear to be installed.\n")
+            self.refresh_app_state("unreal")
+            return
+        reply = QMessageBox.question(
+            self, "Uninstall Unreal Engine?",
+            "This will remove /opt/unreal-engine and the desktop entry.",
+            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
+        )
+        if reply != QMessageBox.StandardButton.Ok:
+            return
+        self.set_app_busy("unreal", True, "Removing…")
+        self._set_app_progress_fraction("unreal", 0.02)
+        self.run_helper_with_callback(
+            ["remove_unreal"],
+            on_success=lambda: self._finish_app_action("unreal"),
+            app_id="unreal",
             progress_segment=(0.02, 0.98),
         )
 
