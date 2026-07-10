@@ -2063,6 +2063,13 @@ class AlmaCreativeInstaller(QMainWindow):
                 else:
                     reason = next((line.strip() for line in reversed(last_lines) if line.strip()),
                                   "Exit code {}".format(rc))
+                    if rc == 127 and "not authorized" in reason.lower():
+                        reason = (
+                            "Not authorized — pkexec could not authenticate.\n"
+                            "Ensure a polkit agent is running (e.g. gnome-polkit-agent-1) "
+                            "and that the package is installed via RPM so the polkit policy "
+                            "is in place."
+                        )
                     self._signals.log.emit("❌ Failed: {}\n[exit code: {}]\n".format(reason, rc))
                     self._signals.idle.emit(on_failure if on_failure else self._stop_all_busy)
             except Exception as e:
@@ -2576,7 +2583,7 @@ class AlmaCreativeInstaller(QMainWindow):
             subprocess.Popen(["xdg-open", UNREAL_URL])
             self.append_log("Opened the Unreal Engine Linux page (Epic account required).\n")
         self.append_log(
-            "Download the Linux zip (e.g. Linux_Unreal_Engine_5.8.0_preview-1.zip), then select it below.\n"
+            "Download the Linux zip (e.g. Linux_Unreal_Engine_5.8.0.zip), then select it below.\n"
         )
         self.pick_unreal_zip()
 
