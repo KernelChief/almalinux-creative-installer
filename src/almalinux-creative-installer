@@ -708,50 +708,48 @@ class AlmaCreativeInstaller(QMainWindow):
         if not Path(HELPER).exists():
             self.append_log("\nWARNING: Helper not found at {}\n".format(HELPER))
 
-        self._check_polkit_environment()
+        self._ensure_polkit_agent()
         self.refresh_all_states()
 
     # -------------------------------------------------------------------------
-    # Polkit environment check
+    # Polkit agent bootstrap
     # -------------------------------------------------------------------------
-    def _check_polkit_environment(self):
-        def worker():
-            issues = []
+    def _ensure_polkit_agent(self):
+        """Make sure a polkit auth agent is running so pkexec can prompt for password.
 
-            # polkitd must be running
-            if subprocess.run(
-                ["pgrep", "polkitd"],
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-            ).returncode != 0:
-                issues.append("polkitd is not running — start it with: sudo systemctl start polkit")
+        On Wayland+GNOME, gnome-shell IS the agent — nothing to start.
+        On X11+GNOME, polkit-gnome-authentication-agent-1 must be running.
+        """
+        # Wayland: gnome-shell handles authentication natively.
+        if os.environ.get("WAYLAND_DISPLAY"):
+            return
 
-            # Session must be active per logind
-            session_id = os.environ.get("XDG_SESSION_ID", "")
-            if session_id:
+        # Already running?
+        if subprocess.run(
+            ["pgrep", "-f", "polkit.*agent"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        ).returncode == 0:
+            return
+
+        # Try to start the GNOME polkit agent (polkit-gnome package).
+        candidates = [
+            "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1",
+            "/usr/libexec/polkit-gnome-authentication-agent-1",
+        ]
+        for path in candidates:
+            if os.path.exists(path):
                 try:
-                    out = subprocess.run(
-                        ["loginctl", "show-session", session_id, "--property=Active"],
-                        stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True,
-                    ).stdout
-                    if "Active=yes" not in out:
-                        issues.append(
-                            "loginctl reports session {} as inactive — "
-                            "pkexec requires an active seat (VNC/SSH sessions may not qualify)".format(session_id)
-                        )
-                except Exception:
-                    pass
+                    subprocess.Popen([path])
+                    self.append_log("ℹ️  Started polkit authentication agent ({}).\n".format(path))
+                except Exception as e:
+                    self.append_log("⚠️  Could not start polkit agent: {}\n".format(e))
+                return
 
-            if issues:
-                msg = "\n⚠️  pkexec / polkit issue detected:\n"
-                for issue in issues:
-                    msg += "   • {}\n".format(issue)
-                msg += (
-                    "   Install buttons will fail until this is resolved.\n"
-                    "   Tip: log out and back in to a physical display session.\n"
-                )
-                self._signals.log.emit(msg)
-
-        threading.Thread(target=worker, daemon=True).start()
+        self.append_log(
+            "⚠️  No polkit authentication agent found.\n"
+            "    Install it with:  sudo dnf install polkit-gnome\n"
+            "    Without it, Install buttons will show 'Not authorized'.\n"
+        )
 
     # -------------------------------------------------------------------------
     # Logging

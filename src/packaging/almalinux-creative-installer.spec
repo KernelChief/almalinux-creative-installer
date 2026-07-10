@@ -14,6 +14,9 @@ Requires:       python3
 Requires:       polkit
 Requires:       xdg-utils
 Requires:       rsync
+# polkit-gnome provides the authentication agent on X11 GNOME sessions.
+# On Wayland, gnome-shell handles polkit natively so this is not strictly required.
+Recommends:     polkit-gnome
 
 # Qt binding — PyQt6 on EL10+, PyQt5 on EL9
 %if 0%{?rhel} >= 10
