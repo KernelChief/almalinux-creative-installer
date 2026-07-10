@@ -25,8 +25,7 @@ import importlib.metadata
 from pathlib import Path
 from collections import deque
 
-HELPER        = "/usr/libexec/almalinux-creative-installer-helper"
-POLKIT_POLICY = "/usr/share/polkit-1/actions/org.almalinux.creativeinstaller.policy"
+HELPER = "/usr/libexec/almalinux-creative-installer-helper"
 RESOLVE_URL = "https://www.blackmagicdesign.com/products/davinciresolve/"
 THREEDC_URL = "https://3dcoat.com/#auth"
 INSTAMATERIAL_URL = "https://instamaterial.com/"
@@ -2026,20 +2025,6 @@ class AlmaCreativeInstaller(QMainWindow):
     def run_helper_with_callback(self, args, on_success=None, on_failure=None, app_id=None, progress_segment=None):
         if not Path(HELPER).exists():
             self.append_log("❌ ERROR: Helper not found: {}\n".format(HELPER))
-            self.append_log("Install the almalinux-creative-installer RPM to get the helper.\n")
-            if on_failure:
-                on_failure()
-            else:
-                self._stop_all_busy()
-            return
-        if not Path(POLKIT_POLICY).exists():
-            self.append_log(
-                "❌ ERROR: polkit policy not found: {}\n".format(POLKIT_POLICY)
-            )
-            self.append_log(
-                "The RPM package must be installed for pkexec to authorize the helper.\n"
-                "Install via: sudo dnf install almalinux-creative-installer\n"
-            )
             if on_failure:
                 on_failure()
             else:
