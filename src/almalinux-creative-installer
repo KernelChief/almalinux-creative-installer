@@ -2157,7 +2157,8 @@ class AlmaCreativeInstaller(QMainWindow):
             "",
             "Installers (*.run *.rpm);;All files (*)",
         )
-        self.raise_(); self.activateWindow()
+        self.raise_()
+        self.activateWindow()
         if not path:
             self.set_app_busy("resolve", False)
             return
@@ -2337,7 +2338,8 @@ class AlmaCreativeInstaller(QMainWindow):
             "",
             "Tarballs (*.tar *.tar.bz2 *.tar.gz *.tar.xz *.tar.zst *.tgz);;All files (*)",
         )
-        self.raise_(); self.activateWindow()
+        self.raise_()
+        self.activateWindow()
         if not path:
             self._finish_app_action("3dcoat")
             return
@@ -2402,7 +2404,8 @@ class AlmaCreativeInstaller(QMainWindow):
             "",
             "Zip archives (*.zip);;All files (*)",
         )
-        self.raise_(); self.activateWindow()
+        self.raise_()
+        self.activateWindow()
         if not path:
             self._finish_app_action("instamaterial")
             return
@@ -2463,7 +2466,8 @@ class AlmaCreativeInstaller(QMainWindow):
             "",
             "Zip archives (*.zip);;All files (*)",
         )
-        self.raise_(); self.activateWindow()
+        self.raise_()
+        self.activateWindow()
         if not path:
             self._finish_app_action("jangafx")
             return
@@ -2518,7 +2522,8 @@ class AlmaCreativeInstaller(QMainWindow):
             "",
             "Tarballs (*.tar.gz *.tgz);;All files (*)",
         )
-        self.raise_(); self.activateWindow()
+        self.raise_()
+        self.activateWindow()
         if not path:
             self._finish_app_action("gaffer")
             return
@@ -2610,7 +2615,8 @@ class AlmaCreativeInstaller(QMainWindow):
             "",
             "Zip archives (*.zip);;All files (*)",
         )
-        self.raise_(); self.activateWindow()
+        self.raise_()
+        self.activateWindow()
         if not path:
             self._finish_app_action("unreal")
             return
@@ -2684,7 +2690,8 @@ class AlmaCreativeInstaller(QMainWindow):
             "",
             "Run installers (*.run);;All files (*)",
         )
-        self.raise_(); self.activateWindow()
+        self.raise_()
+        self.activateWindow()
         if not path:
             self._finish_app_action("unigine")
             return
