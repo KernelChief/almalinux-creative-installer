@@ -1067,7 +1067,7 @@ with zipfile.ZipFile(sys.argv[1]) as z:
   chown "${user}:${user}" "${desktop_dir}"
   cat > "${desktop_dir}/UnrealEngine.desktop" <<EOF
 [Desktop Entry]
-Name=Unreal Engine 5.8 (preview)
+Name=Unreal Engine 5.8
 Comment=Unreal Editor
 Exec=${install_dir}/${editor}
 Type=Application
