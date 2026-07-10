@@ -820,6 +820,86 @@ EOF
   log "Gaffer installation complete."
 }
 
+# -------------------------------------------------
+# GNOME UI Extensions & Tweaks (Windows-style taskbar look)
+# -------------------------------------------------
+install_gnome_ui() {
+  local data_dir="/usr/share/almalinux-creative-installer/gnome-ui"
+
+  # Dev mode: look next to the helper script
+  if [[ ! -d "${data_dir}" ]]; then
+    local script_dir
+    script_dir="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+    data_dir="${script_dir}/gnome-ui"
+  fi
+
+  [[ -d "${data_dir}" ]] || { echo "ERROR: gnome-ui data directory not found (looked in ${data_dir})" >&2; exit 2; }
+
+  log "Installing GNOME UI prerequisites..."
+  dnf -y install gnome-tweaks
+  dnf -y install python3-nautilus 2>/dev/null || dnf -y install nautilus-python 2>/dev/null || true
+
+  log "Installing Nautilus copy-path extension..."
+  mkdir -p /usr/share/nautilus-python/extensions
+  cp -r "${data_dir}/nautilus-extensions/nautilus-copy-path" /usr/share/nautilus-python/extensions/
+  cp "${data_dir}/nautilus-extensions/nautilus-copy-path.py" /usr/share/nautilus-python/extensions/
+
+  log "Installing GNOME shell extensions..."
+  mkdir -p /usr/share/gnome-shell/extensions
+  for ext_dir in "${data_dir}/gnome-extensions"/*/; do
+    [[ -d "${ext_dir}" ]] || continue
+    ext_name="$(basename "${ext_dir}")"
+    log "  ${ext_name}"
+    cp -r "${ext_dir}" /usr/share/gnome-shell/extensions/
+    for schema in "${ext_dir}schemas/"*.gschema.xml; do
+      [[ -f "${schema}" ]] && cp "${schema}" /usr/share/glib-2.0/schemas/ || true
+    done
+  done
+
+  log "Compiling GLib schemas..."
+  glib-compile-schemas /usr/share/glib-2.0/schemas/
+
+  log "Deploying dconf profile..."
+  mkdir -p /etc/dconf/db/local.d
+  cp "${data_dir}/01-creative_gnome_defaults" /etc/dconf/db/local.d/
+
+  log "Updating dconf database..."
+  dconf update
+
+  log "GNOME UI setup complete. Log out and back in to apply all changes."
+}
+
+remove_gnome_ui() {
+  log "Removing GNOME UI customizations..."
+
+  if [[ -f /etc/dconf/db/local.d/01-creative_gnome_defaults ]]; then
+    rm -f /etc/dconf/db/local.d/01-creative_gnome_defaults
+    log "Removed dconf profile."
+    dconf update
+  fi
+
+  local ext
+  for ext in dash-to-panel@jderose9.github.com system-monitor@paradoxxx.zero.gmail.com \
+              arcmenu@arcmenu.com gnome-ui-tune@itstime.tech blur-my-shell@aunetx; do
+    if [[ -d "/usr/share/gnome-shell/extensions/${ext}" ]]; then
+      rm -rf "/usr/share/gnome-shell/extensions/${ext}"
+      log "Removed extension: ${ext}"
+    fi
+  done
+
+  local np_dir="/usr/share/nautilus-python/extensions"
+  if [[ -d "${np_dir}/nautilus-copy-path" ]]; then
+    rm -rf "${np_dir}/nautilus-copy-path"
+    log "Removed nautilus-copy-path extension."
+  fi
+  if [[ -f "${np_dir}/nautilus-copy-path.py" ]]; then
+    rm -f "${np_dir}/nautilus-copy-path.py"
+    log "Removed nautilus-copy-path.py."
+  fi
+
+  log "GNOME UI customizations removed. Log out and back in to apply."
+}
+
 remove_gaffer() {
   local user home
   user="$(require_invoking_user)"
@@ -1191,6 +1271,10 @@ case "${action}" in
   install_unigine)       install_unigine "${2:-}";;
   remove_unigine)        remove_unigine;;
 
+  # GNOME UI Extensions & Tweaks
+  install_gnome_ui)      install_gnome_ui;;
+  remove_gnome_ui)       remove_gnome_ui;;
+
   *)
     cat >&2 <<'EOF'
 Usage: almalinux-creative-installer-helper <action>
@@ -1253,6 +1337,10 @@ Unreal Engine:
 Unigine:
   install_unigine <run>
   remove_unigine
+
+GNOME UI Extensions & Tweaks:
+  install_gnome_ui
+  remove_gnome_ui
 EOF
     exit 1
     ;;

@@ -571,6 +571,20 @@ class AlmaCreativeInstaller(QMainWindow):
         req_layout.addStretch()
         setup_layout.addWidget(req_frame)
 
+        # ---- Desktop Environment frame (GNOME only) ----
+        de_frame = QFrame()
+        de_frame.setObjectName("reqFrame")
+        de_layout = QVBoxLayout(de_frame)
+        de_layout.setContentsMargins(10, 10, 10, 10)
+        de_layout.setSpacing(6)
+
+        de_title = QLabel("Desktop Environment")
+        de_title.setObjectName("rowTitle")
+        de_layout.addWidget(de_title)
+        de_layout.addWidget(self._make_gnome_ui_row())
+        de_layout.addStretch()
+        setup_layout.addWidget(de_frame)
+
         self.ready_banner = QLabel("✓  System ready — all required repositories are enabled. Head to the Apps tab to install.")
         self.ready_banner.setObjectName("readyBanner")
         self.ready_banner.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -741,6 +755,11 @@ class AlmaCreativeInstaller(QMainWindow):
         label.update()
 
     @staticmethod
+    def _is_gnome_de():
+        de = os.environ.get("XDG_CURRENT_DESKTOP", "").upper()
+        return any(x in de for x in ("GNOME", "UNITY"))
+
+    @staticmethod
     def _is_system_dark():
         try:
             bg = QApplication.instance().palette().window().color()
@@ -756,6 +775,9 @@ class AlmaCreativeInstaller(QMainWindow):
             return "nvidia" in out.lower()
         except Exception:
             return False
+
+    def _gnome_ui_installed(self):
+        return Path("/etc/dconf/db/local.d/01-creative_gnome_defaults").exists()
 
     def _update_ready_banner(self):
         if not hasattr(self, "ready_banner"):
@@ -974,6 +996,98 @@ class AlmaCreativeInstaller(QMainWindow):
         self.repo_widgets["SELINUX"] = {"icon": icon_lbl, "status": status_lbl, "button": btn}
         self._set_selinux_requirement_state(None)
         return row
+
+    def _make_gnome_ui_row(self):
+        row = QFrame()
+        row.setObjectName("appRow")
+        hl = QHBoxLayout(row)
+        hl.setContentsMargins(8, 6, 8, 6)
+
+        icon_lbl = QLabel("")
+        icon_lbl.setFixedWidth(28)
+        hl.addWidget(icon_lbl)
+
+        text_col = QVBoxLayout()
+        title_lbl = QLabel("Windows-style UI  (Dash to Panel, ArcMenu, System Monitor, Blur My Shell)")
+        title_lbl.setObjectName("rowTitle")
+        text_col.addWidget(title_lbl)
+        sub_lbl = QLabel(
+            "Installs GNOME Tweaks, extensions, and Nautilus copy-path. "
+            "Applies system-wide dconf defaults. Requires GNOME Desktop."
+        )
+        sub_lbl.setObjectName("rowSubtitle")
+        text_col.addWidget(sub_lbl)
+        hl.addLayout(text_col, stretch=1)
+
+        status_lbl = QLabel("Checking…")
+        status_lbl.setProperty("badge", "checking")
+        status_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        hl.addWidget(status_lbl)
+
+        install_btn = QPushButton("Install")
+        install_btn.setObjectName("enableBtn")
+        remove_btn = QPushButton("Remove")
+        remove_btn.setObjectName("removeBtn")
+
+        on_gnome = self._is_gnome_de()
+
+        if not on_gnome:
+            install_btn.setEnabled(False)
+            remove_btn.setEnabled(False)
+            self._set_status_badge(status_lbl, "GNOME only", "warning")
+        else:
+            def _on_install():
+                install_btn.setEnabled(False)
+                remove_btn.setEnabled(False)
+                self._set_status_badge(status_lbl, "Working…", "busy")
+                self.run_helper_with_callback(
+                    ["install_gnome_ui"],
+                    on_success=lambda: self._refresh_gnome_ui_state(),
+                    on_failure=lambda: self._refresh_gnome_ui_state(),
+                )
+
+            def _on_remove():
+                install_btn.setEnabled(False)
+                remove_btn.setEnabled(False)
+                self._set_status_badge(status_lbl, "Working…", "busy")
+                self.run_helper_with_callback(
+                    ["remove_gnome_ui"],
+                    on_success=lambda: self._refresh_gnome_ui_state(),
+                    on_failure=lambda: self._refresh_gnome_ui_state(),
+                )
+
+            install_btn.clicked.connect(_on_install)
+            remove_btn.clicked.connect(_on_remove)
+
+        hl.addWidget(install_btn)
+        hl.addWidget(remove_btn)
+
+        self.repo_widgets["GNOME_UI"] = {
+            "icon": icon_lbl,
+            "status": status_lbl,
+            "install_btn": install_btn,
+            "remove_btn": remove_btn,
+            "on_gnome": on_gnome,
+        }
+
+        if on_gnome:
+            self._refresh_gnome_ui_state()
+
+        return row
+
+    def _refresh_gnome_ui_state(self):
+        w = self.repo_widgets.get("GNOME_UI")
+        if not w or not w.get("on_gnome"):
+            return
+        applied = self._gnome_ui_installed()
+        if applied:
+            self._set_status_badge(w["status"], "Applied", "installed")
+            w["install_btn"].setEnabled(False)
+            w["remove_btn"].setEnabled(True)
+        else:
+            self._set_status_badge(w["status"], "Not applied", "missing")
+            w["install_btn"].setEnabled(True)
+            w["remove_btn"].setEnabled(False)
 
     def _set_requirement_state(self, key, state):
         self.repo_states[key] = state
@@ -1419,6 +1533,7 @@ class AlmaCreativeInstaller(QMainWindow):
     # -------------------------------------------------------------------------
     def refresh_all_states(self):
         self.refresh_repo_state()
+        self._refresh_gnome_ui_state()
         self.refresh_app_versions()
         for app in APPS:
             self.refresh_app_state(app["id"])
