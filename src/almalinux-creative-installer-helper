@@ -946,7 +946,15 @@ install_unreal() {
   trap "rm -rf '${tmp_dir}'" EXIT
 
   log "Extracting Unreal Engine archive (large, this can take several minutes)..."
-  unzip -q "${zip_path}" -d "${tmp_dir}"
+  # unzip 6.0 on EL9 can fail on ZIP64 large archives; fall back to python3 zipfile module.
+  if ! unzip -o "${zip_path}" -d "${tmp_dir}" 2>&1; then
+    log "unzip failed, retrying with python3 zipfile module..."
+    python3 -c "
+import zipfile, sys
+with zipfile.ZipFile(sys.argv[1]) as z:
+    z.extractall(sys.argv[2])
+" "${zip_path}" "${tmp_dir}" || { echo "ERROR: extraction failed with both unzip and python3 zipfile" >&2; exit 1; }
+  fi
 
   # The zip either contains Engine/ at the root or a single top-level
   # versioned folder (e.g. Linux_Unreal_Engine_5.8.0_preview-1/).
@@ -1041,6 +1049,8 @@ install_unigine() {
   run_copy="${install_dir}/$(basename "${run_path}")"
   cp "${run_path}" "${run_copy}"
   chmod +x "${run_copy}"
+  # Allow execution in /opt under SELinux enforcing (best-effort).
+  chcon -t bin_t "${run_copy}" 2>/dev/null || true
 
   # The installer shows its EULA on the terminal and asks for confirmation.
   # The GUI already collected explicit agreement, so feed the acceptance
