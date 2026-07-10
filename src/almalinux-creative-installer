@@ -2057,7 +2057,12 @@ class AlmaCreativeInstaller(QMainWindow):
                 w["progress_is_flatpak"] = is_flatpak
                 w["progress_flatpak_step_seen"] = False
 
-        cmd = ["pkexec", HELPER] + args
+        # If already root (e.g. launched via sudo), skip pkexec — it refuses
+        # to re-escalate from root and returns 127 "Not authorized".
+        if os.getuid() == 0:
+            cmd = [HELPER] + args
+        else:
+            cmd = ["pkexec", HELPER] + args
         self.append_log("\n$ " + " ".join(cmd) + "\n")
 
         def worker():
@@ -2167,6 +2172,7 @@ class AlmaCreativeInstaller(QMainWindow):
             "",
             "Installers (*.run *.rpm);;All files (*)",
         )
+        self.raise_(); self.activateWindow()
         if not path:
             self.set_app_busy("resolve", False)
             return
@@ -2346,6 +2352,7 @@ class AlmaCreativeInstaller(QMainWindow):
             "",
             "Tarballs (*.tar *.tar.bz2 *.tar.gz *.tar.xz *.tar.zst *.tgz);;All files (*)",
         )
+        self.raise_(); self.activateWindow()
         if not path:
             self._finish_app_action("3dcoat")
             return
@@ -2410,6 +2417,7 @@ class AlmaCreativeInstaller(QMainWindow):
             "",
             "Zip archives (*.zip);;All files (*)",
         )
+        self.raise_(); self.activateWindow()
         if not path:
             self._finish_app_action("instamaterial")
             return
@@ -2470,6 +2478,7 @@ class AlmaCreativeInstaller(QMainWindow):
             "",
             "Zip archives (*.zip);;All files (*)",
         )
+        self.raise_(); self.activateWindow()
         if not path:
             self._finish_app_action("jangafx")
             return
@@ -2524,6 +2533,7 @@ class AlmaCreativeInstaller(QMainWindow):
             "",
             "Tarballs (*.tar.gz *.tgz);;All files (*)",
         )
+        self.raise_(); self.activateWindow()
         if not path:
             self._finish_app_action("gaffer")
             return
@@ -2615,6 +2625,7 @@ class AlmaCreativeInstaller(QMainWindow):
             "",
             "Zip archives (*.zip);;All files (*)",
         )
+        self.raise_(); self.activateWindow()
         if not path:
             self._finish_app_action("unreal")
             return
@@ -2688,6 +2699,7 @@ class AlmaCreativeInstaller(QMainWindow):
             "",
             "Run installers (*.run);;All files (*)",
         )
+        self.raise_(); self.activateWindow()
         if not path:
             self._finish_app_action("unigine")
             return
