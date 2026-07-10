@@ -32,10 +32,10 @@ if checkcommand nvidia-smi; then
 
 elif lsmod | grep amdgpu > /dev/null; then
 	total=$(cat /sys/class/drm/card0/device/mem_info_vram_total)
-	echo $(($total / 1024 / 1024))
+	echo $((total / 1024 / 1024))
 
 	used=$(cat /sys/class/drm/card0/device/mem_info_vram_used)
-	echo $(($used / 1024 / 1024))
+	echo $((used / 1024 / 1024))
 
 	cat /sys/class/drm/card0/device/gpu_busy_percent
 
