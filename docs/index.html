@@ -51,12 +51,14 @@
       --faint:     rgba(255,255,255,0.06);
       --border:    rgba(255,255,255,0.10);
       --r:         18px;
+      --announce-h: 40px;
+      --nav-h:      64px;
     }
 
     html {
       scroll-behavior: smooth;
-      /* Ensures that scroll targets don't hide under the fixed nav */
-      scroll-padding-top: 80px;
+      /* Ensures that scroll targets don't hide under the fixed announce bar + nav */
+      scroll-padding-top: calc(var(--announce-h) + var(--nav-h) + 16px);
     }
 
     body {
@@ -113,10 +115,37 @@
       padding: 0 36px;
     }
 
+    /* ── Announce bar ── */
+    .announce-bar {
+      position: fixed;
+      inset: 0 0 auto 0;
+      z-index: 101;
+      min-height: var(--announce-h);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      background: linear-gradient(90deg, var(--violet), var(--pink));
+      color: var(--white);
+      text-align: center;
+      font-size: 0.82rem;
+      font-weight: 600;
+      padding: 8px 44px;
+      letter-spacing: 0.01em;
+    }
+    .announce-bar a {
+      color: inherit;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .announce-bar a:hover { opacity: 0.85; }
+    .announce-sep { opacity: 0.6; }
+
     /* ── Nav ── */
     nav {
       position: fixed;
-      inset: 0 0 auto 0;
+      inset: var(--announce-h) 0 auto 0;
       z-index: 100;
       backdrop-filter: blur(20px) saturate(1.8);
       -webkit-backdrop-filter: blur(20px) saturate(1.8);
@@ -127,7 +156,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      height: 64px;
+      height: var(--nav-h);
     }
     .nav-logo-link {
       text-decoration: none;
@@ -204,7 +233,7 @@
 
     /* ── Hero ── */
     .hero {
-      padding: 160px 0 100px;
+      padding: calc(160px + var(--announce-h)) 0 100px;
       text-align: center;
     }
     .hero-badge {
@@ -749,11 +778,13 @@
 
     /* ── Mobile (≤ 720px) ── */
     @media (max-width: 720px) {
+      :root { --announce-h: 60px; }
+      .announce-bar { padding: 8px 16px; font-size: 0.76rem; }
       .nav-hamburger { display: flex; }
       .nav-links {
         display: none;
         position: fixed;
-        top: 64px; left: 0; right: 0;
+        top: calc(var(--announce-h) + var(--nav-h)); left: 0; right: 0;
         background: rgba(6,6,15,0.97);
         backdrop-filter: blur(24px) saturate(1.8);
         -webkit-backdrop-filter: blur(24px) saturate(1.8);
@@ -787,6 +818,8 @@
 
     /* ── Small mobile (≤ 480px) ── */
     @media (max-width: 480px) {
+      :root { --announce-h: 84px; }
+      .announce-bar { flex-direction: column; gap: 2px; padding: 8px 14px; }
       .wrap { padding: 0 16px; }
       .hero { padding: 100px 0 56px; }
       .v2-card { padding: 28px 18px; }
@@ -809,6 +842,14 @@
   <div class="orb orb-2"></div>
   <div class="orb orb-3"></div>
   <div class="orb orb-4"></div>
+</div>
+
+<!-- ── ANNOUNCE BAR ── -->
+<div class="announce-bar">
+  <span>📅 Meet us at</span>
+  <a href="https://almalinux.org/almalinux-day-los-angeles-2026/" target="_blank" rel="noopener">AlmaLinux Day: Los Angeles 2026</a>
+  <span class="announce-sep">·</span>
+  <a href="https://maps.goeshow.com/acm/siggraph/2026" target="_blank" rel="noopener">SIGGRAPH 2026 (Booth 735)</a>
 </div>
 
 <!-- ── NAV ── -->
@@ -840,7 +881,7 @@
   <div class="wrap">
     <div class="hero-badge">
       <span class="dot"></span>
-      v2.0.3 Pre-Release · Game Engines
+      v2.0.3
     </div>
     <h1>
       Creative tools.<br />
@@ -886,16 +927,16 @@
   <div class="wrap">
     <div class="v2-card reveal">
       <div>
-        <div class="v2-badge"><span class="flash"></span> Pre-Release · v2.0.3</div>
+        <div class="v2-badge"><span class="flash"></span> Latest · v2.0.3</div>
         <h2>Game Engines <span class="grad-text">Arrive</span></h2>
         <p>
-          v2.0.2 is the current stable release, installable via COPR. v2.0.3 is a pre-release that adds Game Engines to the catalog: Open 3D Engine (COPR, EL9 &amp; EL10), Unreal Engine 5.8 (guided vendor install), and Unigine (guided vendor install). The pre-release is available only as a manual RPM download from GitHub Releases, not yet on COPR.
+          v2.0.3 is the current stable release, installable via COPR. It adds Game Engines to the catalog: Open 3D Engine (COPR, EL9 &amp; EL10), Unreal Engine 5.8 (guided vendor install), and Unigine (guided vendor install).
         </p>
         <div class="v2-pills">
           <span class="v2-pill">Open 3D Engine</span>
           <span class="v2-pill">Unreal Engine 5.8</span>
           <span class="v2-pill">Unigine</span>
-          <span class="v2-pill highlight">📦 RPM Pre-Release</span>
+          <span class="v2-pill highlight">✅ Stable Release</span>
         </div>
       </div>
       <div class="v2-qt-badge">
@@ -1120,7 +1161,7 @@
               <pre id="rpm-cmd"><span class="comment"># 1. Download the RPM from GitHub Releases</span>
 <span class="comment"># 2. Install with DNF (it handles the rest)</span>
 <span class="prompt">$ </span><span class="cmd">sudo dnf install \
-  ./almalinux-creative-installer-2.0.3-1.el9.noarch.rpm</span>
+  ./almalinux-creative-installer-2.0.3-2.el9.noarch.rpm</span>
 
 <span class="comment"># 3. Launch and start creating!</span>
 <span class="prompt">$ </span><span class="cmd">almalinux-creative-installer</span></pre>
@@ -1134,7 +1175,7 @@
 
         <div class="copr-note">
           <span class="icon">✅</span>
-          <span>COPR is live with <strong>v2.0.2</strong> as the current stable release. <strong>v2.0.3</strong> is a pre-release available only as a manual RPM download from GitHub Releases. Future stable releases update automatically via <code>sudo dnf upgrade</code>.</span>
+          <span>COPR is live with <strong>v2.0.3</strong> as the current stable release. Future stable releases update automatically via <code>sudo dnf upgrade</code>.</span>
         </div>
       </div>
 
