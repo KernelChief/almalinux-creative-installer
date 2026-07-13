@@ -1,0 +1,83 @@
+---
+- name: Install UI Improvements
+  hosts: all
+  become: yes
+
+  tasks:
+# Install Nautilus Extension
+    - name: Copy Nautilus Extension
+      copy:
+        src: "nautilus-extensions/nautilus-copy-path"
+        dest: "/usr/share/nautilus-python/extensions"
+
+    - name: Copy Nautilus Extension
+      copy:
+        src: "nautilus-extensions/nautilus-copy-path.py"
+        dest: "/usr/share/nautilus-python/extensions"
+
+# Install Gnome Extensions
+# Install Dash to Panel
+    - name: Copy Dash to Panel
+      copy:
+        src: "gnome-extensions/dash-to-panel@jderose9.github.com"
+        dest: "/usr/share/gnome-shell/extensions"
+
+    - name: Copy Dash to Panel
+      copy:
+        src: "gnome-extensions/dash-to-panel@jderose9.github.com/schemas/org.gnome.shell.extensions.dash-to-panel.gschema.xml"
+        dest: "/usr/share/glib-2.0/schemas"
+
+# Install System Monitor
+    - name: Copy System Monitor
+      copy:
+        src: "gnome-extensions/system-monitor@paradoxxx.zero.gmail.com"
+        dest: "/usr/share/gnome-shell/extensions"
+
+    - name: Copy System Monitor
+      copy:
+        src: "gnome-extensions/system-monitor@paradoxxx.zero.gmail.com/schemas/org.gnome.shell.extensions.system-monitor.gschema.xml"
+        dest: "/usr/share/glib-2.0/schemas"
+
+# Install Arch Menu
+    - name: Copy Arch Menu
+      copy:
+        src: "gnome-extensions/arcmenu@arcmenu.com"
+        dest: "/usr/share/gnome-shell/extensions"
+
+    - name: Copy Arch Menu
+      copy:
+        src: "gnome-extensions/arcmenu@arcmenu.com/schemas/org.gnome.shell.extensions.arcmenu.gschema.xml"
+        dest: "/usr/share/glib-2.0/schemas"
+
+# Install Gnome 4x UI Improvements
+    - name: Copy Gnome 4x UI Improvements
+      copy:
+        src: "gnome-extensions/gnome-ui-tune@itstime.tech"
+        dest: "/usr/share/gnome-shell/extensions"
+
+    - name: Copy Gnome 4x UI Improvements
+      copy:
+        src: "gnome-extensions/gnome-ui-tune@itstime.tech/schemas/org.gnome.shell.extensions.gnome-ui-tune.gschema.xml"
+        dest: "/usr/share/glib-2.0/schemas"
+
+# Install Blur My Shell
+    - name: Copy Blur My Shell
+      copy:
+        src: "gnome-extensions/blur-my-shell@aunetx"
+        dest: "/usr/share/gnome-shell/extensions"
+
+    - name: Copy Blur My Shell
+      copy:
+        src: "gnome-extensions/blur-my-shell@aunetx/schemas/org.gnome.shell.extensions.blur-my-shell.gschema.xml"
+        dest: "/usr/share/glib-2.0/schemas"
+
+    - name: Compile Schemas
+      shell: glib-compile-schemas /usr/share/glib-2.0/schemas/
+
+    - name: Copy dconf profile file
+      copy:
+        src: '01-creative_gnome_defaults'
+        dest: '/etc/dconf/db/local.d/'
+
+    - name: Update dconf
+      shell: dconf update

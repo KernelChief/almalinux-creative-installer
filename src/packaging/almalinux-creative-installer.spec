@@ -14,6 +14,9 @@ Requires:       python3
 Requires:       polkit
 Requires:       xdg-utils
 Requires:       rsync
+# polkit-gnome provides the authentication agent on X11 GNOME sessions.
+# On Wayland, gnome-shell handles polkit natively so this is not strictly required.
+Recommends:     polkit-gnome
 
 # Qt binding — PyQt6 on EL10+, PyQt5 on EL9
 %if 0%{?rhel} >= 10
@@ -56,6 +59,11 @@ if [ -d src/icons/apps ]; then
     %{buildroot}%{_datadir}/%{name}/icons/apps/
 fi
 
+# Bundled GNOME UI extensions and dconf profile
+if [ -d src/gnome-ui ]; then
+  cp -a src/gnome-ui %{buildroot}%{_datadir}/%{name}/
+fi
+
 # Polkit policy
 install -D -m 0644 src/org.almalinux.creativeinstaller.policy \
   %{buildroot}%{_datadir}/polkit-1/actions/org.almalinux.creativeinstaller.policy
@@ -82,6 +90,8 @@ fi
 %dir %{_datadir}/%{name}/icons
 %dir %{_datadir}/%{name}/icons/apps
 %{_datadir}/%{name}/icons/apps/*.png
+%dir %{_datadir}/%{name}/gnome-ui
+%{_datadir}/%{name}/gnome-ui/
 %{_datadir}/polkit-1/actions/org.almalinux.creativeinstaller.policy
 %{_datadir}/applications/almalinux-creative-installer.desktop
 %dir %{_datadir}/licenses/%{name}
@@ -89,6 +99,11 @@ fi
 %{_datadir}/icons/hicolor/*/apps/almalinux-creative-installer.*
 
 %changelog
+* Thu Jul 10 2026 KernelChief - 2.1.0-1
+- Add Windows-style GNOME UI setup (Dash to Panel, ArcMenu, System Monitor, Blur My Shell, Nautilus copy-path)
+- Gate GNOME UI setup to GNOME Desktop sessions only
+- Bundle gnome-ui extensions and dconf profile in package
+- Remove all SHED/SHED MTL naming from files and scripts
 * Tue May 26 2026 KernelChief - 2.0.1-1
 - Add InstaMaterial (3D, guided RPM install via install.sh)
 - Add PopcornFX Editor (Animation & Video, Flatpak)

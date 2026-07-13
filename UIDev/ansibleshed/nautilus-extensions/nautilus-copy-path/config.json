@@ -1,0 +1,11 @@
+{
+  "items": {
+    "path": true
+  },
+  "selections": {
+    "clipboard": true,
+    "primary": true
+  },
+  "language": "auto",
+  "separator": ", "
+}
