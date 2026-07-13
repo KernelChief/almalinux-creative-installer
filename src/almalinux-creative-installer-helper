@@ -954,17 +954,24 @@ remove_3dcoat() {
 # Open 3D Engine (COPR)
 # -------------------------------------------------
 O3DE_COPR="hellaenergy/o3de"
-# The COPR publishes EL builds only for the centos-stream-10 chroot; a bare
-# "copr enable" on AlmaLinux 10 would look for epel-10, which does not exist
-# in this project, so the chroot must be passed explicitly.
-O3DE_COPR_CHROOT="centos-stream-10-x86_64"
 
 install_o3de() {
   log "Ensuring dnf copr plugin..."
   dnf -y install 'dnf-command(copr)'
 
-  log "Enabling COPR ${O3DE_COPR} (chroot ${O3DE_COPR_CHROOT})..."
-  dnf -y copr enable "${O3DE_COPR}" "${O3DE_COPR_CHROOT}"
+  # The COPR publishes EL builds under centos-stream chroots; a bare
+  # "copr enable" would look for epel-<ver>, which does not exist in this
+  # project, so the chroot must be passed explicitly per EL version.
+  local el_version chroot
+  el_version="$(rpm -E %rhel)"
+  case "${el_version}" in
+    9)  chroot="centos-stream-9-x86_64" ;;
+    10) chroot="centos-stream-10-x86_64" ;;
+    *)  echo "ERROR: unsupported EL version for O3DE: ${el_version}" >&2; exit 4 ;;
+  esac
+
+  log "Enabling COPR ${O3DE_COPR} (chroot ${chroot})..."
+  dnf -y copr enable "${O3DE_COPR}" "${chroot}"
 
   # Packages use versioned-major naming (o3deNNNN, NNNN = YYMM). Majors are
   # co-installable; install the newest release line.

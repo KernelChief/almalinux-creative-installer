@@ -102,7 +102,7 @@ APPS = [
     {"id": "epicassetmanager",  "name": "Epic Asset Manager","type": "flatpak", "appid": "io.github.achetagames.epic_asset_manager",    "category": "Game Engines"},
     {"id": "assetmanagerstudio","name": "Asset Manager Studio","type": "flatpak","appid": "studio.assetmanager.ams",                    "category": "Game Engines"},
     {"id": "godots",            "name": "Godots",           "type": "flatpak", "appid": "io.github.MakovWait.Godots",                   "category": "Game Engines"},
-    {"id": "o3de",              "name": "Open 3D Engine",   "type": "o3de",    "icon_appid": "org.o3de.O3DE",                           "category": "Game Engines",        "el": [10], "beta": True},
+    {"id": "o3de",              "name": "Open 3D Engine",   "type": "o3de",    "icon_appid": "org.o3de.O3DE",                           "category": "Game Engines",        "beta": True},
     {"id": "unreal",            "name": "Unreal Engine 5.8","type": "unreal",                                                           "category": "Game Engines",        "beta": True},
     {"id": "unigine",           "name": "Unigine",          "type": "unigine",                                                          "category": "Game Engines"},
     {"id": "appimagelauncher",  "name": "AppImageLauncher", "type": "dnf", "pkg": "appimagelauncher",
@@ -1071,8 +1071,13 @@ class AlmaCreativeInstaller(QMainWindow):
         remove_btn.setObjectName("removeBtn")
 
         on_gnome = self._is_gnome_de()
+        on_el9 = (_EL_VERSION == 9)
 
-        if not on_gnome:
+        if not on_el9:
+            install_btn.setEnabled(False)
+            remove_btn.setEnabled(False)
+            self._set_status_badge(status_lbl, "AlmaLinux 9 only", "warning")
+        elif not on_gnome:
             install_btn.setEnabled(False)
             remove_btn.setEnabled(False)
             self._set_status_badge(status_lbl, "GNOME only", "warning")
@@ -1103,15 +1108,16 @@ class AlmaCreativeInstaller(QMainWindow):
         hl.addWidget(install_btn)
         hl.addWidget(remove_btn)
 
+        available = on_el9 and on_gnome
         self.repo_widgets["GNOME_UI"] = {
             "icon": icon_lbl,
             "status": status_lbl,
             "install_btn": install_btn,
             "remove_btn": remove_btn,
-            "on_gnome": on_gnome,
+            "on_gnome": available,
         }
 
-        if on_gnome:
+        if available:
             self._refresh_gnome_ui_state()
 
         return row
