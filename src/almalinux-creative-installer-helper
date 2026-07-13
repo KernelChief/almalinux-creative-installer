@@ -1134,13 +1134,57 @@ install_unigine() {
 
   # The installer shows its EULA on the terminal and asks for confirmation.
   # The GUI already collected explicit agreement, so feed the acceptance
-  # here. "yes" dies with SIGPIPE when the installer stops reading, which
-  # pipefail would misreport as failure, so toggle it around the pipeline.
+  # here. Piping "yes" leaves stdin/stdout as plain pipes, and this
+  # installer's isatty() check on that non-tty path leads it into a
+  # different (broken) argument-parsing branch that dies with
+  # "Unknown option -title". Run it under a real pty and auto-answer "y"
+  # so it takes the same code path as an interactive terminal session.
   log "Running the UNIGINE installer (EULA accepted in the GUI)..."
   local status=0
-  set +o pipefail
-  ( cd "${install_dir}" && yes | "${run_copy}" ) || status=$?
-  set -o pipefail
+  ( cd "${install_dir}" && python3 -c "
+import os, pty, select, sys, termios
+
+pid, master_fd = pty.fork()
+if pid == 0:
+    os.execvp(sys.argv[1], sys.argv[1:])
+
+# Disable local echo so our own writes to master_fd don't loop back as
+# fake 'readable' output and trigger a self-sustaining write/read storm.
+attrs = termios.tcgetattr(master_fd)
+attrs[3] &= ~termios.ECHO
+termios.tcsetattr(master_fd, termios.TCSANOW, attrs)
+
+exit_status = None
+while True:
+    try:
+        r, _, _ = select.select([master_fd], [], [], 1.0)
+    except InterruptedError:
+        r = []
+    if master_fd in r:
+        try:
+            data = os.read(master_fd, 4096)
+        except OSError:
+            data = b''
+        if data:
+            os.write(1, data)
+            try:
+                os.write(master_fd, b'y\n')
+            except OSError:
+                pass
+        else:
+            break
+    try:
+        wpid, wstatus = os.waitpid(pid, os.WNOHANG)
+    except ChildProcessError:
+        break
+    if wpid == pid:
+        exit_status = wstatus
+        break
+
+if exit_status is None:
+    _, exit_status = os.waitpid(pid, 0)
+sys.exit(os.WEXITSTATUS(exit_status) if os.WIFEXITED(exit_status) else 1)
+" "${run_copy}" ) || status=$?
   rm -f "${run_copy}"
   if (( status != 0 )); then
     echo "ERROR: UNIGINE installer exited with status ${status}." >&2
