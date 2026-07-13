@@ -1206,6 +1206,18 @@ sys.exit(os.WEXITSTATUS(exit_status) if os.WIFEXITED(exit_status) else 1)
   fi
   log "Found Browser executable: ${browser_exe}"
 
+  # UNIGINE's bundled Qt binaries/libraries use text relocations (execmod),
+  # which the default /opt label (usr_t) doesn't permit under SELinux
+  # enforcing. textrel_shlib_t is the policy's dedicated type for this
+  # (best-effort, no-op on permissive/disabled). Persist via semanage when
+  # available so a future relabel doesn't undo it.
+  if command -v semanage >/dev/null 2>&1; then
+    semanage fcontext -a -t textrel_shlib_t "${install_dir}(/.*)?" 2>/dev/null || \
+      semanage fcontext -m -t textrel_shlib_t "${install_dir}(/.*)?" 2>/dev/null || true
+  fi
+  find "${install_dir}" -type f \( -perm -u+x -o -name '*.so*' \) \
+    -exec chcon -t textrel_shlib_t {} + 2>/dev/null || true
+
   # The Browser self-updates and downloads SDKs into its own folder, so the
   # invoking user must own the tree.
   chown -R "${user}:${user}" "${install_dir}"
