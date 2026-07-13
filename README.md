@@ -189,7 +189,7 @@ Not every app is available on both EL versions. The installer shows a small **EL
 | FogPanther        | ✅  | ✅   | Via Flathub |
 | Gaffer            | ✅  | ✅   | Guided portable binary install (works on EL9 and EL10) |
 | Natron            | ✅  | ✅   | Via Flathub |
-| Open 3D Engine    | ❌  | ✅   | Via COPR (hellaenergy/o3de), BETA |
+| Open 3D Engine    | ✅  | ✅   | Via COPR (hellaenergy/o3de), BETA |
 | Unreal Engine 5.8 | ✅  | ✅   | Guided vendor install (Epic account), preview build |
 | Unigine           | ✅  | ✅   | Guided vendor install (.run) |
 
@@ -246,7 +246,7 @@ post-production, and content creation environments:
   - Epic Asset Manager
   - Asset Manager Studio
   - Godots
-  - Open 3D Engine *(via COPR, EL10 only, BETA)*
+  - Open 3D Engine *(via COPR, EL9 and EL10, BETA)*
   - Unreal Engine 5.8 *(guided vendor install, preview build)*
   - Unigine *(guided vendor install)*
 
