@@ -79,7 +79,7 @@ APPS = [
     {"id": "rawtherapee",       "name": "RawTherapee",      "type": "flatpak", "appid": "com.rawtherapee.RawTherapee",                  "category": "Image Processing"},
     # 3D
     {"id": "3dcoat",            "name": "3DCoat",           "type": "3dcoat",                                                           "category": "3D"},
-    {"id": "blender",           "name": "Blender",          "type": "dnf",     "pkg": "blender",  "icon_appid": "org.blender.Blender",  "category": "3D"},
+    {"id": "blender",           "name": "Blender",          "type": "dnf",     "pkg": "blender",  "icon_appid": "org.blender.Blender",  "category": "3D",                          "el": [9]},
     {"id": "freecad",           "name": "FreeCAD",          "type": "flatpak", "appid": "org.freecad.FreeCAD",                          "category": "3D"},
     {"id": "instamaterial",     "name": "InstaMaterial",    "type": "instamaterial",                                                    "category": "3D"},
     {"id": "materialmaker",     "name": "Material Maker",   "type": "flatpak", "appid": "io.github.RodZill4.Material-Maker",            "category": "3D"},
