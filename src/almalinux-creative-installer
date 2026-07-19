@@ -75,6 +75,7 @@ APPS = [
     {"id": "gimp",              "name": "GIMP",             "type": "dnf",     "pkg": "gimp",     "icon_appid": "org.gimp.GIMP",        "category": "Image Processing",    "el": [9]},
     {"id": "inkscape",          "name": "Inkscape",         "type": "flatpak", "appid": "org.inkscape.Inkscape",                        "category": "Image Processing"},
     {"id": "krita",             "name": "Krita",            "type": "flatpak", "appid": "org.kde.krita",                                "category": "Image Processing"},
+    {"id": "opencolorio",       "name": "OpenColorIO",      "type": "dnf",     "pkg": "OpenColorIO",                                    "category": "Image Processing"},
     {"id": "rawtherapee",       "name": "RawTherapee",      "type": "flatpak", "appid": "com.rawtherapee.RawTherapee",                  "category": "Image Processing"},
     # 3D
     {"id": "3dcoat",            "name": "3DCoat",           "type": "3dcoat",                                                           "category": "3D"},
