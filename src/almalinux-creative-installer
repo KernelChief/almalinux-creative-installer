@@ -59,55 +59,62 @@ APPIMAGELAUNCHER_RPM_URL = (
 # -----------------------------------------------------------------------------
 
 APPS = [
-    {"id": "gimp",              "name": "GIMP",             "type": "dnf",     "pkg": "gimp",     "icon_appid": "org.gimp.GIMP",        "category": "Image Processing",    "el": [9]},
+    # Productivity
+    {"id": "appimagelauncher",  "name": "AppImageLauncher", "type": "dnf", "pkg": "appimagelauncher",
+     "install_target": APPIMAGELAUNCHER_RPM_URL,                                                                                        "category": "Productivity",        "el": [10]},
+    {"id": "drawio",            "name": "draw.io",          "type": "flatpak", "appid": "com.jgraph.drawio.desktop",                    "category": "Productivity"},
     {"id": "krusader",          "name": "Krusader",         "type": "dnf",     "pkg": "krusader",                                       "category": "Productivity"},
-    {"id": "kdenlive",          "name": "Kdenlive",         "type": "dnf",     "pkg": "kdenlive", "icon_appid": "org.kde.kdenlive",     "category": "Animation & Video",   "el": [9]},
-    {"id": "krita",             "name": "Krita",            "type": "flatpak", "appid": "org.kde.krita",                                "category": "Image Processing"},
-    {"id": "inkscape",          "name": "Inkscape",         "type": "flatpak", "appid": "org.inkscape.Inkscape",                        "category": "Image Processing"},
+    {"id": "libreoffice",       "name": "LibreOffice",      "type": "flatpak", "appid": "org.libreoffice.LibreOffice",                  "category": "Productivity"},
+    {"id": "onlyoffice",        "name": "OnlyOffice",       "type": "flatpak", "appid": "org.onlyoffice.desktopeditors",                "category": "Productivity"},
+    {"id": "scribus",           "name": "Scribus",          "type": "flatpak", "appid": "net.scribus.Scribus",                          "category": "Productivity"},
+    # Image Processing
     {"id": "darktable",         "name": "darktable",        "type": "flatpak", "appid": "org.darktable.Darktable",                      "category": "Image Processing"},
-    {"id": "rawtherapee",       "name": "RawTherapee",      "type": "flatpak", "appid": "com.rawtherapee.RawTherapee",                  "category": "Image Processing"},
     {"id": "digikam",           "name": "digiKam",          "type": "flatpak", "appid": "org.kde.digikam",                              "category": "Image Processing"},
+    {"id": "fogpanther",        "name": "FogPanther",       "type": "flatpak", "appid": "com.fogpanther.FogPanther",                     "category": "Image Processing"},
     {"id": "fontforge",         "name": "FontForge",        "type": "flatpak", "appid": "org.fontforge.FontForge",                      "category": "Image Processing"},
+    {"id": "gimp",              "name": "GIMP",             "type": "dnf",     "pkg": "gimp",     "icon_appid": "org.gimp.GIMP",        "category": "Image Processing",    "el": [9]},
+    {"id": "inkscape",          "name": "Inkscape",         "type": "flatpak", "appid": "org.inkscape.Inkscape",                        "category": "Image Processing"},
+    {"id": "krita",             "name": "Krita",            "type": "flatpak", "appid": "org.kde.krita",                                "category": "Image Processing"},
+    {"id": "rawtherapee",       "name": "RawTherapee",      "type": "flatpak", "appid": "com.rawtherapee.RawTherapee",                  "category": "Image Processing"},
+    # 3D
+    {"id": "3dcoat",            "name": "3DCoat",           "type": "3dcoat",                                                           "category": "3D"},
     {"id": "blender",           "name": "Blender",          "type": "dnf",     "pkg": "blender",  "icon_appid": "org.blender.Blender",  "category": "3D"},
+    {"id": "freecad",           "name": "FreeCAD",          "type": "flatpak", "appid": "org.freecad.FreeCAD",                          "category": "3D"},
+    {"id": "instamaterial",     "name": "InstaMaterial",    "type": "instamaterial",                                                    "category": "3D"},
+    {"id": "materialmaker",     "name": "Material Maker",   "type": "flatpak", "appid": "io.github.RodZill4.Material-Maker",            "category": "3D"},
     {"id": "meshlab",           "name": "MeshLab",          "type": "flatpak", "appid": "net.meshlab.MeshLab",                          "category": "3D"},
     {"id": "prusaslicer",       "name": "PrusaSlicer",      "type": "flatpak", "appid": "com.prusa3d.PrusaSlicer",                      "category": "3D"},
-    {"id": "materialmaker",     "name": "Material Maker",   "type": "flatpak", "appid": "io.github.RodZill4.Material-Maker",            "category": "3D"},
-    {"id": "freecad",           "name": "FreeCAD",          "type": "flatpak", "appid": "org.freecad.FreeCAD",                          "category": "3D"},
-    {"id": "3dcoat",            "name": "3DCoat",           "type": "3dcoat",                                                           "category": "3D"},
-    {"id": "instamaterial",     "name": "InstaMaterial",    "type": "instamaterial",                                                    "category": "3D"},
+    # Animation & Video
+    {"id": "resolve",           "name": "DaVinci Resolve",  "type": "resolve",                                                          "category": "Animation & Video"},
+    {"id": "gaffer",            "name": "Gaffer",                  "type": "gaffer",                                                    "category": "Animation & Video"},
+    {"id": "handbrake",         "name": "HandBrake",        "type": "flatpak", "appid": "fr.handbrake.ghb",                             "category": "Animation & Video"},
+    {"id": "jangafx",           "name": "JangaFX Elemental Suite", "type": "jangafx",                                                   "category": "Animation & Video"},
+    {"id": "kdenlive",          "name": "Kdenlive",         "type": "dnf",     "pkg": "kdenlive", "icon_appid": "org.kde.kdenlive",     "category": "Animation & Video",   "el": [9]},
+    {"id": "natron",            "name": "Natron",                  "type": "flatpak", "appid": "fr.natron.Natron",                      "category": "Animation & Video"},
+    {"id": "obs-studio",        "name": "OBS Studio",       "type": "flatpak", "appid": "com.obsproject.Studio",                        "category": "Animation & Video"},
     {"id": "opentoonz",         "name": "OpenToonz",        "type": "flatpak", "appid": "io.github.OpenToonz",                          "category": "Animation & Video"},
     {"id": "popcornfx",         "name": "PopcornFX Editor", "type": "flatpak", "appid": "com.popcornfx.PopcornFXEditor",                "category": "Animation & Video"},
-    {"id": "jangafx",           "name": "JangaFX Elemental Suite", "type": "jangafx",                                                   "category": "Animation & Video"},
-    {"id": "gaffer",            "name": "Gaffer",                  "type": "gaffer",                                                    "category": "Animation & Video"},
-    {"id": "natron",            "name": "Natron",                  "type": "flatpak", "appid": "fr.natron.Natron",                      "category": "Animation & Video"},
-    {"id": "vlc",               "name": "VLC",              "type": "flatpak", "appid": "org.videolan.VLC",                             "category": "Animation & Video"},
-    {"id": "obs-studio",        "name": "OBS Studio",       "type": "flatpak", "appid": "com.obsproject.Studio",                        "category": "Animation & Video"},
-    {"id": "handbrake",         "name": "HandBrake",        "type": "flatpak", "appid": "fr.handbrake.ghb",                             "category": "Animation & Video"},
     {"id": "shotcut",           "name": "Shotcut",          "type": "flatpak", "appid": "org.shotcut.Shotcut",                          "category": "Animation & Video"},
-    {"id": "fogpanther",        "name": "FogPanther",       "type": "flatpak", "appid": "com.fogpanther.FogPanther",                     "category": "Image Processing"},
-    {"id": "scribus",           "name": "Scribus",          "type": "flatpak", "appid": "net.scribus.Scribus",                          "category": "Productivity"},
+    {"id": "vlc",               "name": "VLC",              "type": "flatpak", "appid": "org.videolan.VLC",                             "category": "Animation & Video"},
+    # Audio
     {"id": "ardour",            "name": "Ardour",           "type": "flatpak", "appid": "org.ardour.Ardour",                            "category": "Audio"},
-    {"id": "bitwig studio",     "name": "Bitwig Studio",    "type": "flatpak", "appid": "com.bitwig.BitwigStudio",                      "category": "Audio"},
-    {"id": "lmms",              "name": "LMMS",             "type": "flatpak", "appid": "io.lmms.LMMS",                                 "category": "Audio"},
     {"id": "audacity",          "name": "Audacity",         "type": "flatpak", "appid": "org.audacityteam.Audacity",                    "category": "Audio"},
+    {"id": "bitwig studio",     "name": "Bitwig Studio",    "type": "flatpak", "appid": "com.bitwig.BitwigStudio",                      "category": "Audio"},
     {"id": "carla",             "name": "Carla",            "type": "flatpak", "appid": "studio.kx.carla",                              "category": "Audio"},
     {"id": "hydrogen",          "name": "Hydrogen",         "type": "flatpak", "appid": "org.hydrogenmusic.Hydrogen",                   "category": "Audio"},
+    {"id": "lmms",              "name": "LMMS",             "type": "flatpak", "appid": "io.lmms.LMMS",                                 "category": "Audio"},
     {"id": "spotify",           "name": "Spotify",          "type": "flatpak", "appid": "com.spotify.Client",                           "category": "Audio"},
+    # Communication
     {"id": "discord",           "name": "Discord",          "type": "flatpak", "appid": "com.discordapp.Discord",                       "category": "Communication"},
     {"id": "mattermost",        "name": "Mattermost",       "type": "flatpak", "appid": "com.mattermost.Desktop",                       "category": "Communication"},
     {"id": "slack",             "name": "Slack",            "type": "flatpak", "appid": "com.slack.Slack",                              "category": "Communication"},
-    {"id": "drawio",            "name": "draw.io",          "type": "flatpak", "appid": "com.jgraph.drawio.desktop",                    "category": "Productivity"},
-    {"id": "libreoffice",       "name": "LibreOffice",      "type": "flatpak", "appid": "org.libreoffice.LibreOffice",                  "category": "Productivity"},
-    {"id": "onlyoffice",        "name": "OnlyOffice",       "type": "flatpak", "appid": "org.onlyoffice.desktopeditors",                "category": "Productivity"},
-    {"id": "epicassetmanager",  "name": "Epic Asset Manager","type": "flatpak", "appid": "io.github.achetagames.epic_asset_manager",    "category": "Game Engines"},
+    # Game Engines
     {"id": "assetmanagerstudio","name": "Asset Manager Studio","type": "flatpak","appid": "studio.assetmanager.ams",                    "category": "Game Engines"},
+    {"id": "epicassetmanager",  "name": "Epic Asset Manager","type": "flatpak", "appid": "io.github.achetagames.epic_asset_manager",    "category": "Game Engines"},
     {"id": "godots",            "name": "Godots",           "type": "flatpak", "appid": "io.github.MakovWait.Godots",                   "category": "Game Engines"},
     {"id": "o3de",              "name": "Open 3D Engine",   "type": "o3de",    "icon_appid": "org.o3de.O3DE",                           "category": "Game Engines",        "beta": True},
-    {"id": "unreal",            "name": "Unreal Engine 5.8","type": "unreal",                                                           "category": "Game Engines",        "beta": True},
     {"id": "unigine",           "name": "Unigine",          "type": "unigine",                                                          "category": "Game Engines"},
-    {"id": "appimagelauncher",  "name": "AppImageLauncher", "type": "dnf", "pkg": "appimagelauncher",
-     "install_target": APPIMAGELAUNCHER_RPM_URL,                                                                                        "category": "Productivity",        "el": [10]},
-    {"id": "resolve",           "name": "DaVinci Resolve",  "type": "resolve",                                                          "category": "Animation & Video"},
+    {"id": "unreal",            "name": "Unreal Engine 5.8","type": "unreal",                                                           "category": "Game Engines",        "beta": True},
 ]
 
 VERSION_SELECTABLE_APPS = {"gimp", "krita", "blender"}
@@ -571,19 +578,20 @@ class AlmaCreativeInstaller(QMainWindow):
         req_layout.addStretch()
         setup_layout.addWidget(req_frame)
 
-        # ---- Desktop Environment frame (GNOME only) ----
-        de_frame = QFrame()
-        de_frame.setObjectName("reqFrame")
-        de_layout = QVBoxLayout(de_frame)
-        de_layout.setContentsMargins(10, 10, 10, 10)
-        de_layout.setSpacing(6)
+        # ---- Desktop Environment frame (EL9 + GNOME only; hidden entirely on EL10) ----
+        if _EL_VERSION == 9:
+            de_frame = QFrame()
+            de_frame.setObjectName("reqFrame")
+            de_layout = QVBoxLayout(de_frame)
+            de_layout.setContentsMargins(10, 10, 10, 10)
+            de_layout.setSpacing(6)
 
-        de_title = QLabel("Desktop Environment")
-        de_title.setObjectName("rowTitle")
-        de_layout.addWidget(de_title)
-        de_layout.addWidget(self._make_gnome_ui_row())
-        de_layout.addStretch()
-        setup_layout.addWidget(de_frame)
+            de_title = QLabel("Desktop Environment")
+            de_title.setObjectName("rowTitle")
+            de_layout.addWidget(de_title)
+            de_layout.addWidget(self._make_gnome_ui_row())
+            de_layout.addStretch()
+            setup_layout.addWidget(de_frame)
 
         self.ready_banner = QLabel("✓  System ready — all required repositories are enabled. Head to the Apps tab to install.")
         self.ready_banner.setObjectName("readyBanner")
@@ -665,7 +673,7 @@ class AlmaCreativeInstaller(QMainWindow):
 
         content_row.addWidget(app_list_container, stretch=1)
 
-        for app in APPS:
+        for app in sorted(APPS, key=lambda a: a["name"].lower()):
             self.app_list_layout.insertWidget(
                 self.app_list_layout.count() - 1,
                 self._make_app_row(app),
