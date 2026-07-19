@@ -27,6 +27,9 @@ docs/QUICK_REFERENCE.md
 docs/learnings/*
 docs/archive/*
 
+# --- Local dev scratch ---
+UIDev/
+
 # --- OS & System ---
 .DS_Store
 .directory
