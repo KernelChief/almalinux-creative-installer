@@ -673,7 +673,7 @@ class AlmaCreativeInstaller(QMainWindow):
 
         content_row.addWidget(app_list_container, stretch=1)
 
-        for app in APPS:
+        for app in sorted(APPS, key=lambda a: a["name"].lower()):
             self.app_list_layout.insertWidget(
                 self.app_list_layout.count() - 1,
                 self._make_app_row(app),
