@@ -5,18 +5,6 @@ the best onboarding tool for creative professionals (Media & Entertainment) on e
 
 ---
 
-## Unscheduled — Next Up
-
-### Snapper (BTRFS/EL10) + OpenColorIO (EL9/EL10)
-Two independent, small additions, tracked on `feature/snapper-opencolorio`:
-- **OpenColorIO** — plain `APPS` catalog entry (dnf, both EL9/EL10).
-- **Snapper** — new conditionally-hidden Setup-tab row, shown only when the root
-  filesystem is BTRFS *and* running EL10 (EPEL package, already-required repo).
-  Needs a new `_detect_btrfs_root()` helper; follows the same "skip the frame
-  entirely" precedent as the EL10 GNOME-UI gating in PR75.
-
----
-
 ## Phase 1 — Content & Quick Wins
 
 ### PR 1: Missing Apps

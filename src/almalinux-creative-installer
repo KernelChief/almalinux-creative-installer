@@ -594,6 +594,21 @@ class AlmaCreativeInstaller(QMainWindow):
             de_layout.addStretch()
             setup_layout.addWidget(de_frame)
 
+        # ---- Snapshots frame (EL10 + BTRFS root only; hidden entirely otherwise) ----
+        if _EL_VERSION == 10 and self._detect_btrfs_root():
+            snap_frame = QFrame()
+            snap_frame.setObjectName("reqFrame")
+            snap_layout = QVBoxLayout(snap_frame)
+            snap_layout.setContentsMargins(10, 10, 10, 10)
+            snap_layout.setSpacing(6)
+
+            snap_title = QLabel("Snapshots")
+            snap_title.setObjectName("rowTitle")
+            snap_layout.addWidget(snap_title)
+            snap_layout.addWidget(self._make_snapper_row())
+            snap_layout.addStretch()
+            setup_layout.addWidget(snap_frame)
+
         self.ready_banner = QLabel("✓  System ready — all required repositories are enabled. Head to the Apps tab to install.")
         self.ready_banner.setObjectName("readyBanner")
         self.ready_banner.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -828,6 +843,17 @@ class AlmaCreativeInstaller(QMainWindow):
 
     def _gnome_ui_installed(self):
         return Path("/etc/dconf/db/local.d/01-creative_gnome_defaults").exists()
+
+    @staticmethod
+    def _detect_btrfs_root():
+        try:
+            fstype = subprocess.run(
+                ["findmnt", "-no", "FSTYPE", "/"],
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True,
+            ).stdout.strip()
+            return fstype == "btrfs"
+        except Exception:
+            return False
 
     def _update_ready_banner(self):
         if not hasattr(self, "ready_banner"):
@@ -1142,6 +1168,89 @@ class AlmaCreativeInstaller(QMainWindow):
             w["remove_btn"].setEnabled(True)
         else:
             self._set_status_badge(w["status"], "Not applied", "missing")
+            w["install_btn"].setEnabled(True)
+            w["remove_btn"].setEnabled(False)
+
+    def _make_snapper_row(self):
+        row = QFrame()
+        row.setObjectName("appRow")
+        hl = QHBoxLayout(row)
+        hl.setContentsMargins(8, 6, 8, 6)
+
+        icon_lbl = QLabel("")
+        icon_lbl.setFixedWidth(28)
+        hl.addWidget(icon_lbl)
+
+        text_col = QVBoxLayout()
+        title_lbl = QLabel("Snapper (BTRFS Snapshots)")
+        title_lbl.setObjectName("rowTitle")
+        text_col.addWidget(title_lbl)
+        sub_lbl = QLabel(
+            "Filesystem snapshot and rollback tool for the BTRFS root volume. "
+            "Installed via EPEL."
+        )
+        sub_lbl.setObjectName("rowSubtitle")
+        text_col.addWidget(sub_lbl)
+        hl.addLayout(text_col, stretch=1)
+
+        status_lbl = QLabel("Checking…")
+        status_lbl.setProperty("badge", "checking")
+        status_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        hl.addWidget(status_lbl)
+
+        install_btn = QPushButton("Install")
+        install_btn.setObjectName("enableBtn")
+        remove_btn = QPushButton("Remove")
+        remove_btn.setObjectName("removeBtn")
+
+        def _on_install():
+            install_btn.setEnabled(False)
+            remove_btn.setEnabled(False)
+            self._set_status_badge(status_lbl, "Working…", "busy")
+            self.run_helper_with_callback(
+                ["install_pkg", "snapper"],
+                on_success=lambda: self._refresh_snapper_state(),
+                on_failure=lambda: self._refresh_snapper_state(),
+            )
+
+        def _on_remove():
+            install_btn.setEnabled(False)
+            remove_btn.setEnabled(False)
+            self._set_status_badge(status_lbl, "Working…", "busy")
+            self.run_helper_with_callback(
+                ["remove_pkg", "snapper"],
+                on_success=lambda: self._refresh_snapper_state(),
+                on_failure=lambda: self._refresh_snapper_state(),
+            )
+
+        install_btn.clicked.connect(_on_install)
+        remove_btn.clicked.connect(_on_remove)
+        hl.addWidget(install_btn)
+        hl.addWidget(remove_btn)
+
+        self.repo_widgets["SNAPPER"] = {
+            "icon": icon_lbl,
+            "status": status_lbl,
+            "install_btn": install_btn,
+            "remove_btn": remove_btn,
+        }
+        self._refresh_snapper_state()
+        return row
+
+    def _refresh_snapper_state(self):
+        w = self.repo_widgets.get("SNAPPER")
+        if not w:
+            return
+        installed = subprocess.run(
+            ["rpm", "-q", "snapper"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        ).returncode == 0
+        if installed:
+            self._set_status_badge(w["status"], "Installed", "installed")
+            w["install_btn"].setEnabled(False)
+            w["remove_btn"].setEnabled(True)
+        else:
+            self._set_status_badge(w["status"], "Not installed", "missing")
             w["install_btn"].setEnabled(True)
             w["remove_btn"].setEnabled(False)
 
@@ -1590,6 +1699,7 @@ class AlmaCreativeInstaller(QMainWindow):
     def refresh_all_states(self):
         self.refresh_repo_state()
         self._refresh_gnome_ui_state()
+        self._refresh_snapper_state()
         self.refresh_app_versions()
         for app in APPS:
             self.refresh_app_state(app["id"])
