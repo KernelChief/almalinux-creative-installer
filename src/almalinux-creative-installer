@@ -1046,7 +1046,7 @@ class AlmaCreativeInstaller(QMainWindow):
                 reply = QMessageBox.warning(
                     self,
                     "Remove {}?".format(title),
-                    "Disabling this repository will not uninstall packages you already "
+                    "Removing this repository will not uninstall packages you already "
                     "installed from it, but it may block their future updates and any "
                     "apps that still depend on it — you may need to remove those "
                     "packages yourself afterward.\n\nContinue?",

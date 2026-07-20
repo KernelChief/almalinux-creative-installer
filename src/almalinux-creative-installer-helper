@@ -115,12 +115,25 @@ disable_repo_matching() {
   log "Disabled: ${ids}"
 }
 
+remove_release_pkg() {
+  local pkg="$1"
+  if rpm -q "${pkg}" >/dev/null 2>&1; then
+    dnf -y remove "${pkg}"
+    log "Removed: ${pkg}"
+  else
+    log "${pkg} is not installed."
+  fi
+}
+
 disable_epel() {
-  log "Disabling EPEL..."
-  disable_repo_matching "epel"
+  log "Removing EPEL..."
+  remove_release_pkg "epel-release"
   log "Done."
 }
 
+# CRB/PowerTools ships as part of the base AlmaLinux repo config (no
+# standalone release package to remove), so this stays a config-manager
+# toggle rather than an uninstall.
 disable_crb() {
   log "Disabling CRB / PowerTools..."
   disable_repo_matching "crb"
@@ -129,14 +142,14 @@ disable_crb() {
 }
 
 disable_rpmfusion_free() {
-  log "Disabling RPM Fusion Free..."
-  disable_repo_matching "rpmfusion-free"
+  log "Removing RPM Fusion Free..."
+  remove_release_pkg "rpmfusion-free-release"
   log "Done."
 }
 
 disable_rpmfusion_nonfree() {
-  log "Disabling RPM Fusion Non-Free..."
-  disable_repo_matching "rpmfusion-nonfree"
+  log "Removing RPM Fusion Non-Free..."
+  remove_release_pkg "rpmfusion-nonfree-release"
   log "Done."
 }
 
