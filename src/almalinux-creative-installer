@@ -523,6 +523,7 @@ class AlmaCreativeInstaller(QMainWindow):
         root.addWidget(self._make_hero_banner())
 
         tabs = QTabWidget()
+        self.tabs = tabs
         root.addWidget(tabs)
 
         # ---- Setup tab (first — users configure repos before installing) ----
@@ -2097,6 +2098,39 @@ class AlmaCreativeInstaller(QMainWindow):
     # -------------------------------------------------------------------------
     # Install / remove
     # -------------------------------------------------------------------------
+    def _check_dnf_requirements(self, app_name):
+        epel = self.repo_states.get("EPEL")
+        crb  = self.repo_states.get("CRB")
+        if epel is True and crb is True:
+            return True
+
+        missing = []
+        if epel is not True:
+            missing.append("EPEL")
+        if crb is not True:
+            missing.append("CRB")
+
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Icon.Warning)
+        box.setWindowTitle("Missing requirement")
+        box.setText(
+            "{} requires {} to be enabled first.\n\n"
+            "Enable {} on the Setup tab, then try installing again.".format(
+                app_name, " and ".join(missing), " and ".join(missing)
+            )
+        )
+        setup_btn  = box.addButton("Go to Setup", QMessageBox.ButtonRole.AcceptRole)
+        anyway_btn = box.addButton("Install Anyway", QMessageBox.ButtonRole.DestructiveRole)
+        box.addButton(QMessageBox.StandardButton.Cancel)
+        box.setDefaultButton(setup_btn)
+        box.exec()
+
+        clicked = box.clickedButton()
+        if clicked is setup_btn:
+            self.tabs.setCurrentIndex(0)
+            return False
+        return clicked is anyway_btn
+
     def install_app(self, app_id):
         w = self.app_widgets.get(app_id)
         if not w or w.get("busy"):
@@ -2104,6 +2138,8 @@ class AlmaCreativeInstaller(QMainWindow):
         app = w["app"]
 
         if app["type"] == "dnf":
+            if not self._check_dnf_requirements(app["name"]):
+                return
             selected = self._get_selected_version_option(app_id)
             if selected and selected.get("mode") == "specific":
                 args = ["install_pkg_version", selected.get("install_arg", app["pkg"])]
