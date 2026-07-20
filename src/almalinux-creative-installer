@@ -547,24 +547,28 @@ class AlmaCreativeInstaller(QMainWindow):
             title="CodeReady Builder (CRB) / PowerTools  (Required)",
             subtitle="Extra dependencies used by many workstation apps.",
             enable_action=["enable_crb"],
+            disable_action=["disable_crb"],
         ))
         req_layout.addWidget(self._make_requirement_row(
             key="EPEL",
             title="Extra Packages for Enterprise Linux (EPEL)  (Required)",
             subtitle="Community packages used by many creative tools.",
             enable_action=["enable_epel"],
+            disable_action=["disable_epel"],
         ))
         req_layout.addWidget(self._make_requirement_row(
             key="RPMFUSION_FREE",
             title="RPM Fusion Free (Optional)",
             subtitle="Multimedia codecs (H.264, MP3, AAC) — essential for video editors.",
             enable_action=["enable_rpmfusion_free"],
+            disable_action=["disable_rpmfusion_free"],
         ))
         req_layout.addWidget(self._make_requirement_row(
             key="RPMFUSION_NONFREE",
             title="RPM Fusion Non-Free (Optional)",
             subtitle="Proprietary codecs and non-redistributable software. Also enables RPM Fusion Free.",
             enable_action=["enable_rpmfusion_nonfree"],
+            disable_action=["disable_rpmfusion_nonfree"],
         ))
         req_layout.addWidget(self._make_requirement_row(
             key="NVIDIA",
@@ -987,7 +991,8 @@ class AlmaCreativeInstaller(QMainWindow):
                               button_label="Enable",
                               status_enabled="Enabled",
                               status_disabled="Not enabled",
-                              post_install_msg=None):
+                              post_install_msg=None,
+                              disable_action=None):
         row = QFrame()
         row.setObjectName("appRow")
         hl = QHBoxLayout(row)
@@ -1032,10 +1037,41 @@ class AlmaCreativeInstaller(QMainWindow):
         btn.clicked.connect(_on_clicked)
         hl.addWidget(btn)
 
+        remove_btn = None
+        if disable_action:
+            remove_btn = QPushButton("Remove")
+            remove_btn.setObjectName("removeBtn")
+
+            def _on_remove_clicked():
+                reply = QMessageBox.warning(
+                    self,
+                    "Remove {}?".format(title),
+                    "Disabling this repository will not uninstall packages you already "
+                    "installed from it, but it may block their future updates and any "
+                    "apps that still depend on it — you may need to remove those "
+                    "packages yourself afterward.\n\nContinue?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
+                    QMessageBox.StandardButton.Cancel,
+                )
+                if reply != QMessageBox.StandardButton.Yes:
+                    return
+                btn.setEnabled(False)
+                remove_btn.setEnabled(False)
+                self._set_status_badge(status_lbl, "Working…", "busy")
+                self.run_helper_with_callback(
+                    disable_action,
+                    on_success=self.refresh_repo_state,
+                    on_failure=self.refresh_repo_state,
+                )
+
+            remove_btn.clicked.connect(_on_remove_clicked)
+            hl.addWidget(remove_btn)
+
         self.repo_widgets[key] = {
             "icon": icon_lbl,
             "status": status_lbl,
             "button": btn,
+            "remove_button": remove_btn,
             "status_enabled": status_enabled,
             "status_disabled": status_disabled,
         }
@@ -1260,17 +1296,24 @@ class AlmaCreativeInstaller(QMainWindow):
         w = self.repo_widgets.get(key)
         if not w:
             return
+        remove_btn = w.get("remove_button")
         if state is None:
             w["icon"].setText("")
             w["button"].setEnabled(False)
+            if remove_btn:
+                remove_btn.setEnabled(False)
             self._set_status_badge(w["status"], "Checking…", "checking")
         elif state is True:
             w["icon"].setText("")
             w["button"].setEnabled(False)
+            if remove_btn:
+                remove_btn.setEnabled(True)
             self._set_status_badge(w["status"], w.get("status_enabled", "Enabled"), "installed")
         else:
             w["icon"].setText("")
             w["button"].setEnabled(True)
+            if remove_btn:
+                remove_btn.setEnabled(False)
             self._set_status_badge(w["status"], w.get("status_disabled", "Not enabled"), "missing")
         self._update_ready_banner()
 
@@ -2119,8 +2162,7 @@ class AlmaCreativeInstaller(QMainWindow):
                 app_name, " and ".join(missing), " and ".join(missing)
             )
         )
-        setup_btn  = box.addButton("Go to Setup", QMessageBox.ButtonRole.AcceptRole)
-        anyway_btn = box.addButton("Install Anyway", QMessageBox.ButtonRole.DestructiveRole)
+        setup_btn = box.addButton("Go to Setup", QMessageBox.ButtonRole.AcceptRole)
         box.addButton(QMessageBox.StandardButton.Cancel)
         box.setDefaultButton(setup_btn)
         box.exec()
@@ -2128,8 +2170,7 @@ class AlmaCreativeInstaller(QMainWindow):
         clicked = box.clickedButton()
         if clicked is setup_btn:
             self.tabs.setCurrentIndex(0)
-            return False
-        return clicked is anyway_btn
+        return False
 
     def install_app(self, app_id):
         w = self.app_widgets.get(app_id)

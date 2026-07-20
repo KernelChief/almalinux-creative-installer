@@ -80,6 +80,44 @@ enable_crb() {
   log "Done."
 }
 
+disable_repo_matching() {
+  local prefix="$1"
+  local ids
+  ids="$(dnf -q repolist --enabled 2>/dev/null | awk 'NR>1 {print $1}' | grep -i "^${prefix}" || true)"
+  if [[ -z "${ids}" ]]; then
+    log "No enabled repos matching '${prefix}' found."
+    return 0
+  fi
+  # shellcheck disable=SC2086
+  dnf -y config-manager --set-disabled ${ids}
+  log "Disabled: ${ids}"
+}
+
+disable_epel() {
+  log "Disabling EPEL..."
+  disable_repo_matching "epel"
+  log "Done."
+}
+
+disable_crb() {
+  log "Disabling CRB / PowerTools..."
+  disable_repo_matching "crb"
+  disable_repo_matching "powertools"
+  log "Done."
+}
+
+disable_rpmfusion_free() {
+  log "Disabling RPM Fusion Free..."
+  disable_repo_matching "rpmfusion-free"
+  log "Done."
+}
+
+disable_rpmfusion_nonfree() {
+  log "Disabling RPM Fusion Non-Free..."
+  disable_repo_matching "rpmfusion-nonfree"
+  log "Done."
+}
+
 repo_status() {
   log "Enabled repos:"
   dnf repolist --enabled
@@ -1278,6 +1316,10 @@ case "${action}" in
   enable_rpmfusion_free)    enable_rpmfusion_free;;
   enable_rpmfusion_nonfree) enable_rpmfusion_nonfree;;
   enable_nvidia_drivers)    enable_nvidia_drivers;;
+  disable_crb)              disable_crb;;
+  disable_epel)             disable_epel;;
+  disable_rpmfusion_free)   disable_rpmfusion_free;;
+  disable_rpmfusion_nonfree) disable_rpmfusion_nonfree;;
   repo_status)              repo_status;;
 
   # DNF apps
@@ -1345,6 +1387,10 @@ Repo actions:
   enable_rpmfusion_free
   enable_rpmfusion_nonfree
   enable_nvidia_drivers
+  disable_crb
+  disable_epel
+  disable_rpmfusion_free
+  disable_rpmfusion_nonfree
   repo_status
 
 DNF apps:
