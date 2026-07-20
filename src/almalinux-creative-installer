@@ -1908,6 +1908,9 @@ class AlmaCreativeInstaller(QMainWindow):
         w = self.app_widgets.get(app_id)
         if not w:
             return
+        el_versions = app.get("el")
+        if el_versions and _EL_VERSION is not None and _EL_VERSION not in el_versions:
+            return  # incompatible — keep the disabled combo state set at row-build time
         combo = w.get("version_combo")
         if combo is None:
             return
