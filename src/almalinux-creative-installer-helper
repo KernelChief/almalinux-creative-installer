@@ -9,9 +9,28 @@ log() { echo "[alma-creative-installer-helper] $*"; }
 # -------------------------------------------------
 # Repo enable actions (privileged)
 # -------------------------------------------------
+
+# Re-flips a previously-disabled repo back on. Needed because "dnf install
+# <release-rpm>" is a no-op once that package is already present (e.g. after
+# a prior disable_* only flipped the repo config's enabled flag off), so it
+# never actually re-enables the repo on its own.
+enable_repo_matching() {
+  local prefix="$1"
+  local ids
+  ids="$(dnf -q repolist --all 2>/dev/null | awk 'NR>1 {print $1}' | grep -i "^${prefix}" || true)"
+  if [[ -z "${ids}" ]]; then
+    log "No repos matching '${prefix}' found to enable."
+    return 0
+  fi
+  # shellcheck disable=SC2086
+  dnf -y config-manager --set-enabled ${ids}
+  log "Enabled: ${ids}"
+}
+
 enable_epel() {
   log "Enabling EPEL..."
   dnf -y install epel-release
+  enable_repo_matching "epel"
   log "Done."
 }
 
@@ -24,6 +43,7 @@ enable_rpmfusion_free() {
     exit 4
   fi
   dnf -y install "https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-${el_version}.noarch.rpm"
+  enable_repo_matching "rpmfusion-free"
   log "RPM Fusion Free enabled."
 }
 
@@ -40,6 +60,8 @@ enable_rpmfusion_nonfree() {
     pkgs=("https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-${el_version}.noarch.rpm" "${pkgs[@]}")
   fi
   dnf -y install "${pkgs[@]}"
+  enable_repo_matching "rpmfusion-free"
+  enable_repo_matching "rpmfusion-nonfree"
   log "RPM Fusion Free + Non-Free enabled."
 }
 
