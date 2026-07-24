@@ -75,10 +75,11 @@ APPS = [
     {"id": "gimp",              "name": "GIMP",             "type": "dnf",     "pkg": "gimp",     "icon_appid": "org.gimp.GIMP",        "category": "Image Processing",    "el": [9]},
     {"id": "inkscape",          "name": "Inkscape",         "type": "flatpak", "appid": "org.inkscape.Inkscape",                        "category": "Image Processing"},
     {"id": "krita",             "name": "Krita",            "type": "flatpak", "appid": "org.kde.krita",                                "category": "Image Processing"},
+    {"id": "opencolorio",       "name": "OpenColorIO",      "type": "dnf",     "pkg": "OpenColorIO",                                    "category": "Image Processing"},
     {"id": "rawtherapee",       "name": "RawTherapee",      "type": "flatpak", "appid": "com.rawtherapee.RawTherapee",                  "category": "Image Processing"},
     # 3D
     {"id": "3dcoat",            "name": "3DCoat",           "type": "3dcoat",                                                           "category": "3D"},
-    {"id": "blender",           "name": "Blender",          "type": "dnf",     "pkg": "blender",  "icon_appid": "org.blender.Blender",  "category": "3D"},
+    {"id": "blender",           "name": "Blender",          "type": "dnf",     "pkg": "blender",  "icon_appid": "org.blender.Blender",  "category": "3D",                          "el": [9]},
     {"id": "freecad",           "name": "FreeCAD",          "type": "flatpak", "appid": "org.freecad.FreeCAD",                          "category": "3D"},
     {"id": "instamaterial",     "name": "InstaMaterial",    "type": "instamaterial",                                                    "category": "3D"},
     {"id": "materialmaker",     "name": "Material Maker",   "type": "flatpak", "appid": "io.github.RodZill4.Material-Maker",            "category": "3D"},
@@ -522,6 +523,7 @@ class AlmaCreativeInstaller(QMainWindow):
         root.addWidget(self._make_hero_banner())
 
         tabs = QTabWidget()
+        self.tabs = tabs
         root.addWidget(tabs)
 
         # ---- Setup tab (first — users configure repos before installing) ----
@@ -545,24 +547,28 @@ class AlmaCreativeInstaller(QMainWindow):
             title="CodeReady Builder (CRB) / PowerTools  (Required)",
             subtitle="Extra dependencies used by many workstation apps.",
             enable_action=["enable_crb"],
+            disable_action=["disable_crb"],
         ))
         req_layout.addWidget(self._make_requirement_row(
             key="EPEL",
             title="Extra Packages for Enterprise Linux (EPEL)  (Required)",
             subtitle="Community packages used by many creative tools.",
             enable_action=["enable_epel"],
+            disable_action=["disable_epel"],
         ))
         req_layout.addWidget(self._make_requirement_row(
             key="RPMFUSION_FREE",
             title="RPM Fusion Free (Optional)",
             subtitle="Multimedia codecs (H.264, MP3, AAC) — essential for video editors.",
             enable_action=["enable_rpmfusion_free"],
+            disable_action=["disable_rpmfusion_free"],
         ))
         req_layout.addWidget(self._make_requirement_row(
             key="RPMFUSION_NONFREE",
             title="RPM Fusion Non-Free (Optional)",
             subtitle="Proprietary codecs and non-redistributable software. Also enables RPM Fusion Free.",
             enable_action=["enable_rpmfusion_nonfree"],
+            disable_action=["disable_rpmfusion_nonfree"],
         ))
         req_layout.addWidget(self._make_requirement_row(
             key="NVIDIA",
@@ -592,6 +598,21 @@ class AlmaCreativeInstaller(QMainWindow):
             de_layout.addWidget(self._make_gnome_ui_row())
             de_layout.addStretch()
             setup_layout.addWidget(de_frame)
+
+        # ---- Snapshots frame (EL10 + BTRFS root only; hidden entirely otherwise) ----
+        if _EL_VERSION == 10 and self._detect_btrfs_root():
+            snap_frame = QFrame()
+            snap_frame.setObjectName("reqFrame")
+            snap_layout = QVBoxLayout(snap_frame)
+            snap_layout.setContentsMargins(10, 10, 10, 10)
+            snap_layout.setSpacing(6)
+
+            snap_title = QLabel("Snapshots")
+            snap_title.setObjectName("rowTitle")
+            snap_layout.addWidget(snap_title)
+            snap_layout.addWidget(self._make_snapper_row())
+            snap_layout.addStretch()
+            setup_layout.addWidget(snap_frame)
 
         self.ready_banner = QLabel("✓  System ready — all required repositories are enabled. Head to the Apps tab to install.")
         self.ready_banner.setObjectName("readyBanner")
@@ -828,6 +849,17 @@ class AlmaCreativeInstaller(QMainWindow):
     def _gnome_ui_installed(self):
         return Path("/etc/dconf/db/local.d/01-creative_gnome_defaults").exists()
 
+    @staticmethod
+    def _detect_btrfs_root():
+        try:
+            fstype = subprocess.run(
+                ["findmnt", "-no", "FSTYPE", "/"],
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True,
+            ).stdout.strip()
+            return fstype == "btrfs"
+        except Exception:
+            return False
+
     def _update_ready_banner(self):
         if not hasattr(self, "ready_banner"):
             return
@@ -959,7 +991,8 @@ class AlmaCreativeInstaller(QMainWindow):
                               button_label="Enable",
                               status_enabled="Enabled",
                               status_disabled="Not enabled",
-                              post_install_msg=None):
+                              post_install_msg=None,
+                              disable_action=None):
         row = QFrame()
         row.setObjectName("appRow")
         hl = QHBoxLayout(row)
@@ -1004,10 +1037,41 @@ class AlmaCreativeInstaller(QMainWindow):
         btn.clicked.connect(_on_clicked)
         hl.addWidget(btn)
 
+        remove_btn = None
+        if disable_action:
+            remove_btn = QPushButton("Remove")
+            remove_btn.setObjectName("removeBtn")
+
+            def _on_remove_clicked():
+                reply = QMessageBox.warning(
+                    self,
+                    "Remove {}?".format(title),
+                    "Removing this repository will not uninstall packages you already "
+                    "installed from it, but it may block their future updates and any "
+                    "apps that still depend on it — you may need to remove those "
+                    "packages yourself afterward.\n\nContinue?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
+                    QMessageBox.StandardButton.Cancel,
+                )
+                if reply != QMessageBox.StandardButton.Yes:
+                    return
+                btn.setEnabled(False)
+                remove_btn.setEnabled(False)
+                self._set_status_badge(status_lbl, "Working…", "busy")
+                self.run_helper_with_callback(
+                    disable_action,
+                    on_success=self.refresh_repo_state,
+                    on_failure=self.refresh_repo_state,
+                )
+
+            remove_btn.clicked.connect(_on_remove_clicked)
+            hl.addWidget(remove_btn)
+
         self.repo_widgets[key] = {
             "icon": icon_lbl,
             "status": status_lbl,
             "button": btn,
+            "remove_button": remove_btn,
             "status_enabled": status_enabled,
             "status_disabled": status_disabled,
         }
@@ -1144,22 +1208,112 @@ class AlmaCreativeInstaller(QMainWindow):
             w["install_btn"].setEnabled(True)
             w["remove_btn"].setEnabled(False)
 
+    def _make_snapper_row(self):
+        row = QFrame()
+        row.setObjectName("appRow")
+        hl = QHBoxLayout(row)
+        hl.setContentsMargins(8, 6, 8, 6)
+
+        icon_lbl = QLabel("")
+        icon_lbl.setFixedWidth(28)
+        hl.addWidget(icon_lbl)
+
+        text_col = QVBoxLayout()
+        title_lbl = QLabel("Snapper (BTRFS Snapshots)")
+        title_lbl.setObjectName("rowTitle")
+        text_col.addWidget(title_lbl)
+        sub_lbl = QLabel(
+            "Filesystem snapshot and rollback tool for the BTRFS root volume. "
+            "Installed via EPEL."
+        )
+        sub_lbl.setObjectName("rowSubtitle")
+        text_col.addWidget(sub_lbl)
+        hl.addLayout(text_col, stretch=1)
+
+        status_lbl = QLabel("Checking…")
+        status_lbl.setProperty("badge", "checking")
+        status_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        hl.addWidget(status_lbl)
+
+        install_btn = QPushButton("Install")
+        install_btn.setObjectName("enableBtn")
+        remove_btn = QPushButton("Remove")
+        remove_btn.setObjectName("removeBtn")
+
+        def _on_install():
+            install_btn.setEnabled(False)
+            remove_btn.setEnabled(False)
+            self._set_status_badge(status_lbl, "Working…", "busy")
+            self.run_helper_with_callback(
+                ["install_pkg", "snapper"],
+                on_success=lambda: self._refresh_snapper_state(),
+                on_failure=lambda: self._refresh_snapper_state(),
+            )
+
+        def _on_remove():
+            install_btn.setEnabled(False)
+            remove_btn.setEnabled(False)
+            self._set_status_badge(status_lbl, "Working…", "busy")
+            self.run_helper_with_callback(
+                ["remove_pkg", "snapper"],
+                on_success=lambda: self._refresh_snapper_state(),
+                on_failure=lambda: self._refresh_snapper_state(),
+            )
+
+        install_btn.clicked.connect(_on_install)
+        remove_btn.clicked.connect(_on_remove)
+        hl.addWidget(install_btn)
+        hl.addWidget(remove_btn)
+
+        self.repo_widgets["SNAPPER"] = {
+            "icon": icon_lbl,
+            "status": status_lbl,
+            "install_btn": install_btn,
+            "remove_btn": remove_btn,
+        }
+        self._refresh_snapper_state()
+        return row
+
+    def _refresh_snapper_state(self):
+        w = self.repo_widgets.get("SNAPPER")
+        if not w:
+            return
+        installed = subprocess.run(
+            ["rpm", "-q", "snapper"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        ).returncode == 0
+        if installed:
+            self._set_status_badge(w["status"], "Installed", "installed")
+            w["install_btn"].setEnabled(False)
+            w["remove_btn"].setEnabled(True)
+        else:
+            self._set_status_badge(w["status"], "Not installed", "missing")
+            w["install_btn"].setEnabled(True)
+            w["remove_btn"].setEnabled(False)
+
     def _set_requirement_state(self, key, state):
         self.repo_states[key] = state
         w = self.repo_widgets.get(key)
         if not w:
             return
+        remove_btn = w.get("remove_button")
         if state is None:
             w["icon"].setText("")
             w["button"].setEnabled(False)
+            if remove_btn:
+                remove_btn.setEnabled(False)
             self._set_status_badge(w["status"], "Checking…", "checking")
         elif state is True:
             w["icon"].setText("")
             w["button"].setEnabled(False)
+            if remove_btn:
+                remove_btn.setEnabled(True)
             self._set_status_badge(w["status"], w.get("status_enabled", "Enabled"), "installed")
         else:
             w["icon"].setText("")
             w["button"].setEnabled(True)
+            if remove_btn:
+                remove_btn.setEnabled(False)
             self._set_status_badge(w["status"], w.get("status_disabled", "Not enabled"), "missing")
         self._update_ready_banner()
 
@@ -1589,6 +1743,7 @@ class AlmaCreativeInstaller(QMainWindow):
     def refresh_all_states(self):
         self.refresh_repo_state()
         self._refresh_gnome_ui_state()
+        self._refresh_snapper_state()
         self.refresh_app_versions()
         for app in APPS:
             self.refresh_app_state(app["id"])
@@ -1797,6 +1952,9 @@ class AlmaCreativeInstaller(QMainWindow):
         w = self.app_widgets.get(app_id)
         if not w:
             return
+        el_versions = app.get("el")
+        if el_versions and _EL_VERSION is not None and _EL_VERSION not in el_versions:
+            return  # incompatible — keep the disabled combo state set at row-build time
         combo = w.get("version_combo")
         if combo is None:
             return
@@ -1983,6 +2141,37 @@ class AlmaCreativeInstaller(QMainWindow):
     # -------------------------------------------------------------------------
     # Install / remove
     # -------------------------------------------------------------------------
+    def _check_dnf_requirements(self, app_name):
+        epel = self.repo_states.get("EPEL")
+        crb  = self.repo_states.get("CRB")
+        if epel is True and crb is True:
+            return True
+
+        missing = []
+        if epel is not True:
+            missing.append("EPEL")
+        if crb is not True:
+            missing.append("CRB")
+
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Icon.Warning)
+        box.setWindowTitle("Missing requirement")
+        box.setText(
+            "{} requires {} to be enabled first.\n\n"
+            "Enable {} on the Setup tab, then try installing again.".format(
+                app_name, " and ".join(missing), " and ".join(missing)
+            )
+        )
+        setup_btn = box.addButton("Go to Setup", QMessageBox.ButtonRole.AcceptRole)
+        box.addButton(QMessageBox.StandardButton.Cancel)
+        box.setDefaultButton(setup_btn)
+        box.exec()
+
+        clicked = box.clickedButton()
+        if clicked is setup_btn:
+            self.tabs.setCurrentIndex(0)
+        return False
+
     def install_app(self, app_id):
         w = self.app_widgets.get(app_id)
         if not w or w.get("busy"):
@@ -1990,6 +2179,8 @@ class AlmaCreativeInstaller(QMainWindow):
         app = w["app"]
 
         if app["type"] == "dnf":
+            if not self._check_dnf_requirements(app["name"]):
+                return
             selected = self._get_selected_version_option(app_id)
             if selected and selected.get("mode") == "specific":
                 args = ["install_pkg_version", selected.get("install_arg", app["pkg"])]
