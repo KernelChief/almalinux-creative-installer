@@ -1,6 +1,7 @@
 #  <img src="src/icons/hicolor/256x256/apps/almalinux-creative-installer.png" alt="AlmaLinux Creative Installer icon" width="28" valign="middle"> AlmaLinux Creative Installer
 ## Lowering the barrier between enterprise Linux and creative professionals.
 
+[![Website](https://img.shields.io/badge/Website-kernelchief.github.io-2EA44F)](https://kernelchief.github.io/almalinux-creative-installer/)
 [![Last Commit](https://img.shields.io/github/last-commit/KernelChief/almalinux-creative-installer)](https://github.com/KernelChief/almalinux-creative-installer/commits)
 [![Repo Size](https://img.shields.io/github/repo-size/KernelChief/almalinux-creative-installer)](https://github.com/KernelChief/almalinux-creative-installer)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
@@ -11,6 +12,8 @@
 [![Join the AlmaLinux M&E SIG](https://img.shields.io/badge/Join-AlmaLinux%20M%26E%20SIG-2EA44F?logo=almalinux&logoColor=white)](https://chat.almalinux.org/almalinux/channels/sig-media-entertainment)
 [![Buy Me A Coffee](https://img.shields.io/badge/Support-Buy%20Me%20A%20Coffee-orange?logo=buy-me-a-coffee)](https://www.buymeacoffee.com/ttheroux)
 [![Stars](https://img.shields.io/github/stars/KernelChief/almalinux-creative-installer?style=social)](https://github.com/KernelChief/almalinux-creative-installer/stargazers)
+
+🌐 Website: https://kernelchief.github.io/almalinux-creative-installer/
 
 AlmaLinux is stable, secure, and production-ready but setting it up for design, animation, video editing, or digital art can feel overwhelming. AlmaLinux Creative Installer bridges that gap.
 
@@ -36,6 +39,7 @@ https://chat.almalinux.org/almalinux/channels/sig-media-entertainment
 
 ## 📚 Quick Navigation
 
+- [🌐 Website](https://kernelchief.github.io/almalinux-creative-installer/)
 - [🚀 Quick Start](#quick-start-recommended)
 - [📦 Installation Methods](#-installation-methods-of-software-via-the-almalinux-creative-installer)
 - [📦 Install AppImage Apps (Beginner Guide)](#-install-appimage-apps-beginner-guide)
