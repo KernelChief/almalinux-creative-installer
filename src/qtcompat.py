@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-only
 #
 # Thin compatibility shim: normalises PyQt5 / PyQt6 API differences so the
@@ -10,50 +9,106 @@
 #   - QAction location (QtWidgets in Qt5, QtGui in Qt6)
 
 try:
-    from PyQt6.QtWidgets import (
-        QApplication, QMainWindow, QWidget, QFrame,
-        QVBoxLayout, QHBoxLayout, QGridLayout,
-        QLabel, QPushButton, QComboBox, QLineEdit,
-        QTextEdit, QProgressBar, QScrollArea,
-        QListWidget, QListWidgetItem,
-        QTabWidget, QSizePolicy,
-        QDialog, QFileDialog, QMessageBox,
-        QStatusBar, QToolBar, QSplitter,
-        QAbstractItemView,
+    from PyQt6.QtCore import (
+        QObject,
+        QPoint,
+        QRect,
+        QSize,
+        Qt,
+        QThread,
+        QTimer,
     )
     from PyQt6.QtCore import (
-        Qt, QTimer, QThread, QObject,
         pyqtSignal as Signal,
-        QSize, QPoint, QRect,
     )
     from PyQt6.QtGui import (
-        QFont, QIcon, QPixmap, QColor, QPalette,
-        QAction, QMovie,
+        QAction,
+        QColor,
+        QFont,
+        QIcon,
+        QMovie,
+        QPalette,
+        QPixmap,
         QTextCursor,
+    )
+    from PyQt6.QtWidgets import (
+        QAbstractItemView,
+        QApplication,
+        QComboBox,
+        QDialog,
+        QFileDialog,
+        QFrame,
+        QGridLayout,
+        QHBoxLayout,
+        QLabel,
+        QLineEdit,
+        QListWidget,
+        QListWidgetItem,
+        QMainWindow,
+        QMessageBox,
+        QProgressBar,
+        QPushButton,
+        QScrollArea,
+        QSizePolicy,
+        QSplitter,
+        QStatusBar,
+        QTabWidget,
+        QTextEdit,
+        QToolBar,
+        QVBoxLayout,
+        QWidget,
     )
     QT_VERSION = 6
 
 except ImportError:
-    from PyQt5.QtWidgets import (
-        QApplication, QMainWindow, QWidget, QFrame,
-        QVBoxLayout, QHBoxLayout, QGridLayout,
-        QLabel, QPushButton, QComboBox, QLineEdit,
-        QTextEdit, QProgressBar, QScrollArea,
-        QListWidget, QListWidgetItem,
-        QTabWidget, QSizePolicy,
-        QDialog, QFileDialog, QMessageBox,
-        QStatusBar, QToolBar, QSplitter,
-        QAbstractItemView, QAction,
+    from PyQt5.QtCore import (
+        QObject,
+        QPoint,
+        QRect,
+        QSize,
+        Qt,
+        QThread,
+        QTimer,
     )
     from PyQt5.QtCore import (
-        Qt, QTimer, QThread, QObject,
         pyqtSignal as Signal,
-        QSize, QPoint, QRect,
     )
     from PyQt5.QtGui import (
-        QFont, QIcon, QPixmap, QColor, QPalette,
+        QColor,
+        QFont,
+        QIcon,
         QMovie,
+        QPalette,
+        QPixmap,
         QTextCursor,
+    )
+    from PyQt5.QtWidgets import (
+        QAbstractItemView,
+        QAction,
+        QApplication,
+        QComboBox,
+        QDialog,
+        QFileDialog,
+        QFrame,
+        QGridLayout,
+        QHBoxLayout,
+        QLabel,
+        QLineEdit,
+        QListWidget,
+        QListWidgetItem,
+        QMainWindow,
+        QMessageBox,
+        QProgressBar,
+        QPushButton,
+        QScrollArea,
+        QSizePolicy,
+        QSplitter,
+        QStatusBar,
+        QTabWidget,
+        QTextEdit,
+        QToolBar,
+        QVBoxLayout,
+        QWidget,
     )
     QT_VERSION = 5
 
@@ -63,7 +118,6 @@ except ImportError:
     # ------------------------------------------------------------------
     class _NS:
         """Namespace proxy: _NS(obj, *names) makes obj.Name = obj for each name."""
-        pass
 
     def _alias(cls, *attrs):
         for attr in attrs:
@@ -107,17 +161,45 @@ except ImportError:
 
 __all__ = [
     "QT_VERSION",
-    "QApplication", "QMainWindow", "QWidget", "QFrame",
-    "QVBoxLayout", "QHBoxLayout", "QGridLayout",
-    "QLabel", "QPushButton", "QComboBox", "QLineEdit",
-    "QTextEdit", "QProgressBar", "QScrollArea",
-    "QListWidget", "QListWidgetItem",
-    "QTabWidget", "QSizePolicy",
-    "QDialog", "QFileDialog", "QMessageBox",
-    "QStatusBar", "QToolBar", "QSplitter",
-    "QAbstractItemView", "QAction",
-    "Qt", "QTimer", "QThread", "QObject", "Signal",
-    "QSize", "QPoint", "QRect",
-    "QFont", "QIcon", "QPixmap", "QColor", "QPalette", "QMovie",
+    "QAbstractItemView",
+    "QAction",
+    "QApplication",
+    "QColor",
+    "QComboBox",
+    "QDialog",
+    "QFileDialog",
+    "QFont",
+    "QFrame",
+    "QGridLayout",
+    "QHBoxLayout",
+    "QIcon",
+    "QLabel",
+    "QLineEdit",
+    "QListWidget",
+    "QListWidgetItem",
+    "QMainWindow",
+    "QMessageBox",
+    "QMovie",
+    "QObject",
+    "QPalette",
+    "QPixmap",
+    "QPoint",
+    "QProgressBar",
+    "QPushButton",
+    "QRect",
+    "QScrollArea",
+    "QSize",
+    "QSizePolicy",
+    "QSplitter",
+    "QStatusBar",
+    "QTabWidget",
     "QTextCursor",
+    "QTextEdit",
+    "QThread",
+    "QTimer",
+    "QToolBar",
+    "QVBoxLayout",
+    "QWidget",
+    "Qt",
+    "Signal",
 ]

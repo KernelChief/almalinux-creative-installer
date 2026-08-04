@@ -53,7 +53,7 @@ https://chat.almalinux.org/almalinux/channels/sig-media-entertainment
 
 ## 🚀 Quick Start (Recommended)
 
-AlmaLinux Creative Installer v2.0.1 is the current stable release, supporting AlmaLinux 9 (PyQt5) and AlmaLinux 10 (PyQt6). Install it in two commands via COPR. v2.0.2 is a pre-release that adds several new creative apps; it is available only as a manual RPM download from GitHub Releases, not yet on COPR.
+AlmaLinux Creative Installer v2.0.4 is the current stable release, supporting AlmaLinux 9 (PyQt5) and AlmaLinux 10 (PyQt6). Install it in two commands via COPR.
 
 ### 1️⃣ Enable the COPR Repository
 
@@ -92,10 +92,10 @@ Then install it from the directory where you downloaded it:
 
 ```bash
 # AlmaLinux 9
-sudo dnf install ./almalinux-creative-installer-2.0.2-1.el9.noarch.rpm
+sudo dnf install ./almalinux-creative-installer-2.0.4-1.el9.noarch.rpm
 
 # AlmaLinux 10
-sudo dnf install ./almalinux-creative-installer-2.0.2-1.el10.noarch.rpm
+sudo dnf install ./almalinux-creative-installer-2.0.4-1.el10.noarch.rpm
 ```
 
 > Note: with this method you will need to repeat the download and install manually for each future release. COPR is recommended.
@@ -142,6 +142,19 @@ The **System Requirements** panel lets you enable the following repositories wit
 | RPM Fusion Non-Free | Proprietary codecs and non-redistributable software              | Optional    |
 | NVIDIA Drivers      | AlmaLinux native open-kernel NVIDIA drivers (AL9, AL10, Kitten)  | Optional    |
 
+Each repository row also has a **Remove** button once enabled, for undoing an
+enable. Removing uninstalls the release package (e.g. `epel-release`) or, for
+CRB/PowerTools, disables the repo — it does **not** uninstall packages you've
+already installed from it, but those packages will stop receiving updates
+until the repo is re-enabled.
+
+### Snapshots (AlmaLinux 10 + BTRFS only)
+
+If you're running AlmaLinux 10 with a BTRFS root filesystem, a **Snapshots**
+panel appears on the Setup tab offering one-click install of **Snapper**
+(via EPEL) for filesystem snapshot/rollback support. It's hidden entirely on
+AlmaLinux 9 or on non-BTRFS installs, since it isn't applicable there.
+
 ---
 
 ## 📦 Install AppImage Apps (Beginner Guide)
@@ -178,9 +191,10 @@ Not every app is available on both EL versions. The installer shows a small **EL
 | GIMP              | ✅  | ❌   | Not yet in EPEL 10 |
 | Krusader          | ✅  | ✅   | |
 | Kdenlive          | ✅  | ❌   | Not yet in EPEL 10 |
+| Blender           | ✅  | ❌   | EPEL 10 build is currently broken upstream |
 | AppImageLauncher  | ❌  | ✅   | glibc requirement |
 | All Flatpak apps  | ✅  | ✅   | Via Flathub |
-| Blender           | ✅  | ✅   | Via EPEL |
+| OpenColorIO       | ✅  | ✅   | Via EPEL |
 | DaVinci Resolve   | ✅  | ✅   | Guided vendor install |
 | 3DCoat            | ✅  | ✅   | Guided vendor install |
 | InstaMaterial     | ✅  | ✅   | Guided vendor install (RPM via install.sh) |
@@ -211,9 +225,10 @@ post-production, and content creation environments:
   - digiKam
   - FontForge
   - FogPanther
+  - OpenColorIO
 
 - **3D**
-  - Blender
+  - Blender *(EL9 only — EPEL 10 build currently broken upstream)*
   - MeshLab
   - PrusaSlicer
   - Material Maker

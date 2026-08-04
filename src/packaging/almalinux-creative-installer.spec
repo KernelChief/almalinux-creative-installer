@@ -99,6 +99,14 @@ fi
 %{_datadir}/icons/hicolor/*/apps/almalinux-creative-installer.*
 
 %changelog
+* Tue Aug 04 2026 KernelChief - 2.0.4-1
+- Add OpenColorIO (Image Processing, DNF, EL9 and EL10)
+- Add Snapper "Snapshots" panel (Setup tab, EL10 + BTRFS root only)
+- Add Remove buttons for CRB/EPEL/RPM Fusion Free/Non-Free requirement rows
+- Warn before installing a DNF app if EPEL/CRB aren't enabled yet
+- Gate Blender to EL9 until the EPEL 10 packaging bug is resolved upstream
+- Fix version dropdown re-enabling itself on EL-incompatible apps
+- Fix re-enabling EPEL/RPM Fusion after they were previously disabled
 * Thu Jul 10 2026 KernelChief - 2.1.0-1
 - Add Windows-style GNOME UI setup (Dash to Panel, ArcMenu, System Monitor, Blur My Shell, Nautilus copy-path)
 - Gate GNOME UI setup to GNOME Desktop sessions only

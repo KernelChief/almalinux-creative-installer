@@ -1,29 +1,47 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-only
 
-import sys
 import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'share', 'almalinux-creative-installer'))
 
-from qtcompat import (
-    QApplication, QMainWindow, QWidget, QFrame,
-    QVBoxLayout, QHBoxLayout,
-    QLabel, QPushButton, QComboBox, QLineEdit,
-    QTextEdit, QProgressBar, QScrollArea,
-    QListWidget, QListWidgetItem,
-    QTabWidget,
-    QFileDialog, QMessageBox,
-    Qt, QTimer, QObject, Signal, QSize,
-    QIcon, QPixmap, QTextCursor,
-)
-
+import importlib.metadata
+import re
+import shutil
 import subprocess
 import threading
-import shutil
-import re
-import importlib.metadata
-from pathlib import Path
 from collections import deque
+from pathlib import Path
+
+from qtcompat import (
+    QApplication,
+    QComboBox,
+    QFileDialog,
+    QFrame,
+    QHBoxLayout,
+    QIcon,
+    QLabel,
+    QLineEdit,
+    QListWidget,
+    QListWidgetItem,
+    QMainWindow,
+    QMessageBox,
+    QObject,
+    QPixmap,
+    QProgressBar,
+    QPushButton,
+    QScrollArea,
+    QSize,
+    Qt,
+    QTabWidget,
+    QTextCursor,
+    QTextEdit,
+    QTimer,
+    QVBoxLayout,
+    QWidget,
+    Signal,
+)
 
 HELPER = "/usr/libexec/almalinux-creative-installer-helper"
 RESOLVE_URL = "https://www.blackmagicdesign.com/products/davinciresolve/"
@@ -38,7 +56,7 @@ APPIMAGELAUNCHER_VERSION = "3.0.0-beta-2-gha287.96cb937"
 APPIMAGELAUNCHER_RPM_URL = (
     "https://github.com/TheAssassin/AppImageLauncher/releases/download/"
     "v3.0.0-beta-3/"
-    "appimagelauncher_{}_x86_64.rpm".format(APPIMAGELAUNCHER_VERSION)
+    f"appimagelauncher_{APPIMAGELAUNCHER_VERSION}_x86_64.rpm"
 )
 
 # -----------------------------------------------------------------------------
@@ -75,10 +93,11 @@ APPS = [
     {"id": "gimp",              "name": "GIMP",             "type": "dnf",     "pkg": "gimp",     "icon_appid": "org.gimp.GIMP",        "category": "Image Processing",    "el": [9]},
     {"id": "inkscape",          "name": "Inkscape",         "type": "flatpak", "appid": "org.inkscape.Inkscape",                        "category": "Image Processing"},
     {"id": "krita",             "name": "Krita",            "type": "flatpak", "appid": "org.kde.krita",                                "category": "Image Processing"},
+    {"id": "opencolorio",       "name": "OpenColorIO",      "type": "dnf",     "pkg": "OpenColorIO",                                    "category": "Image Processing"},
     {"id": "rawtherapee",       "name": "RawTherapee",      "type": "flatpak", "appid": "com.rawtherapee.RawTherapee",                  "category": "Image Processing"},
     # 3D
     {"id": "3dcoat",            "name": "3DCoat",           "type": "3dcoat",                                                           "category": "3D"},
-    {"id": "blender",           "name": "Blender",          "type": "dnf",     "pkg": "blender",  "icon_appid": "org.blender.Blender",  "category": "3D"},
+    {"id": "blender",           "name": "Blender",          "type": "dnf",     "pkg": "blender",  "icon_appid": "org.blender.Blender",  "category": "3D",                          "el": [9]},
     {"id": "freecad",           "name": "FreeCAD",          "type": "flatpak", "appid": "org.freecad.FreeCAD",                          "category": "3D"},
     {"id": "instamaterial",     "name": "InstaMaterial",    "type": "instamaterial",                                                    "category": "3D"},
     {"id": "materialmaker",     "name": "Material Maker",   "type": "flatpak", "appid": "io.github.RodZill4.Material-Maker",            "category": "3D"},
@@ -130,51 +149,51 @@ CATEGORIES = [
     "Game Engines",
 ]
 
-_DARK = dict(
-    bg="#1e1e2e", bg2="#181825", bg3="#252535",
-    border="#313244", border2="#45475a",
-    text="#ffffff", text2="#9399b2", text_dim="#6c7086",
-    accent="#89b4fa", tab_inactive="#6c7086",
-    hero_start="#252535", hero_end="#1e1e2e",
-    input_bg="#252535", btn_bg="#313244", btn_text="#cdd6f4",
-    log_bg="#11111b", log_text="#a6e3a1", scrollbar="#45475a",
-    sidebar_bg="#181825", sidebar_text="#9399b2",
-    sidebar_hover="#252535", sidebar_sel="#252535",
-    sidebar_sel_t="#cdd6f4", sidebar_acc="#89b4fa",
-    row_sep="#252535", row_hover="#252535",
-    inst_bg="rgba(59,107,199,0.13)", inst_text="#89b4fa", inst_border="rgba(59,107,199,0.50)", inst_hover="rgba(59,107,199,0.26)",
-    rem_bg="rgba(199,59,74,0.13)", rem_text="#f38ba8", rem_border="rgba(199,59,74,0.50)", rem_hover="rgba(199,59,74,0.26)",
-    b_inst_bg="#1a3028", b_inst_text="#a6e3a1", b_inst_brd="#3a7058",
-    b_avail_bg="#192540", b_avail_text="#89b4fa", b_avail_brd="#3b5f9a",
-    b_busy_bg="#2e2410", b_busy_text="#f9e2af", b_busy_brd="#7a6010",
-    b_miss_bg="#2e1825", b_miss_text="#f38ba8", b_miss_brd="#7a2840",
-    b_warn_bg="#2e2015", b_warn_text="#fab387", b_warn_brd="#7a5020",
-    ready_bg="#1a3028", ready_text="#a6e3a1", ready_border="#3a7058",
-    empty_text="#6c7086",
-)
+_DARK = {
+    "bg": "#1e1e2e", "bg2": "#181825", "bg3": "#252535",
+    "border": "#313244", "border2": "#45475a",
+    "text": "#ffffff", "text2": "#9399b2", "text_dim": "#6c7086",
+    "accent": "#89b4fa", "tab_inactive": "#6c7086",
+    "hero_start": "#252535", "hero_end": "#1e1e2e",
+    "input_bg": "#252535", "btn_bg": "#313244", "btn_text": "#cdd6f4",
+    "log_bg": "#11111b", "log_text": "#a6e3a1", "scrollbar": "#45475a",
+    "sidebar_bg": "#181825", "sidebar_text": "#9399b2",
+    "sidebar_hover": "#252535", "sidebar_sel": "#252535",
+    "sidebar_sel_t": "#cdd6f4", "sidebar_acc": "#89b4fa",
+    "row_sep": "#252535", "row_hover": "#252535",
+    "inst_bg": "rgba(59,107,199,0.13)", "inst_text": "#89b4fa", "inst_border": "rgba(59,107,199,0.50)", "inst_hover": "rgba(59,107,199,0.26)",
+    "rem_bg": "rgba(199,59,74,0.13)", "rem_text": "#f38ba8", "rem_border": "rgba(199,59,74,0.50)", "rem_hover": "rgba(199,59,74,0.26)",
+    "b_inst_bg": "#1a3028", "b_inst_text": "#a6e3a1", "b_inst_brd": "#3a7058",
+    "b_avail_bg": "#192540", "b_avail_text": "#89b4fa", "b_avail_brd": "#3b5f9a",
+    "b_busy_bg": "#2e2410", "b_busy_text": "#f9e2af", "b_busy_brd": "#7a6010",
+    "b_miss_bg": "#2e1825", "b_miss_text": "#f38ba8", "b_miss_brd": "#7a2840",
+    "b_warn_bg": "#2e2015", "b_warn_text": "#fab387", "b_warn_brd": "#7a5020",
+    "ready_bg": "#1a3028", "ready_text": "#a6e3a1", "ready_border": "#3a7058",
+    "empty_text": "#6c7086",
+}
 
-_LIGHT = dict(
-    bg="#f5f5f7", bg2="#ffffff", bg3="#e8e8ed",
-    border="#d1d1d6", border2="#c7c7cc",
-    text="#1c1c1e", text2="#636366", text_dim="#8e8e93",
-    accent="#0071e3", tab_inactive="#636366",
-    hero_start="#e8e8ed", hero_end="#f5f5f7",
-    input_bg="#ffffff", btn_bg="#e8e8ed", btn_text="#1c1c1e",
-    log_bg="#1c1c1e", log_text="#30d158", scrollbar="#c7c7cc",
-    sidebar_bg="#ffffff", sidebar_text="#636366",
-    sidebar_hover="#e8e8ed", sidebar_sel="#e8e8ed",
-    sidebar_sel_t="#1c1c1e", sidebar_acc="#0071e3",
-    row_sep="#e8e8ed", row_hover="#f0f0f2",
-    inst_bg="rgba(0,113,227,0.08)", inst_text="#1565c0", inst_border="rgba(0,113,227,0.35)", inst_hover="rgba(0,113,227,0.18)",
-    rem_bg="rgba(198,40,40,0.08)", rem_text="#c62828", rem_border="rgba(198,40,40,0.35)", rem_hover="rgba(198,40,40,0.18)",
-    b_inst_bg="#e8f5e9", b_inst_text="#2e7d32", b_inst_brd="#81c784",
-    b_avail_bg="#e3f2fd", b_avail_text="#1565c0", b_avail_brd="#64b5f6",
-    b_busy_bg="#fff8e1", b_busy_text="#f57f17", b_busy_brd="#ffca28",
-    b_miss_bg="#fce4ec", b_miss_text="#c62828", b_miss_brd="#ef9a9a",
-    b_warn_bg="#fff3e0", b_warn_text="#e65100", b_warn_brd="#ffb74d",
-    ready_bg="#e8f5e9", ready_text="#2e7d32", ready_border="#81c784",
-    empty_text="#8e8e93",
-)
+_LIGHT = {
+    "bg": "#f5f5f7", "bg2": "#ffffff", "bg3": "#e8e8ed",
+    "border": "#d1d1d6", "border2": "#c7c7cc",
+    "text": "#1c1c1e", "text2": "#636366", "text_dim": "#8e8e93",
+    "accent": "#0071e3", "tab_inactive": "#636366",
+    "hero_start": "#e8e8ed", "hero_end": "#f5f5f7",
+    "input_bg": "#ffffff", "btn_bg": "#e8e8ed", "btn_text": "#1c1c1e",
+    "log_bg": "#1c1c1e", "log_text": "#30d158", "scrollbar": "#c7c7cc",
+    "sidebar_bg": "#ffffff", "sidebar_text": "#636366",
+    "sidebar_hover": "#e8e8ed", "sidebar_sel": "#e8e8ed",
+    "sidebar_sel_t": "#1c1c1e", "sidebar_acc": "#0071e3",
+    "row_sep": "#e8e8ed", "row_hover": "#f0f0f2",
+    "inst_bg": "rgba(0,113,227,0.08)", "inst_text": "#1565c0", "inst_border": "rgba(0,113,227,0.35)", "inst_hover": "rgba(0,113,227,0.18)",
+    "rem_bg": "rgba(198,40,40,0.08)", "rem_text": "#c62828", "rem_border": "rgba(198,40,40,0.35)", "rem_hover": "rgba(198,40,40,0.18)",
+    "b_inst_bg": "#e8f5e9", "b_inst_text": "#2e7d32", "b_inst_brd": "#81c784",
+    "b_avail_bg": "#e3f2fd", "b_avail_text": "#1565c0", "b_avail_brd": "#64b5f6",
+    "b_busy_bg": "#fff8e1", "b_busy_text": "#f57f17", "b_busy_brd": "#ffca28",
+    "b_miss_bg": "#fce4ec", "b_miss_text": "#c62828", "b_miss_brd": "#ef9a9a",
+    "b_warn_bg": "#fff3e0", "b_warn_text": "#e65100", "b_warn_brd": "#ffb74d",
+    "ready_bg": "#e8f5e9", "ready_text": "#2e7d32", "ready_border": "#81c784",
+    "empty_text": "#8e8e93",
+}
 
 
 def _build_qss(c):
@@ -499,7 +518,7 @@ class AlmaCreativeInstaller(QMainWindow):
 
         self.app_version = self._get_app_version()
         self.setWindowTitle(
-            "AlmaLinux Creative Installer  •  v{}".format(self.app_version)
+            f"AlmaLinux Creative Installer  •  v{self.app_version}"
         )
 
         self.progress_percent_re = re.compile(r"(?<!\d)(100|[1-9]?\d)%")
@@ -522,6 +541,7 @@ class AlmaCreativeInstaller(QMainWindow):
         root.addWidget(self._make_hero_banner())
 
         tabs = QTabWidget()
+        self.tabs = tabs
         root.addWidget(tabs)
 
         # ---- Setup tab (first — users configure repos before installing) ----
@@ -545,24 +565,28 @@ class AlmaCreativeInstaller(QMainWindow):
             title="CodeReady Builder (CRB) / PowerTools  (Required)",
             subtitle="Extra dependencies used by many workstation apps.",
             enable_action=["enable_crb"],
+            disable_action=["disable_crb"],
         ))
         req_layout.addWidget(self._make_requirement_row(
             key="EPEL",
             title="Extra Packages for Enterprise Linux (EPEL)  (Required)",
             subtitle="Community packages used by many creative tools.",
             enable_action=["enable_epel"],
+            disable_action=["disable_epel"],
         ))
         req_layout.addWidget(self._make_requirement_row(
             key="RPMFUSION_FREE",
             title="RPM Fusion Free (Optional)",
             subtitle="Multimedia codecs (H.264, MP3, AAC) — essential for video editors.",
             enable_action=["enable_rpmfusion_free"],
+            disable_action=["disable_rpmfusion_free"],
         ))
         req_layout.addWidget(self._make_requirement_row(
             key="RPMFUSION_NONFREE",
             title="RPM Fusion Non-Free (Optional)",
             subtitle="Proprietary codecs and non-redistributable software. Also enables RPM Fusion Free.",
             enable_action=["enable_rpmfusion_nonfree"],
+            disable_action=["disable_rpmfusion_nonfree"],
         ))
         req_layout.addWidget(self._make_requirement_row(
             key="NVIDIA",
@@ -592,6 +616,21 @@ class AlmaCreativeInstaller(QMainWindow):
             de_layout.addWidget(self._make_gnome_ui_row())
             de_layout.addStretch()
             setup_layout.addWidget(de_frame)
+
+        # ---- Snapshots frame (EL10 + BTRFS root only; hidden entirely otherwise) ----
+        if _EL_VERSION == 10 and self._detect_btrfs_root():
+            snap_frame = QFrame()
+            snap_frame.setObjectName("reqFrame")
+            snap_layout = QVBoxLayout(snap_frame)
+            snap_layout.setContentsMargins(10, 10, 10, 10)
+            snap_layout.setSpacing(6)
+
+            snap_title = QLabel("Snapshots")
+            snap_title.setObjectName("rowTitle")
+            snap_layout.addWidget(snap_title)
+            snap_layout.addWidget(self._make_snapper_row())
+            snap_layout.addStretch()
+            setup_layout.addWidget(snap_frame)
 
         self.ready_banner = QLabel("✓  System ready — all required repositories are enabled. Head to the Apps tab to install.")
         self.ready_banner.setObjectName("readyBanner")
@@ -660,9 +699,9 @@ class AlmaCreativeInstaller(QMainWindow):
         app_scroll.setWidget(self.app_list_widget)
         app_scroll.setWidgetResizable(True)
         _row_bg = self._c["bg2"]
-        app_scroll.setStyleSheet("QScrollArea {{ background: {0}; border: none; }} "
-                                 "QScrollArea > QWidget > QWidget {{ background: {0}; }}".format(_row_bg))
-        self.app_list_widget.setStyleSheet("background: {};".format(_row_bg))
+        app_scroll.setStyleSheet(f"QScrollArea {{ background: {_row_bg}; border: none; }} "
+                                 f"QScrollArea > QWidget > QWidget {{ background: {_row_bg}; }}")
+        self.app_list_widget.setStyleSheet(f"background: {_row_bg};")
         app_list_container_layout.addWidget(app_scroll, stretch=1)
 
         self.empty_state_lbl = QLabel()
@@ -711,10 +750,10 @@ class AlmaCreativeInstaller(QMainWindow):
         self.log_view.setReadOnly(True)
         logs_layout.addWidget(self.log_view)
 
-        self.append_log("AlmaLinux Creative Installer v{}\n".format(self.app_version))
+        self.append_log(f"AlmaLinux Creative Installer v{self.app_version}\n")
         self.append_log("Ready.\n")
         if not Path(HELPER).exists():
-            self.append_log("\nWARNING: Helper not found at {}\n".format(HELPER))
+            self.append_log(f"\nWARNING: Helper not found at {HELPER}\n")
 
         self._ensure_polkit_agent()
         self.refresh_all_states()
@@ -735,7 +774,7 @@ class AlmaCreativeInstaller(QMainWindow):
         # Already running?
         if subprocess.run(
             ["pgrep", "-f", "polkit.*agent"],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False,
         ).returncode == 0:
             return
 
@@ -748,9 +787,9 @@ class AlmaCreativeInstaller(QMainWindow):
             if os.path.exists(path):
                 try:
                     subprocess.Popen([path])
-                    self.append_log("ℹ️  Started polkit authentication agent ({}).\n".format(path))
-                except Exception as e:
-                    self.append_log("⚠️  Could not start polkit agent: {}\n".format(e))
+                    self.append_log(f"ℹ️  Started polkit authentication agent ({path}).\n")
+                except Exception as e:  # noqa: BLE001
+                    self.append_log(f"⚠️  Could not start polkit agent: {e}\n")
                 return
 
         self.append_log(
@@ -778,7 +817,7 @@ class AlmaCreativeInstaller(QMainWindow):
     def _get_app_version(self):
         try:
             return importlib.metadata.version("almalinux-creative-installer")
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             pass
         try:
             proc = subprocess.run(
@@ -788,7 +827,7 @@ class AlmaCreativeInstaller(QMainWindow):
             out = proc.stdout.strip()
             if out and "not installed" not in out.lower():
                 return out
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             pass
         return "dev"
 
@@ -813,20 +852,31 @@ class AlmaCreativeInstaller(QMainWindow):
         try:
             bg = QApplication.instance().palette().window().color()
             return bg.value() < 128
-        except Exception:
+        except Exception:  # noqa: BLE001
             return True
 
     def _has_nvidia_hardware(self):
         try:
             out = subprocess.run(
-                ["lspci"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True,
+                ["lspci"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, check=False,
             ).stdout
             return "nvidia" in out.lower()
-        except Exception:
+        except Exception:  # noqa: BLE001
             return False
 
     def _gnome_ui_installed(self):
         return Path("/etc/dconf/db/local.d/01-creative_gnome_defaults").exists()
+
+    @staticmethod
+    def _detect_btrfs_root():
+        try:
+            fstype = subprocess.run(
+                ["findmnt", "-no", "FSTYPE", "/"],
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, check=False,
+            ).stdout.strip()
+            return fstype == "btrfs"
+        except Exception:  # noqa: BLE001
+            return False
 
     def _update_ready_banner(self):
         if not hasattr(self, "ready_banner"):
@@ -843,9 +893,9 @@ class AlmaCreativeInstaller(QMainWindow):
         script_dir = os.path.dirname(os.path.abspath(__file__))
         candidates = [
             os.path.join(script_dir, "icons", "hicolor",
-                         "{}x{}".format(size, size), "apps",
+                         f"{size}x{size}", "apps",
                          "almalinux-creative-installer.png"),
-            "/usr/share/icons/hicolor/{}x{}/apps/almalinux-creative-installer.png".format(size, size),
+            f"/usr/share/icons/hicolor/{size}x{size}/apps/almalinux-creative-installer.png",
         ]
         for path in candidates:
             if os.path.exists(path):
@@ -944,7 +994,7 @@ class AlmaCreativeInstaller(QMainWindow):
         text_col.addWidget(title_lbl)
 
         subtitle_lbl = QLabel(
-            "Creative & M&E workstation setup • v{}".format(self.app_version)
+            f"Creative & M&E workstation setup • v{self.app_version}"
         )
         subtitle_lbl.setObjectName("heroSubtitle")
         text_col.addWidget(subtitle_lbl)
@@ -959,7 +1009,8 @@ class AlmaCreativeInstaller(QMainWindow):
                               button_label="Enable",
                               status_enabled="Enabled",
                               status_disabled="Not enabled",
-                              post_install_msg=None):
+                              post_install_msg=None,
+                              disable_action=None):
         row = QFrame()
         row.setObjectName("appRow")
         hl = QHBoxLayout(row)
@@ -1004,10 +1055,41 @@ class AlmaCreativeInstaller(QMainWindow):
         btn.clicked.connect(_on_clicked)
         hl.addWidget(btn)
 
+        remove_btn = None
+        if disable_action:
+            remove_btn = QPushButton("Remove")
+            remove_btn.setObjectName("removeBtn")
+
+            def _on_remove_clicked():
+                reply = QMessageBox.warning(
+                    self,
+                    f"Remove {title}?",
+                    "Removing this repository will not uninstall packages you already "
+                    "installed from it, but it may block their future updates and any "
+                    "apps that still depend on it — you may need to remove those "
+                    "packages yourself afterward.\n\nContinue?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
+                    QMessageBox.StandardButton.Cancel,
+                )
+                if reply != QMessageBox.StandardButton.Yes:
+                    return
+                btn.setEnabled(False)
+                remove_btn.setEnabled(False)
+                self._set_status_badge(status_lbl, "Working…", "busy")
+                self.run_helper_with_callback(
+                    disable_action,
+                    on_success=self.refresh_repo_state,
+                    on_failure=self.refresh_repo_state,
+                )
+
+            remove_btn.clicked.connect(_on_remove_clicked)
+            hl.addWidget(remove_btn)
+
         self.repo_widgets[key] = {
             "icon": icon_lbl,
             "status": status_lbl,
             "button": btn,
+            "remove_button": remove_btn,
             "status_enabled": status_enabled,
             "status_disabled": status_disabled,
         }
@@ -1144,22 +1226,112 @@ class AlmaCreativeInstaller(QMainWindow):
             w["install_btn"].setEnabled(True)
             w["remove_btn"].setEnabled(False)
 
+    def _make_snapper_row(self):
+        row = QFrame()
+        row.setObjectName("appRow")
+        hl = QHBoxLayout(row)
+        hl.setContentsMargins(8, 6, 8, 6)
+
+        icon_lbl = QLabel("")
+        icon_lbl.setFixedWidth(28)
+        hl.addWidget(icon_lbl)
+
+        text_col = QVBoxLayout()
+        title_lbl = QLabel("Snapper (BTRFS Snapshots)")
+        title_lbl.setObjectName("rowTitle")
+        text_col.addWidget(title_lbl)
+        sub_lbl = QLabel(
+            "Filesystem snapshot and rollback tool for the BTRFS root volume. "
+            "Installed via EPEL."
+        )
+        sub_lbl.setObjectName("rowSubtitle")
+        text_col.addWidget(sub_lbl)
+        hl.addLayout(text_col, stretch=1)
+
+        status_lbl = QLabel("Checking…")
+        status_lbl.setProperty("badge", "checking")
+        status_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        hl.addWidget(status_lbl)
+
+        install_btn = QPushButton("Install")
+        install_btn.setObjectName("enableBtn")
+        remove_btn = QPushButton("Remove")
+        remove_btn.setObjectName("removeBtn")
+
+        def _on_install():
+            install_btn.setEnabled(False)
+            remove_btn.setEnabled(False)
+            self._set_status_badge(status_lbl, "Working…", "busy")
+            self.run_helper_with_callback(
+                ["install_pkg", "snapper"],
+                on_success=lambda: self._refresh_snapper_state(),
+                on_failure=lambda: self._refresh_snapper_state(),
+            )
+
+        def _on_remove():
+            install_btn.setEnabled(False)
+            remove_btn.setEnabled(False)
+            self._set_status_badge(status_lbl, "Working…", "busy")
+            self.run_helper_with_callback(
+                ["remove_pkg", "snapper"],
+                on_success=lambda: self._refresh_snapper_state(),
+                on_failure=lambda: self._refresh_snapper_state(),
+            )
+
+        install_btn.clicked.connect(_on_install)
+        remove_btn.clicked.connect(_on_remove)
+        hl.addWidget(install_btn)
+        hl.addWidget(remove_btn)
+
+        self.repo_widgets["SNAPPER"] = {
+            "icon": icon_lbl,
+            "status": status_lbl,
+            "install_btn": install_btn,
+            "remove_btn": remove_btn,
+        }
+        self._refresh_snapper_state()
+        return row
+
+    def _refresh_snapper_state(self):
+        w = self.repo_widgets.get("SNAPPER")
+        if not w:
+            return
+        installed = subprocess.run(
+            ["rpm", "-q", "snapper"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False,
+        ).returncode == 0
+        if installed:
+            self._set_status_badge(w["status"], "Installed", "installed")
+            w["install_btn"].setEnabled(False)
+            w["remove_btn"].setEnabled(True)
+        else:
+            self._set_status_badge(w["status"], "Not installed", "missing")
+            w["install_btn"].setEnabled(True)
+            w["remove_btn"].setEnabled(False)
+
     def _set_requirement_state(self, key, state):
         self.repo_states[key] = state
         w = self.repo_widgets.get(key)
         if not w:
             return
+        remove_btn = w.get("remove_button")
         if state is None:
             w["icon"].setText("")
             w["button"].setEnabled(False)
+            if remove_btn:
+                remove_btn.setEnabled(False)
             self._set_status_badge(w["status"], "Checking…", "checking")
         elif state is True:
             w["icon"].setText("")
             w["button"].setEnabled(False)
+            if remove_btn:
+                remove_btn.setEnabled(True)
             self._set_status_badge(w["status"], w.get("status_enabled", "Enabled"), "installed")
         else:
             w["icon"].setText("")
             w["button"].setEnabled(True)
+            if remove_btn:
+                remove_btn.setEnabled(False)
             self._set_status_badge(w["status"], w.get("status_disabled", "Not enabled"), "missing")
         self._update_ready_banner()
 
@@ -1234,8 +1406,8 @@ class AlmaCreativeInstaller(QMainWindow):
             icon_lbl.setFixedSize(36, 36)
             icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             icon_lbl.setStyleSheet(
-                "background: {}; border-radius: 8px; color: #ffffff;"
-                " font-weight: 700; font-size: 15px;".format(badge_color)
+                f"background: {badge_color}; border-radius: 8px; color: #ffffff;"
+                " font-weight: 700; font-size: 15px;"
             )
         hl.addWidget(icon_lbl)
 
@@ -1254,7 +1426,7 @@ class AlmaCreativeInstaller(QMainWindow):
         el_versions = app.get("el")
         _is_incompatible = False
         if el_versions and len(el_versions) == 1:
-            el_chip = QLabel("EL{}".format(el_versions[0]))
+            el_chip = QLabel(f"EL{el_versions[0]}")
             el_chip.setStyleSheet(
                 "background: rgba(120,120,120,0.18); color: {};"
                 " border-radius: 4px; padding: 1px 5px;"
@@ -1262,12 +1434,10 @@ class AlmaCreativeInstaller(QMainWindow):
             )
             if _EL_VERSION is not None and _EL_VERSION not in el_versions:
                 _is_incompatible = True
-                el_name = "AlmaLinux {}".format(el_versions[0])
+                el_name = f"AlmaLinux {el_versions[0]}"
                 el_chip.setToolTip(
-                    "Only available on {}.\n"
-                    "Contact the upstream project to request EL{} support.".format(
-                        el_name, _EL_VERSION
-                    )
+                    f"Only available on {el_name}.\n"
+                    f"Contact the upstream project to request EL{_EL_VERSION} support."
                 )
             name_row.addWidget(el_chip)
         if app.get("beta"):
@@ -1453,8 +1623,7 @@ class AlmaCreativeInstaller(QMainWindow):
             if self.installed_only:
                 self.empty_state_lbl.setText("No installed apps in this category.")
             elif self.search_query:
-                self.empty_state_lbl.setText('No apps match  "{}"\n\nTry a different search term.'.format(
-                    self.search_query))
+                self.empty_state_lbl.setText(f'No apps match  "{self.search_query}"\n\nTry a different search term.')
 
     # -------------------------------------------------------------------------
     # Busy / progress
@@ -1496,8 +1665,8 @@ class AlmaCreativeInstaller(QMainWindow):
         fraction = max(w.get("progress_value", 0.0), max(0.0, min(1.0, fraction)))
         w["progress_value"] = fraction
         w["pulse_timer"].stop()
-        w["progress"].setValue(int(round(fraction * 100)))
-        w["progress"].setFormat("{}%".format(int(round(fraction * 100))))
+        w["progress"].setValue(round(fraction * 100))
+        w["progress"].setFormat(f"{round(fraction * 100)}%")
 
     def _set_app_progress_local_fraction(self, app_id, local_fraction):
         w = self.app_widgets.get(app_id)
@@ -1589,6 +1758,7 @@ class AlmaCreativeInstaller(QMainWindow):
     def refresh_all_states(self):
         self.refresh_repo_state()
         self._refresh_gnome_ui_state()
+        self._refresh_snapper_state()
         self.refresh_app_versions()
         for app in APPS:
             self.refresh_app_state(app["id"])
@@ -1671,7 +1841,7 @@ class AlmaCreativeInstaller(QMainWindow):
         if app["type"] == "dnf":
             installed = subprocess.run(
                 ["rpm", "-q", app["pkg"]],
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False,
             ).returncode == 0
 
         elif app["type"] == "flatpak":
@@ -1729,8 +1899,8 @@ class AlmaCreativeInstaller(QMainWindow):
                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, check=False,
                 )
                 self._signals.log.emit("\n$ dnf repolist --enabled\n" + proc.stdout + "\n")
-            except Exception as e:
-                self._signals.log.emit("❌ ERROR: {}\n".format(e))
+            except Exception as e:  # noqa: BLE001
+                self._signals.log.emit(f"❌ ERROR: {e}\n")
         threading.Thread(target=worker, daemon=True).start()
 
     def _dnf_enabled_repo_ids(self):
@@ -1743,13 +1913,13 @@ class AlmaCreativeInstaller(QMainWindow):
             for ln in proc.stdout.splitlines():
                 ln = ln.strip()
                 low = ln.lower()
-                if not ln or low.startswith("repo id") or low.startswith("repolist:"):
+                if not ln or low.startswith(("repo id", "repolist:")):
                     continue
                 parts = ln.split()
                 if parts:
                     repos.add(parts[0].strip())
             return repos
-        except Exception:
+        except Exception:  # noqa: BLE001
             return set()
 
     def _detect_crb(self, repos):
@@ -1768,7 +1938,7 @@ class AlmaCreativeInstaller(QMainWindow):
     def _detect_nvidia_drivers(self):
         return subprocess.run(
             ["rpm", "-q", "nvidia-driver"],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False,
         ).returncode == 0
 
     def _selinux_getenforce(self):
@@ -1780,7 +1950,7 @@ class AlmaCreativeInstaller(QMainWindow):
             out = proc.stdout.strip().lower()
             if out:
                 return out
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             pass
         return "unknown"
 
@@ -1797,6 +1967,9 @@ class AlmaCreativeInstaller(QMainWindow):
         w = self.app_widgets.get(app_id)
         if not w:
             return
+        el_versions = app.get("el")
+        if el_versions and _EL_VERSION is not None and _EL_VERSION not in el_versions:
+            return  # incompatible — keep the disabled combo state set at row-build time
         combo = w.get("version_combo")
         if combo is None:
             return
@@ -1831,8 +2004,8 @@ class AlmaCreativeInstaller(QMainWindow):
                 if version not in seen:
                     seen.add(version)
                     options.append({"label": version, "mode": "specific",
-                                    "install_arg": "{}-{}".format(pkg, version)})
-        except Exception:
+                                    "install_arg": f"{pkg}-{version}"})
+        except Exception:  # noqa: BLE001, S110
             pass
         return options
 
@@ -1858,12 +2031,12 @@ class AlmaCreativeInstaller(QMainWindow):
                 if branch == "stable":
                     stable_version = version or stable_version
                     continue
-                label = "{} ({})".format(version, branch) if version else branch
+                label = f"{version} ({branch})" if version else branch
                 branch_options.append({"label": label, "branch": branch})
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             pass
 
-        options = ([{"label": "Latest stable ({})".format(stable_version), "branch": "stable"}]
+        options = ([{"label": f"Latest stable ({stable_version})", "branch": "stable"}]
                    if stable_version else
                    [{"label": "Latest stable", "branch": "stable"}])
 
@@ -1882,7 +2055,7 @@ class AlmaCreativeInstaller(QMainWindow):
         try:
             proc = subprocess.run(
                 ["flatpak", "remote-info", "--log", "flathub",
-                 "{}//{}".format(appid, branch)],
+                 f"{appid}//{branch}"],
                 stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, check=False,
             )
             current_commit = None
@@ -1904,7 +2077,7 @@ class AlmaCreativeInstaller(QMainWindow):
                 if len(unique) >= limit:
                     break
             return unique
-        except Exception:
+        except Exception:  # noqa: BLE001
             return []
 
     def _extract_version_from_text(self, text):
@@ -1947,7 +2120,7 @@ class AlmaCreativeInstaller(QMainWindow):
         for scope, flag in (("system", "--system"), ("user", "--user")):
             if subprocess.run(
                 ["flatpak", "info", flag, appid],
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False,
             ).returncode == 0:
                 return scope
         return None
@@ -1959,7 +2132,7 @@ class AlmaCreativeInstaller(QMainWindow):
     def _prompt_flatpak_scope(self, app_name):
         user_available = self._flatpak_user_scope_available()
         msg = QMessageBox(self)
-        msg.setWindowTitle("Install {} via Flatpak".format(app_name))
+        msg.setWindowTitle(f"Install {app_name} via Flatpak")
         msg.setText("Choose where to install this Flatpak app.")
         msg.setInformativeText(
             "System-wide installs are available to all users.\n"
@@ -1983,6 +2156,37 @@ class AlmaCreativeInstaller(QMainWindow):
     # -------------------------------------------------------------------------
     # Install / remove
     # -------------------------------------------------------------------------
+    def _check_dnf_requirements(self, app_name):
+        epel = self.repo_states.get("EPEL")
+        crb  = self.repo_states.get("CRB")
+        if epel is True and crb is True:
+            return True
+
+        missing = []
+        if epel is not True:
+            missing.append("EPEL")
+        if crb is not True:
+            missing.append("CRB")
+
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Icon.Warning)
+        box.setWindowTitle("Missing requirement")
+        box.setText(
+            "{} requires {} to be enabled first.\n\n"
+            "Enable {} on the Setup tab, then try installing again.".format(
+                app_name, " and ".join(missing), " and ".join(missing)
+            )
+        )
+        setup_btn = box.addButton("Go to Setup", QMessageBox.ButtonRole.AcceptRole)
+        box.addButton(QMessageBox.StandardButton.Cancel)
+        box.setDefaultButton(setup_btn)
+        box.exec()
+
+        clicked = box.clickedButton()
+        if clicked is setup_btn:
+            self.tabs.setCurrentIndex(0)
+        return False
+
     def install_app(self, app_id):
         w = self.app_widgets.get(app_id)
         if not w or w.get("busy"):
@@ -1990,6 +2194,8 @@ class AlmaCreativeInstaller(QMainWindow):
         app = w["app"]
 
         if app["type"] == "dnf":
+            if not self._check_dnf_requirements(app["name"]):
+                return
             selected = self._get_selected_version_option(app_id)
             if selected and selected.get("mode") == "specific":
                 args = ["install_pkg_version", selected.get("install_arg", app["pkg"])]
@@ -2051,15 +2257,15 @@ class AlmaCreativeInstaller(QMainWindow):
         scope    = self._flatpak_install_scope(appid)
 
         if scope is None:
-            self.append_log("ℹ️ {} is not installed.\n".format(app_name))
+            self.append_log(f"ℹ️ {app_name} is not installed.\n")
             self.refresh_app_state(app_id)
             return
 
         scope_label = " (user install)" if scope == "user" else ""
         reply = QMessageBox.question(
             self,
-            "Remove {}?".format(app_name),
-            "This will remove {}{}.".format(app_name, scope_label),
+            f"Remove {app_name}?",
+            f"This will remove {app_name}{scope_label}.",
             QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
         )
         if reply != QMessageBox.StandardButton.Ok:
@@ -2079,7 +2285,7 @@ class AlmaCreativeInstaller(QMainWindow):
     # -------------------------------------------------------------------------
     def run_helper_with_callback(self, args, on_success=None, on_failure=None, app_id=None, progress_segment=None):
         if not Path(HELPER).exists():
-            self.append_log("❌ ERROR: Helper not found: {}\n".format(HELPER))
+            self.append_log(f"❌ ERROR: Helper not found: {HELPER}\n")
             return
 
         action = args[0] if args else ""
@@ -2112,16 +2318,16 @@ class AlmaCreativeInstaller(QMainWindow):
 
                 rc = proc.wait()
                 if rc == 0:
-                    self._signals.log.emit("✅ Successful\n[exit code: {}]\n".format(rc))
+                    self._signals.log.emit(f"✅ Successful\n[exit code: {rc}]\n")
                     if on_success:
                         self._signals.idle.emit(on_success)
                 else:
                     reason = next((line.strip() for line in reversed(last_lines) if line.strip()),
-                                  "Exit code {}".format(rc))
-                    self._signals.log.emit("❌ Failed: {}\n[exit code: {}]\n".format(reason, rc))
+                                  f"Exit code {rc}")
+                    self._signals.log.emit(f"❌ Failed: {reason}\n[exit code: {rc}]\n")
                     self._signals.idle.emit(on_failure if on_failure else self._stop_all_busy)
-            except Exception as e:
-                self._signals.log.emit("❌ ERROR: {}\n".format(e))
+            except Exception as e:  # noqa: BLE001
+                self._signals.log.emit(f"❌ ERROR: {e}\n")
                 self._signals.idle.emit(self._stop_all_busy)
 
         threading.Thread(target=worker, daemon=True).start()
@@ -2182,9 +2388,9 @@ class AlmaCreativeInstaller(QMainWindow):
         self._set_app_progress_fraction("resolve", 0.60)
         if shutil.which("xdg-open"):
             subprocess.Popen(["xdg-open", RESOLVE_URL])
-            self.append_log("Opened download page: {}\n".format(RESOLVE_URL))
+            self.append_log(f"Opened download page: {RESOLVE_URL}\n")
         else:
-            self.append_log("Please open manually: {}\n".format(RESOLVE_URL))
+            self.append_log(f"Please open manually: {RESOLVE_URL}\n")
         self.pick_resolve_installer()
 
     def pick_resolve_installer(self):
@@ -2248,19 +2454,19 @@ class AlmaCreativeInstaller(QMainWindow):
         import stat
         path = "/opt/resolve/installer"
         if not Path(path).exists():
-            self.append_log("❌ ERROR: Resolve uninstaller not found at {}\n".format(path))
+            self.append_log(f"❌ ERROR: Resolve uninstaller not found at {path}\n")
             self.set_app_busy("resolve", False)
             return
         try:
             st = os.stat(path)
             if not (st.st_mode & stat.S_IXUSR):
                 os.chmod(path, st.st_mode | stat.S_IXUSR)
-        except Exception as e:
-            self.append_log("❌ ERROR: could not make uninstaller executable: {}\n".format(e))
+        except Exception as e:  # noqa: BLE001
+            self.append_log(f"❌ ERROR: could not make uninstaller executable: {e}\n")
             self.set_app_busy("resolve", False)
             return
 
-        self.append_log("\n$ {}\n".format(path))
+        self.append_log(f"\n$ {path}\n")
 
         def worker():
             last_lines = deque(maxlen=40)
@@ -2276,16 +2482,16 @@ class AlmaCreativeInstaller(QMainWindow):
                     self._signals.progress.emit("resolve", line)
                 rc = proc.wait()
                 if rc == 0:
-                    self._signals.log.emit("✅ Successful\n[exit code: {}]\n".format(rc))
+                    self._signals.log.emit(f"✅ Successful\n[exit code: {rc}]\n")
                     self._signals.idle.emit(lambda: self._finish_app_action("resolve"))
                     self._signals.idle.emit(self._prompt_reenable_selinux)
                 else:
                     reason = next((line.strip() for line in reversed(last_lines) if line.strip()),
-                                  "Exit code {}".format(rc))
-                    self._signals.log.emit("❌ Failed: {}\n[exit code: {}]\n".format(reason, rc))
+                                  f"Exit code {rc}")
+                    self._signals.log.emit(f"❌ Failed: {reason}\n[exit code: {rc}]\n")
                     self._signals.idle.emit(lambda: self.set_app_busy("resolve", False))
-            except Exception as e:
-                self._signals.log.emit("❌ ERROR: {}\n".format(e))
+            except Exception as e:  # noqa: BLE001
+                self._signals.log.emit(f"❌ ERROR: {e}\n")
                 self._signals.idle.emit(lambda: self.set_app_busy("resolve", False))
 
         threading.Thread(target=worker, daemon=True).start()
@@ -2312,12 +2518,12 @@ class AlmaCreativeInstaller(QMainWindow):
             st = os.stat(path)
             if not (st.st_mode & stat.S_IXUSR):
                 os.chmod(path, st.st_mode | stat.S_IXUSR)
-        except Exception as e:
-            self.append_log("❌ ERROR: could not make installer executable: {}\n".format(e))
+        except Exception as e:  # noqa: BLE001
+            self.append_log(f"❌ ERROR: could not make installer executable: {e}\n")
             self.set_app_busy("resolve", False)
             return
 
-        self.append_log("\n$ SKIP_PACKAGE_CHECK=1 {}\n".format(path))
+        self.append_log(f"\n$ SKIP_PACKAGE_CHECK=1 {path}\n")
 
         def worker():
             last_lines = deque(maxlen=40)
@@ -2335,15 +2541,15 @@ class AlmaCreativeInstaller(QMainWindow):
                     self._signals.progress.emit("resolve", line)
                 rc = proc.wait()
                 if rc == 0:
-                    self._signals.log.emit("✅ Successful\n[exit code: {}]\n".format(rc))
+                    self._signals.log.emit(f"✅ Successful\n[exit code: {rc}]\n")
                     self._signals.idle.emit(self._resolve_finalize_install)
                 else:
                     reason = next((line.strip() for line in reversed(last_lines) if line.strip()),
-                                  "Exit code {}".format(rc))
-                    self._signals.log.emit("❌ Failed: {}\n[exit code: {}]\n".format(reason, rc))
+                                  f"Exit code {rc}")
+                    self._signals.log.emit(f"❌ Failed: {reason}\n[exit code: {rc}]\n")
                     self._signals.idle.emit(lambda: self.set_app_busy("resolve", False))
-            except Exception as e:
-                self._signals.log.emit("❌ ERROR: {}\n".format(e))
+            except Exception as e:  # noqa: BLE001
+                self._signals.log.emit(f"❌ ERROR: {e}\n")
                 self._signals.idle.emit(lambda: self.set_app_busy("resolve", False))
 
         threading.Thread(target=worker, daemon=True).start()
@@ -2416,11 +2622,11 @@ class AlmaCreativeInstaller(QMainWindow):
         try:
             out = subprocess.run(
                 ["rpm", "-qa", "--qf", "%{NAME}\n"],
-                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True,
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, check=False,
             ).stdout
             # The vendor RPM is named "instamat-studio" (not "instamaterial").
             return any("instamat" in line.lower() for line in out.splitlines() if line.strip())
-        except Exception:
+        except Exception:  # noqa: BLE001
             return False
 
     def install_instamaterial_flow(self):
@@ -2596,7 +2802,7 @@ class AlmaCreativeInstaller(QMainWindow):
     def _o3de_installed(self):
         out = subprocess.run(
             ["rpm", "-qa", "--qf", "%{NAME}\n", "o3de*"],
-            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True,
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, check=False,
         ).stdout
         return any(re.fullmatch(r"o3de\d{4}", line.strip()) for line in out.splitlines())
 
@@ -2696,7 +2902,7 @@ class AlmaCreativeInstaller(QMainWindow):
         msg.setTextFormat(Qt.TextFormat.RichText)
         msg.setText(
             'Installing Unigine runs the vendor installer, which is governed by the '
-            '<a href="{}">UNIGINE SDK License Agreement</a>.'.format(UNIGINE_EULA_URL)
+            f'<a href="{UNIGINE_EULA_URL}">UNIGINE SDK License Agreement</a>.'
         )
         msg.setInformativeText(
             "The vendor installer normally shows this EULA in a terminal. Because the "
@@ -2774,7 +2980,7 @@ def _detect_el_version():
             for line in f:
                 if line.startswith("VERSION_ID="):
                     return int(line.split("=", 1)[1].strip().strip('"').split(".")[0])
-    except Exception:
+    except Exception:  # noqa: BLE001, S110
         pass
     return None
 
@@ -2787,22 +2993,22 @@ def _detect_dark(app):
         try:
             out = subprocess.run(
                 ["gsettings", "get", "org.gnome.desktop.interface", "color-scheme"],
-                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, timeout=2,
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, timeout=2, check=False,
             ).stdout.strip().strip("'\"")
             if out == "prefer-dark":
                 return True
             if out in ("default", "prefer-light"):
                 return False
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             pass
         # Older GNOME: check gtk-theme name
         try:
             theme = subprocess.run(
                 ["gsettings", "get", "org.gnome.desktop.interface", "gtk-theme"],
-                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, timeout=2,
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, timeout=2, check=False,
             ).stdout.strip().strip("'\"").lower()
             return "dark" in theme
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             pass
 
     elif "KDE" in de or "PLASMA" in de:
@@ -2813,24 +3019,24 @@ def _detect_dark(app):
                 for line in f:
                     if line.strip().lower().startswith("colorscheme="):
                         return "dark" in line.split("=", 1)[1].strip().lower()
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             pass
         # KDE fallback: read window background luma from kdeglobals
         try:
             with open(os.path.expanduser("~/.config/kdeglobals")) as f:
                 content = f.read()
             import re
-            m = re.search(r"\[Colors:Window].*?BackgroundNormal=(\d+),(\d+),(\d+)", content, re.S)
+            m = re.search(r"\[Colors:Window].*?BackgroundNormal=(\d+),(\d+),(\d+)", content, re.DOTALL)
             if m:
                 r, g, b = int(m.group(1)), int(m.group(2)), int(m.group(3))
                 return (r * 299 + g * 587 + b * 114) / 1000 < 128
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             pass
 
     # Fallback: Qt palette (works with qt5ct/qt6ct or any other DE)
     try:
         return app.palette().window().color().value() < 128
-    except Exception:
+    except Exception:  # noqa: BLE001
         return True
 
 
