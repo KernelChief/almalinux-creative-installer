@@ -1342,6 +1342,57 @@ remove_unigine() {
 }
 
 # -------------------------------------------------
+# Blitter (GPU-accelerated remote desktop, beta)
+# -------------------------------------------------
+install_blitter() {
+  local with_tray="${1:-no-tray}"
+
+  log "Adding Blitter repository..."
+  dnf -y config-manager --add-repo https://pkg.blitter.app/rpm/blitter.repo
+
+  log "Installing blitter-host..."
+  dnf -y install blitter-host
+
+  if [[ "${with_tray}" == "with-tray" ]]; then
+    log "Installing blitter-tray..."
+    dnf -y install blitter-tray
+  fi
+
+  if [[ -f /etc/gdm/custom.conf ]]; then
+    log "Disabling Wayland (Blitter needs an X11 session)..."
+    sed -i 's/^#\?WaylandEnable=.*/WaylandEnable=false/' /etc/gdm/custom.conf
+    log "Wayland disabled. Reboot (or log out) and sign in to an X11/Xorg session, then run 'blitterctl setup'."
+  else
+    log "No /etc/gdm/custom.conf found — if you're not using GDM, disable Wayland for your display manager manually."
+  fi
+
+  log "Done. Run 'blitterctl setup' in a terminal to finish pairing this host."
+}
+
+remove_blitter() {
+  local pkgs=()
+  for pkg in blitter-tray blitter-host; do
+    if rpm -q "${pkg}" >/dev/null 2>&1; then
+      pkgs+=("${pkg}")
+    fi
+  done
+  if [[ ${#pkgs[@]} -eq 0 ]]; then
+    log "Blitter is not installed."
+    return 0
+  fi
+  log "Removing: ${pkgs[*]}"
+  dnf -y remove "${pkgs[@]}"
+
+  if [[ -f /etc/gdm/custom.conf ]]; then
+    log "Re-enabling Wayland..."
+    sed -i 's/^WaylandEnable=false/#WaylandEnable=false/' /etc/gdm/custom.conf
+    log "Wayland re-enabled. Reboot (or log out) to switch back to a Wayland session."
+  fi
+
+  log "Done."
+}
+
+# -------------------------------------------------
 # Dispatcher
 # -------------------------------------------------
 case "${action}" in
@@ -1407,6 +1458,10 @@ case "${action}" in
   # Unigine
   install_unigine)       install_unigine "${2:-}";;
   remove_unigine)        remove_unigine;;
+
+  # Blitter
+  install_blitter)       install_blitter "${2:-}";;
+  remove_blitter)        remove_blitter;;
 
   # GNOME UI Extensions & Tweaks
   install_gnome_ui)      install_gnome_ui;;
@@ -1478,6 +1533,10 @@ Unreal Engine:
 Unigine:
   install_unigine <run>
   remove_unigine
+
+Blitter:
+  install_blitter <with-tray|no-tray>
+  remove_blitter
 
 GNOME UI Extensions & Tweaks:
   install_gnome_ui
