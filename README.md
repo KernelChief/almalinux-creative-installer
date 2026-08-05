@@ -207,8 +207,8 @@ Not every app is available on both EL versions. The installer shows a small **EL
 | FogPanther        | ✅  | ✅   | Via Flathub |
 | Gaffer            | ✅  | ✅   | Guided portable binary install (works on EL9 and EL10) |
 | Natron            | ✅  | ✅   | Via Flathub |
-| Open 3D Engine    | ✅  | ✅   | Via COPR (hellaenergy/o3de), BETA |
-| Unreal Engine 5.8 | ✅  | ✅   | Guided vendor install (Epic account), preview build |
+| Open 3D Engine    | ✅  | ✅   | Via COPR (hellaenergy/o3de) |
+| Unreal Engine 5.8 | ✅  | ✅   | Guided vendor install (Epic account) |
 | Unigine           | ✅  | ✅   | Guided vendor install (.run) |
 | Blitter           | ✅  | ❌   | Needs an X11 session; EL10 defaults to Wayland-only in this project, BETA |
 | Amazon DCV        | ✅  | ❌   | Needs an X11 session; EL10 defaults to Wayland-only in this project |
@@ -270,8 +270,8 @@ post-production, and content creation environments:
   - Epic Asset Manager
   - Asset Manager Studio
   - Godots
-  - Open 3D Engine *(via COPR, EL9 and EL10, BETA)*
-  - Unreal Engine 5.8 *(guided vendor install, preview build)*
+  - Open 3D Engine *(via COPR, EL9 and EL10)*
+  - Unreal Engine 5.8 *(guided vendor install)*
   - Unigine *(guided vendor install)*
 
 - **Audio**

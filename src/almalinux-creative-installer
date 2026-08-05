@@ -139,9 +139,9 @@ APPS = [
     {"id": "assetmanagerstudio","name": "Asset Manager Studio","type": "flatpak","appid": "studio.assetmanager.ams",                    "category": "Game Engines"},
     {"id": "epicassetmanager",  "name": "Epic Asset Manager","type": "flatpak", "appid": "io.github.achetagames.epic_asset_manager",    "category": "Game Engines"},
     {"id": "godots",            "name": "Godots",           "type": "flatpak", "appid": "io.github.MakovWait.Godots",                   "category": "Game Engines"},
-    {"id": "o3de",              "name": "Open 3D Engine",   "type": "o3de",    "icon_appid": "org.o3de.O3DE",                           "category": "Game Engines",        "beta": True},
+    {"id": "o3de",              "name": "Open 3D Engine",   "type": "o3de",    "icon_appid": "org.o3de.O3DE",                           "category": "Game Engines"},
     {"id": "unigine",           "name": "Unigine",          "type": "unigine",                                                          "category": "Game Engines"},
-    {"id": "unreal",            "name": "Unreal Engine 5.8","type": "unreal",                                                           "category": "Game Engines",        "beta": True},
+    {"id": "unreal",            "name": "Unreal Engine 5.8","type": "unreal",                                                           "category": "Game Engines"},
 ]
 
 VERSION_SELECTABLE_APPS = {"gimp", "krita", "blender"}
