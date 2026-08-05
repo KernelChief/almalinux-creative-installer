@@ -85,6 +85,8 @@ APPS = [
     {"id": "libreoffice",       "name": "LibreOffice",      "type": "flatpak", "appid": "org.libreoffice.LibreOffice",                  "category": "Productivity"},
     {"id": "onlyoffice",        "name": "OnlyOffice",       "type": "flatpak", "appid": "org.onlyoffice.desktopeditors",                "category": "Productivity"},
     {"id": "scribus",           "name": "Scribus",          "type": "flatpak", "appid": "net.scribus.Scribus",                          "category": "Productivity"},
+    # Backup
+    {"id": "pikabackup",        "name": "Pika Backup",      "type": "flatpak", "appid": "org.gnome.World.PikaBackup",                   "category": "Backup"},
     # Image Processing
     {"id": "darktable",         "name": "darktable",        "type": "flatpak", "appid": "org.darktable.Darktable",                      "category": "Image Processing"},
     {"id": "digikam",           "name": "digiKam",          "type": "flatpak", "appid": "org.kde.digikam",                              "category": "Image Processing"},
@@ -141,6 +143,7 @@ VERSION_SELECTABLE_APPS = {"gimp", "krita", "blender"}
 CATEGORIES = [
     "All Apps",
     "Productivity",
+    "Backup",
     "Image Processing",
     "3D",
     "Animation & Video",

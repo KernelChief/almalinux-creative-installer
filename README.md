@@ -261,6 +261,9 @@ post-production, and content creation environments:
   - OnlyOffice
   - AppImageLauncher *(EL10 only — glibc requirement)*
 
+- **Backup**
+  - Pika Backup *(Flatpak, bundles its own BorgBackup — no separate host install needed)*
+
 - **Game Engines**
   - Epic Asset Manager
   - Asset Manager Studio
