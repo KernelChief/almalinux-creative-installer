@@ -34,6 +34,7 @@ try:
     from PyQt6.QtWidgets import (
         QAbstractItemView,
         QApplication,
+        QCheckBox,
         QComboBox,
         QDialog,
         QFileDialog,
@@ -86,6 +87,7 @@ except ImportError:
         QAbstractItemView,
         QAction,
         QApplication,
+        QCheckBox,
         QComboBox,
         QDialog,
         QFileDialog,
@@ -164,6 +166,7 @@ __all__ = [
     "QAbstractItemView",
     "QAction",
     "QApplication",
+    "QCheckBox",
     "QColor",
     "QComboBox",
     "QDialog",

@@ -16,6 +16,7 @@ from pathlib import Path
 
 from qtcompat import (
     QApplication,
+    QCheckBox,
     QComboBox,
     QFileDialog,
     QFrame,
@@ -129,6 +130,8 @@ APPS = [
     {"id": "discord",           "name": "Discord",          "type": "flatpak", "appid": "com.discordapp.Discord",                       "category": "Communication"},
     {"id": "mattermost",        "name": "Mattermost",       "type": "flatpak", "appid": "com.mattermost.Desktop",                       "category": "Communication"},
     {"id": "slack",             "name": "Slack",            "type": "flatpak", "appid": "com.slack.Slack",                              "category": "Communication"},
+    # Remote Desktop
+    {"id": "blitter",           "name": "Blitter",          "type": "blitter",                                                          "category": "Remote Desktop",      "beta": True,   "el": [9]},
     # Game Engines
     {"id": "assetmanagerstudio","name": "Asset Manager Studio","type": "flatpak","appid": "studio.assetmanager.ams",                    "category": "Game Engines"},
     {"id": "epicassetmanager",  "name": "Epic Asset Manager","type": "flatpak", "appid": "io.github.achetagames.epic_asset_manager",    "category": "Game Engines"},
@@ -149,6 +152,7 @@ CATEGORIES = [
     "Animation & Video",
     "Audio",
     "Communication",
+    "Remote Desktop",
     "Game Engines",
 ]
 
@@ -1460,6 +1464,12 @@ class AlmaCreativeInstaller(QMainWindow):
         sub_lbl.setStyleSheet("color: {}; font-size: 11px;".format(self._c["text2"]))
         left.addWidget(sub_lbl)
 
+        tray_checkbox = None
+        if app["type"] == "blitter":
+            tray_checkbox = QCheckBox("Also install desktop tray indicator (blitter-tray)")
+            tray_checkbox.setStyleSheet(f"color: {self._c['text2']}; font-size: 11px;")
+            left.addWidget(tray_checkbox)
+
         progress = QProgressBar()
         progress.setRange(0, 100)
         progress.setValue(0)
@@ -1525,6 +1535,9 @@ class AlmaCreativeInstaller(QMainWindow):
         elif app["type"] == "unigine":
             install_btn.clicked.connect(lambda: self.install_unigine_flow())
             remove_btn.clicked.connect(lambda: self.remove_unigine_flow())
+        elif app["type"] == "blitter":
+            install_btn.clicked.connect(lambda: self.install_blitter_flow())
+            remove_btn.clicked.connect(lambda: self.remove_blitter_flow())
 
         pulse_timer = QTimer()
         pulse_timer.setInterval(120)
@@ -1545,6 +1558,7 @@ class AlmaCreativeInstaller(QMainWindow):
             "remove": remove_btn,
             "version_combo": version_combo,
             "version_options": [],
+            "tray_checkbox": tray_checkbox,
             "busy": False,
         }
 
@@ -1585,6 +1599,10 @@ class AlmaCreativeInstaller(QMainWindow):
             return "Guided install: log in to Epic → download Linux zip → extracts to /opt/unreal-engine (EL9 and EL10)"
         if app["type"] == "unigine":
             return "Guided install: agree to EULA → pick vendor .run → SDK Browser in /opt/unigine"
+        if app["type"] == "blitter":
+            return ("GPU-accelerated remote desktop. Requires an NVIDIA GPU and an X11 session "
+                    "(EL9 only for now). Adds pkg.blitter.app repo → installs blitter-host → "
+                    "manual firewall + blitterctl setup steps shown after install")
         return ""
 
     # -------------------------------------------------------------------------
@@ -1839,6 +1857,16 @@ class AlmaCreativeInstaller(QMainWindow):
                                    "installed" if installed else "available")
             w["install"].setEnabled(not installed)
             w["remove"].setEnabled(installed)
+            return
+
+        if app["type"] == "blitter":
+            installed = self._blitter_installed()
+            self._set_status_badge(w["status"], "Installed" if installed else "Not installed",
+                                   "installed" if installed else "missing")
+            w["install"].setEnabled(not installed)
+            w["remove"].setEnabled(installed)
+            if w.get("tray_checkbox"):
+                w["tray_checkbox"].setEnabled(not installed)
             return
 
         if app["type"] == "dnf":
@@ -2968,6 +2996,76 @@ class AlmaCreativeInstaller(QMainWindow):
             ["remove_unigine"],
             on_success=lambda: self._finish_app_action("unigine"),
             app_id="unigine",
+            progress_segment=(0.02, 0.98),
+        )
+
+    # -------------------------------------------------------------------------
+    # Blitter flow (GPU-accelerated remote desktop, beta)
+    # -------------------------------------------------------------------------
+    def _blitter_installed(self):
+        return subprocess.run(
+            ["rpm", "-q", "blitter-host"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False,
+        ).returncode == 0
+
+    def install_blitter_flow(self):
+        if not self._has_nvidia_hardware():
+            reply = QMessageBox.warning(
+                self, "No NVIDIA GPU detected",
+                "Blitter currently requires an NVIDIA GPU on this host (Intel/AMD support "
+                "is on their roadmap but not yet available). No NVIDIA GPU was detected "
+                "via lspci.\n\nInstall anyway?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
+                QMessageBox.StandardButton.Cancel,
+            )
+            if reply != QMessageBox.StandardButton.Yes:
+                return
+
+        w = self.app_widgets.get("blitter")
+        with_tray = bool(w and w.get("tray_checkbox") and w["tray_checkbox"].isChecked())
+
+        self.set_app_busy("blitter", True, "Installing…")
+        self._set_app_progress_fraction("blitter", 0.02)
+        self.run_helper_with_callback(
+            ["install_blitter", "with-tray" if with_tray else "no-tray"],
+            on_success=lambda: self._finish_blitter_install(),
+            app_id="blitter",
+            progress_segment=(0.02, 0.98),
+        )
+
+    def _finish_blitter_install(self):
+        self._finish_app_action("blitter")
+        QMessageBox.information(
+            self, "A few manual steps left",
+            "blitter-host is installed. A couple of things aren't automated here:\n\n"
+            "1. Open the firewall port (UDP 8117) so the client can reach this host:\n"
+            "     sudo firewall-cmd --permanent --add-port=8117/udp\n"
+            "     sudo firewall-cmd --reload\n\n"
+            "2. If Wayland was disabled just now, reboot (or log out) and sign in to an "
+            "X11/Xorg session.\n\n"
+            "3. Then open a terminal and run:\n"
+            "     blitterctl setup\n\n"
+            "Full docs: https://blitter.app/docs/install-rhel",
+        )
+
+    def remove_blitter_flow(self):
+        if not self._blitter_installed():
+            self.append_log("ℹ️ Blitter does not appear to be installed.\n")
+            self.refresh_app_state("blitter")
+            return
+        reply = QMessageBox.question(
+            self, "Remove Blitter?",
+            "This will remove blitter-host (and blitter-tray, if installed).",
+            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
+        )
+        if reply != QMessageBox.StandardButton.Ok:
+            return
+        self.set_app_busy("blitter", True, "Removing…")
+        self._set_app_progress_fraction("blitter", 0.02)
+        self.run_helper_with_callback(
+            ["remove_blitter"],
+            on_success=lambda: self._finish_app_action("blitter"),
+            app_id="blitter",
             progress_segment=(0.02, 0.98),
         )
 

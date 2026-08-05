@@ -210,6 +210,7 @@ Not every app is available on both EL versions. The installer shows a small **EL
 | Open 3D Engine    | ✅  | ✅   | Via COPR (hellaenergy/o3de), BETA |
 | Unreal Engine 5.8 | ✅  | ✅   | Guided vendor install (Epic account), preview build |
 | Unigine           | ✅  | ✅   | Guided vendor install (.run) |
+| Blitter           | ✅  | ❌   | Needs an X11 session; EL10 defaults to Wayland-only in this project, BETA |
 
 > This table reflects current EPEL availability and will be updated as packages land in EL10.
 
@@ -285,6 +286,9 @@ post-production, and content creation environments:
   - Discord
   - Mattermost
   - Slack
+
+- **Remote Desktop**
+  - Blitter *(EL9 only, BETA — GPU-accelerated remote desktop, requires an NVIDIA GPU and an X11 session)*
 
 > The in-app list is the source of truth. EL version badges in the UI always reflect current availability.
 
