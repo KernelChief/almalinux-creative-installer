@@ -16,11 +16,13 @@ from pathlib import Path
 
 from qtcompat import (
     QApplication,
+    QCheckBox,
     QComboBox,
     QFileDialog,
     QFrame,
     QHBoxLayout,
     QIcon,
+    QInputDialog,
     QLabel,
     QLineEdit,
     QListWidget,
@@ -52,6 +54,7 @@ GAFFER_URL  = "https://github.com/GafferHQ/gaffer/releases"
 UNREAL_URL  = "https://www.unrealengine.com/linux"
 UNIGINE_URL = "https://developer.unigine.com/en/downloads"
 UNIGINE_EULA_URL = "https://developer.unigine.com/en/eula"
+DCV_URL = "https://www.amazondcv.com/"
 APPIMAGELAUNCHER_VERSION = "3.0.0-beta-2-gha287.96cb937"
 APPIMAGELAUNCHER_RPM_URL = (
     "https://github.com/TheAssassin/AppImageLauncher/releases/download/"
@@ -85,6 +88,8 @@ APPS = [
     {"id": "libreoffice",       "name": "LibreOffice",      "type": "flatpak", "appid": "org.libreoffice.LibreOffice",                  "category": "Productivity"},
     {"id": "onlyoffice",        "name": "OnlyOffice",       "type": "flatpak", "appid": "org.onlyoffice.desktopeditors",                "category": "Productivity"},
     {"id": "scribus",           "name": "Scribus",          "type": "flatpak", "appid": "net.scribus.Scribus",                          "category": "Productivity"},
+    # Backup
+    {"id": "pikabackup",        "name": "Pika Backup",      "type": "flatpak", "appid": "org.gnome.World.PikaBackup",                   "category": "Backup"},
     # Image Processing
     {"id": "darktable",         "name": "darktable",        "type": "flatpak", "appid": "org.darktable.Darktable",                      "category": "Image Processing"},
     {"id": "digikam",           "name": "digiKam",          "type": "flatpak", "appid": "org.kde.digikam",                              "category": "Image Processing"},
@@ -127,13 +132,16 @@ APPS = [
     {"id": "discord",           "name": "Discord",          "type": "flatpak", "appid": "com.discordapp.Discord",                       "category": "Communication"},
     {"id": "mattermost",        "name": "Mattermost",       "type": "flatpak", "appid": "com.mattermost.Desktop",                       "category": "Communication"},
     {"id": "slack",             "name": "Slack",            "type": "flatpak", "appid": "com.slack.Slack",                              "category": "Communication"},
+    # Remote Desktop
+    {"id": "blitter",           "name": "Blitter",          "type": "blitter",                                                          "category": "Remote Desktop",      "beta": True,   "el": [9]},
+    {"id": "dcv",               "name": "Amazon DCV",       "type": "dcv",                                                              "category": "Remote Desktop",                      "el": [9]},
     # Game Engines
     {"id": "assetmanagerstudio","name": "Asset Manager Studio","type": "flatpak","appid": "studio.assetmanager.ams",                    "category": "Game Engines"},
     {"id": "epicassetmanager",  "name": "Epic Asset Manager","type": "flatpak", "appid": "io.github.achetagames.epic_asset_manager",    "category": "Game Engines"},
     {"id": "godots",            "name": "Godots",           "type": "flatpak", "appid": "io.github.MakovWait.Godots",                   "category": "Game Engines"},
-    {"id": "o3de",              "name": "Open 3D Engine",   "type": "o3de",    "icon_appid": "org.o3de.O3DE",                           "category": "Game Engines",        "beta": True},
+    {"id": "o3de",              "name": "Open 3D Engine",   "type": "o3de",    "icon_appid": "org.o3de.O3DE",                           "category": "Game Engines"},
     {"id": "unigine",           "name": "Unigine",          "type": "unigine",                                                          "category": "Game Engines"},
-    {"id": "unreal",            "name": "Unreal Engine 5.8","type": "unreal",                                                           "category": "Game Engines",        "beta": True},
+    {"id": "unreal",            "name": "Unreal Engine 5.8","type": "unreal",                                                           "category": "Game Engines"},
 ]
 
 VERSION_SELECTABLE_APPS = {"gimp", "krita", "blender"}
@@ -141,11 +149,13 @@ VERSION_SELECTABLE_APPS = {"gimp", "krita", "blender"}
 CATEGORIES = [
     "All Apps",
     "Productivity",
+    "Backup",
     "Image Processing",
     "3D",
     "Animation & Video",
     "Audio",
     "Communication",
+    "Remote Desktop",
     "Game Engines",
 ]
 
@@ -509,6 +519,7 @@ class AlmaCreativeInstaller(QMainWindow):
         self.selected_category = "All Apps"
         self.search_query      = ""
         self.installed_only    = False
+        self._dcv_pending      = {}
         self._nvidia_present = self._has_nvidia_hardware()
 
         self._signals = WorkerSignals()
@@ -1457,6 +1468,12 @@ class AlmaCreativeInstaller(QMainWindow):
         sub_lbl.setStyleSheet("color: {}; font-size: 11px;".format(self._c["text2"]))
         left.addWidget(sub_lbl)
 
+        tray_checkbox = None
+        if app["type"] == "blitter":
+            tray_checkbox = QCheckBox("Also install desktop tray indicator (blitter-tray)")
+            tray_checkbox.setStyleSheet(f"color: {self._c['text2']}; font-size: 11px;")
+            left.addWidget(tray_checkbox)
+
         progress = QProgressBar()
         progress.setRange(0, 100)
         progress.setValue(0)
@@ -1522,6 +1539,12 @@ class AlmaCreativeInstaller(QMainWindow):
         elif app["type"] == "unigine":
             install_btn.clicked.connect(lambda: self.install_unigine_flow())
             remove_btn.clicked.connect(lambda: self.remove_unigine_flow())
+        elif app["type"] == "blitter":
+            install_btn.clicked.connect(lambda: self.install_blitter_flow())
+            remove_btn.clicked.connect(lambda: self.remove_blitter_flow())
+        elif app["type"] == "dcv":
+            install_btn.clicked.connect(lambda: self.install_dcv_flow())
+            remove_btn.clicked.connect(lambda: self.remove_dcv_flow())
 
         pulse_timer = QTimer()
         pulse_timer.setInterval(120)
@@ -1542,6 +1565,7 @@ class AlmaCreativeInstaller(QMainWindow):
             "remove": remove_btn,
             "version_combo": version_combo,
             "version_options": [],
+            "tray_checkbox": tray_checkbox,
             "busy": False,
         }
 
@@ -1582,6 +1606,13 @@ class AlmaCreativeInstaller(QMainWindow):
             return "Guided install: log in to Epic → download Linux zip → extracts to /opt/unreal-engine (EL9 and EL10)"
         if app["type"] == "unigine":
             return "Guided install: agree to EULA → pick vendor .run → SDK Browser in /opt/unigine"
+        if app["type"] == "blitter":
+            return ("GPU-accelerated remote desktop. Requires an NVIDIA GPU and an X11 session "
+                    "(EL9 only for now). Adds pkg.blitter.app repo → installs blitter-host → "
+                    "manual firewall + blitterctl setup steps shown after install")
+        if app["type"] == "dcv":
+            return ("Guided multi-step install: download Server package (+ optional GL/Client) → "
+                    "dnf install → configure dcv.conf. Requires an X11 session (EL9 only for now)")
         return ""
 
     # -------------------------------------------------------------------------
@@ -1832,6 +1863,24 @@ class AlmaCreativeInstaller(QMainWindow):
 
         if app["type"] == "unigine":
             installed = self._unigine_installed()
+            self._set_status_badge(w["status"], "Installed" if installed else "Guided install",
+                                   "installed" if installed else "available")
+            w["install"].setEnabled(not installed)
+            w["remove"].setEnabled(installed)
+            return
+
+        if app["type"] == "blitter":
+            installed = self._blitter_installed()
+            self._set_status_badge(w["status"], "Installed" if installed else "Not installed",
+                                   "installed" if installed else "missing")
+            w["install"].setEnabled(not installed)
+            w["remove"].setEnabled(installed)
+            if w.get("tray_checkbox"):
+                w["tray_checkbox"].setEnabled(not installed)
+            return
+
+        if app["type"] == "dcv":
+            installed = self._dcv_installed()
             self._set_status_badge(w["status"], "Installed" if installed else "Guided install",
                                    "installed" if installed else "available")
             w["install"].setEnabled(not installed)
@@ -2965,6 +3014,282 @@ class AlmaCreativeInstaller(QMainWindow):
             ["remove_unigine"],
             on_success=lambda: self._finish_app_action("unigine"),
             app_id="unigine",
+            progress_segment=(0.02, 0.98),
+        )
+
+    # -------------------------------------------------------------------------
+    # Blitter flow (GPU-accelerated remote desktop, beta)
+    # -------------------------------------------------------------------------
+    def _blitter_installed(self):
+        return subprocess.run(
+            ["rpm", "-q", "blitter-host"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False,
+        ).returncode == 0
+
+    def install_blitter_flow(self):
+        if not self._has_nvidia_hardware():
+            reply = QMessageBox.warning(
+                self, "No NVIDIA GPU detected",
+                "Blitter currently requires an NVIDIA GPU on this host (Intel/AMD support "
+                "is on their roadmap but not yet available). No NVIDIA GPU was detected "
+                "via lspci.\n\nInstall anyway?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
+                QMessageBox.StandardButton.Cancel,
+            )
+            if reply != QMessageBox.StandardButton.Yes:
+                return
+
+        w = self.app_widgets.get("blitter")
+        with_tray = bool(w and w.get("tray_checkbox") and w["tray_checkbox"].isChecked())
+
+        self.set_app_busy("blitter", True, "Installing…")
+        self._set_app_progress_fraction("blitter", 0.02)
+        self.run_helper_with_callback(
+            ["install_blitter", "with-tray" if with_tray else "no-tray"],
+            on_success=lambda: self._finish_blitter_install(),
+            app_id="blitter",
+            progress_segment=(0.02, 0.98),
+        )
+
+    def _finish_blitter_install(self):
+        self._finish_app_action("blitter")
+        QMessageBox.information(
+            self, "A few manual steps left",
+            "blitter-host is installed. A couple of things aren't automated here:\n\n"
+            "1. Open the firewall port (UDP 8117) so the client can reach this host:\n"
+            "     sudo firewall-cmd --permanent --add-port=8117/udp\n"
+            "     sudo firewall-cmd --reload\n\n"
+            "2. If Wayland was disabled just now, reboot (or log out) and sign in to an "
+            "X11/Xorg session.\n\n"
+            "3. Then open a terminal and run:\n"
+            "     blitterctl setup\n\n"
+            "Full docs: https://blitter.app/docs/install-rhel",
+        )
+
+    def remove_blitter_flow(self):
+        if not self._blitter_installed():
+            self.append_log("ℹ️ Blitter does not appear to be installed.\n")
+            self.refresh_app_state("blitter")
+            return
+        reply = QMessageBox.question(
+            self, "Remove Blitter?",
+            "This will remove blitter-host (and blitter-tray, if installed).",
+            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
+        )
+        if reply != QMessageBox.StandardButton.Ok:
+            return
+        self.set_app_busy("blitter", True, "Removing…")
+        self._set_app_progress_fraction("blitter", 0.02)
+        self.run_helper_with_callback(
+            ["remove_blitter"],
+            on_success=lambda: self._finish_app_action("blitter"),
+            app_id="blitter",
+            progress_segment=(0.02, 0.98),
+        )
+
+    # -------------------------------------------------------------------------
+    # Amazon DCV flow (GPU remote desktop, beta, guided multi-step install)
+    # -------------------------------------------------------------------------
+    def _dcv_installed(self):
+        return subprocess.run(
+            ["rpm", "-q", "nice-dcv-server"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False,
+        ).returncode == 0
+
+    def install_dcv_flow(self):
+        with_gl = QMessageBox.question(
+            self, "DCV GL support",
+            "Install DCV GL support (nice-dcv-gl + nice-dcv-gltest)?\n\n"
+            "Only needed for GPU-accelerated virtual sessions — skip this if you're "
+            "just using the physical/console display.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        ) == QMessageBox.StandardButton.Yes
+
+        with_client = QMessageBox.question(
+            self, "DCV Client",
+            "Also install the DCV Client (viewer) on this machine?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        ) == QMessageBox.StandardButton.Yes
+
+        session_owner = ""
+        wants_session = QMessageBox.question(
+            self, "Automatic session",
+            "Set up an automatic console session at server startup?\n\n"
+            "This lets a specific local user own a session that's always available, "
+            "without needing to manually create one.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        ) == QMessageBox.StandardButton.Yes
+        if wants_session:
+            text, ok = QInputDialog.getText(
+                self, "Session owner",
+                "Local username to own the automatic console session:",
+                QLineEdit.EchoMode.Normal, "dcvsession",
+            )
+            if ok and text.strip():
+                session_owner = text.strip()
+
+        clipboard_enabled = "true" if QMessageBox.question(
+            self, "Clipboard sharing",
+            "Enable clipboard sharing between the DCV client and this host?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes,
+        ) == QMessageBox.StandardButton.Yes else "false"
+
+        web_port = ""
+        text, ok = QInputDialog.getText(
+            self, "Web/HTTPS port",
+            "TCP port for DCV client connections (leave blank for the default, 8443):",
+        )
+        if ok and text.strip():
+            web_port = text.strip()
+
+        license_value = ""
+        has_license = QMessageBox.question(
+            self, "DCV license",
+            "Do you already have a DCV license file or RLM license server address?\n\n"
+            "A license is required on non-EC2 (on-premises) hosts.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        ) == QMessageBox.StandardButton.Yes
+        if has_license:
+            text, ok = QInputDialog.getText(
+                self, "License",
+                "License file path, or RLM server as PORT@HOSTNAME:",
+            )
+            if ok and text.strip():
+                license_value = text.strip()
+        else:
+            QMessageBox.information(
+                self, "No license yet",
+                "No problem — DCV will run on a demo license for now.\n\n"
+                "Once you have a license file, edit /etc/dcv/dcv.conf and set "
+                "license-file under the [license] section (the default path DCV "
+                "looks for is /usr/share/license/license.lic), or set it to "
+                "PORT@HOSTNAME for a floating RLM license server.",
+            )
+
+        self._dcv_pending = {
+            "with_gl": with_gl,
+            "with_client": with_client,
+            "session_owner": session_owner,
+            "clipboard_enabled": clipboard_enabled,
+            "web_port": web_port,
+            "license_value": license_value,
+        }
+
+        self.set_app_busy("dcv", True, "Waiting for file…")
+        self._set_app_progress_fraction("dcv", 0.02)
+        if shutil.which("xdg-open"):
+            subprocess.Popen(["xdg-open", DCV_URL])
+            self.append_log("Opened Amazon DCV download page.\n")
+        self.append_log(
+            'Under "Server", download the package for "RHEL 9 / CentOS 9 / Rocky '
+            'Linux 9 (x86_64)" (a .tgz archive), then select it below.\n'
+        )
+        self.pick_dcv_server_archive()
+
+    def pick_dcv_server_archive(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Select the DCV Server package",
+            "", "Archives (*.tgz *.tar.gz);;All files (*)",
+        )
+        self.raise_()
+        self.activateWindow()
+        if not path:
+            self._finish_app_action("dcv")
+            return
+        self._set_app_progress_fraction("dcv", 0.1)
+        pending = self._dcv_pending
+        self.run_helper_with_callback(
+            ["install_dcv_server", path, "with-gl" if pending.get("with_gl") else "no-gl"],
+            on_success=lambda: self._configure_dcv_step(),
+            app_id="dcv",
+            progress_segment=(0.1, 0.55),
+        )
+
+    def _configure_dcv_step(self):
+        pending = self._dcv_pending
+        self.run_helper_with_callback(
+            ["configure_dcv",
+             pending.get("session_owner", ""),
+             pending.get("clipboard_enabled", ""),
+             pending.get("web_port", ""),
+             pending.get("license_value", "")],
+            on_success=lambda: self._dcv_client_step(),
+            app_id="dcv",
+            progress_segment=(0.55, 0.7),
+        )
+
+    def _dcv_client_step(self):
+        pending = self._dcv_pending
+        if not pending.get("with_client"):
+            self._finish_dcv_install()
+            return
+        if shutil.which("xdg-open"):
+            subprocess.Popen(["xdg-open", DCV_URL])
+            self.append_log("Opened Amazon DCV download page again for the Client package.\n")
+        self.append_log(
+            'Under "Client", download the package for "RHEL 9 / CentOS 9 / Rocky '
+            'Linux 9 (x86_64)", then select it below.\n'
+        )
+        self.pick_dcv_client_archive()
+
+    def pick_dcv_client_archive(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Select the DCV Client package",
+            "", "Archives / RPMs (*.tgz *.tar.gz *.rpm);;All files (*)",
+        )
+        self.raise_()
+        self.activateWindow()
+        if not path:
+            self._finish_dcv_install()
+            return
+        self._set_app_progress_fraction("dcv", 0.8)
+        self.run_helper_with_callback(
+            ["install_dcv_client", path],
+            on_success=lambda: self._finish_dcv_install(),
+            app_id="dcv",
+            progress_segment=(0.8, 0.98),
+        )
+
+    def _finish_dcv_install(self):
+        pending = self._dcv_pending
+        self._dcv_pending = {}
+        self._finish_app_action("dcv")
+        msg = "Amazon DCV Server is installed and running."
+        if pending.get("session_owner"):
+            msg += "\n\nAutomatic console session configured for user '{}'.".format(
+                pending["session_owner"]
+            )
+        if not pending.get("license_value"):
+            msg += ("\n\nRemember: this host has no license configured yet, so DCV is "
+                    "running on a demo license. Add one later via /etc/dcv/dcv.conf "
+                    "([license] license-file).")
+        msg += "\n\nFull docs: https://www.amazondcv.com/"
+        QMessageBox.information(self, "Amazon DCV installed", msg)
+
+    def remove_dcv_flow(self):
+        if not self._dcv_installed():
+            self.append_log("ℹ️ Amazon DCV does not appear to be installed.\n")
+            self.refresh_app_state("dcv")
+            return
+        reply = QMessageBox.question(
+            self, "Remove Amazon DCV?",
+            "This will remove all installed nice-dcv-* packages and stop the dcvserver "
+            "service.",
+            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
+        )
+        if reply != QMessageBox.StandardButton.Ok:
+            return
+        self.set_app_busy("dcv", True, "Removing…")
+        self._set_app_progress_fraction("dcv", 0.02)
+        self.run_helper_with_callback(
+            ["remove_dcv"],
+            on_success=lambda: self._finish_app_action("dcv"),
+            app_id="dcv",
             progress_segment=(0.02, 0.98),
         )
 

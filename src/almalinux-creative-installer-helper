@@ -1342,6 +1342,254 @@ remove_unigine() {
 }
 
 # -------------------------------------------------
+# Shared: X11/Wayland helpers (used by Blitter, Amazon DCV)
+# -------------------------------------------------
+disable_wayland_for_x11() {
+  if [[ -f /etc/gdm/custom.conf ]]; then
+    log "Disabling Wayland (requires an X11 session)..."
+    sed -i 's/^#\?WaylandEnable=.*/WaylandEnable=false/' /etc/gdm/custom.conf
+    log "Wayland disabled. Reboot (or log out) and sign in to an X11/Xorg session."
+  else
+    log "No /etc/gdm/custom.conf found — if you're not using GDM, disable Wayland for your display manager manually."
+  fi
+}
+
+reenable_wayland() {
+  if [[ -f /etc/gdm/custom.conf ]]; then
+    log "Re-enabling Wayland..."
+    sed -i 's/^WaylandEnable=false/#WaylandEnable=false/' /etc/gdm/custom.conf
+    log "Wayland re-enabled. Reboot (or log out) to switch back to a Wayland session."
+  fi
+}
+
+# -------------------------------------------------
+# Blitter (GPU-accelerated remote desktop, beta)
+# -------------------------------------------------
+install_blitter() {
+  local with_tray="${1:-no-tray}"
+
+  log "Adding Blitter repository..."
+  dnf -y config-manager --add-repo https://pkg.blitter.app/rpm/blitter.repo
+
+  log "Installing blitter-host..."
+  dnf -y install blitter-host
+
+  if [[ "${with_tray}" == "with-tray" ]]; then
+    log "Installing blitter-tray..."
+    dnf -y install blitter-tray
+  fi
+
+  disable_wayland_for_x11
+  log "Done. Run 'blitterctl setup' in a terminal to finish pairing this host."
+}
+
+remove_blitter() {
+  local pkgs=()
+  for pkg in blitter-tray blitter-host; do
+    if rpm -q "${pkg}" >/dev/null 2>&1; then
+      pkgs+=("${pkg}")
+    fi
+  done
+  if [[ ${#pkgs[@]} -eq 0 ]]; then
+    log "Blitter is not installed."
+    return 0
+  fi
+  log "Removing: ${pkgs[*]}"
+  dnf -y remove "${pkgs[@]}"
+
+  reenable_wayland
+  log "Done."
+}
+
+# -------------------------------------------------
+# Amazon DCV (GPU remote desktop, beta)
+# -------------------------------------------------
+install_dcv_server() {
+  local archive="${1:-}"
+  local with_gl="${2:-no-gl}"
+
+  [[ -n "${archive}" ]] || { echo "ERROR: missing archive path" >&2; exit 2; }
+  [[ -f "${archive}" ]] || { echo "ERROR: archive not found: ${archive}" >&2; exit 2; }
+
+  command -v tar >/dev/null 2>&1 || dnf -y install tar
+
+  local tmp_dir
+  tmp_dir="$(mktemp -d /tmp/dcv-server-XXXXXX)"
+  # shellcheck disable=SC2064
+  trap "rm -rf '${tmp_dir}'" EXIT
+
+  log "Extracting DCV Server package..."
+  tar xf "${archive}" -C "${tmp_dir}"
+
+  local server_rpm rpm_dir
+  server_rpm="$(find "${tmp_dir}" -name 'nice-dcv-server-*.rpm' -print -quit)"
+  [[ -n "${server_rpm}" ]] || { echo "ERROR: could not find nice-dcv-server RPM in the downloaded package" >&2; exit 2; }
+  rpm_dir="$(dirname "${server_rpm}")"
+
+  local rpms=()
+  local pattern match
+  for pattern in 'nice-dcv-server-*.rpm' 'nice-xdcv-*.rpm' 'nice-dcv-session-manager-agent-*.rpm' 'nice-dcv-web-viewer-*.rpm'; do
+    match="$(find "${rpm_dir}" -maxdepth 1 -name "${pattern}" -print -quit)"
+    [[ -n "${match}" ]] && rpms+=("${match}")
+  done
+  if [[ "${with_gl}" == "with-gl" ]]; then
+    for pattern in 'nice-dcv-gl-*.rpm' 'nice-dcv-gltest-*.rpm'; do
+      match="$(find "${rpm_dir}" -maxdepth 1 -name "${pattern}" -print -quit)"
+      [[ -n "${match}" ]] && rpms+=("${match}")
+    done
+  fi
+
+  log "Installing ${#rpms[@]} DCV Server package(s)..."
+  dnf -y install --nogpgcheck "${rpms[@]}"
+
+  disable_wayland_for_x11
+
+  log "Enabling and starting dcvserver service..."
+  systemctl enable dcvserver
+  systemctl start dcvserver
+
+  log "DCV Server installed."
+}
+
+# Idempotent "key = value" upsert under a [section] header in /etc/dcv/dcv.conf,
+# creating the section if missing. Avoids assuming the exact wording of the
+# shipped default file's commented example lines.
+_dcv_conf_set() {
+  local section="$1" key="$2" value="$3"
+  python3 - "${section}" "${key}" "${value}" <<'PYEOF'
+import sys
+
+section, key, value = sys.argv[1:4]
+path = "/etc/dcv/dcv.conf"
+
+with open(path) as f:
+    lines = f.readlines()
+
+out = []
+target_header = "[{}]".format(section)
+in_section = False
+section_found = False
+key_written = False
+
+for line in lines:
+    stripped = line.strip()
+    if stripped.startswith("[") and stripped.endswith("]"):
+        if in_section and not key_written:
+            out.append("{} = {}\n".format(key, value))
+            key_written = True
+        in_section = (stripped == target_header)
+        if in_section:
+            section_found = True
+        out.append(line)
+        continue
+    if in_section:
+        bare = stripped.lstrip("#").strip()
+        if bare == key or bare.startswith(key + " ") or bare.startswith(key + "="):
+            out.append("{} = {}\n".format(key, value))
+            key_written = True
+            continue
+    out.append(line)
+
+if in_section and not key_written:
+    out.append("{} = {}\n".format(key, value))
+    key_written = True
+
+if not section_found:
+    if out and not out[-1].endswith("\n"):
+        out.append("\n")
+    out.append("\n[{}]\n{} = {}\n".format(section, key, value))
+
+with open(path, "w") as f:
+    f.writelines(out)
+PYEOF
+}
+
+configure_dcv() {
+  local session_owner="${1:-}"
+  local clipboard_enabled="${2:-}"
+  local web_port="${3:-}"
+  local license_value="${4:-}"
+
+  [[ -f /etc/dcv/dcv.conf ]] || { echo "ERROR: /etc/dcv/dcv.conf not found — install DCV Server first" >&2; exit 2; }
+
+  if [[ -n "${session_owner}" ]]; then
+    log "Configuring automatic console session (owner: ${session_owner})..."
+    _dcv_conf_set "session-management" "create-session" "true"
+    _dcv_conf_set "session-management/automatic-console-session" "owner" "${session_owner}"
+  fi
+
+  if [[ -n "${clipboard_enabled}" ]]; then
+    log "Setting clipboard enabled=${clipboard_enabled}..."
+    _dcv_conf_set "clipboard" "enabled" "${clipboard_enabled}"
+  fi
+
+  if [[ -n "${web_port}" ]]; then
+    log "Setting web port to ${web_port}..."
+    _dcv_conf_set "connectivity" "web-port" "${web_port}"
+  fi
+
+  if [[ -n "${license_value}" ]]; then
+    log "Setting license-file to ${license_value}..."
+    _dcv_conf_set "license" "license-file" "${license_value}"
+  fi
+
+  if systemctl is-active --quiet dcvserver; then
+    log "Restarting dcvserver to apply configuration..."
+    systemctl restart dcvserver
+  fi
+
+  log "DCV configuration updated."
+}
+
+install_dcv_client() {
+  local path="${1:-}"
+  [[ -n "${path}" ]] || { echo "ERROR: missing file path" >&2; exit 2; }
+  [[ -f "${path}" ]] || { echo "ERROR: file not found: ${path}" >&2; exit 2; }
+
+  local client_rpm
+  if [[ "${path}" == *.rpm ]]; then
+    client_rpm="${path}"
+  else
+    command -v tar >/dev/null 2>&1 || dnf -y install tar
+    local tmp_dir
+    tmp_dir="$(mktemp -d /tmp/dcv-client-XXXXXX)"
+    # shellcheck disable=SC2064
+    trap "rm -rf '${tmp_dir}'" EXIT
+    log "Extracting DCV Client package..."
+    tar xf "${path}" -C "${tmp_dir}"
+    client_rpm="$(find "${tmp_dir}" -name 'nice-dcv-viewer-*.rpm' -print -quit)"
+    [[ -n "${client_rpm}" ]] || { echo "ERROR: could not find nice-dcv-viewer RPM in the downloaded package" >&2; exit 2; }
+  fi
+
+  log "Installing DCV Client..."
+  dnf -y install --nogpgcheck "${client_rpm}"
+  log "DCV Client installed."
+}
+
+remove_dcv() {
+  local pkgs=()
+  for pkg in nice-dcv-viewer nice-dcv-web-viewer nice-dcv-gltest nice-dcv-gl nice-xdcv nice-dcv-session-manager-agent nice-dcv-server; do
+    if rpm -q "${pkg}" >/dev/null 2>&1; then
+      pkgs+=("${pkg}")
+    fi
+  done
+  if [[ ${#pkgs[@]} -eq 0 ]]; then
+    log "Amazon DCV is not installed."
+    return 0
+  fi
+
+  log "Stopping dcvserver service..."
+  systemctl stop dcvserver 2>/dev/null || true
+  systemctl disable dcvserver 2>/dev/null || true
+
+  log "Removing: ${pkgs[*]}"
+  dnf -y remove "${pkgs[@]}"
+
+  reenable_wayland
+  log "Done."
+}
+
+# -------------------------------------------------
 # Dispatcher
 # -------------------------------------------------
 case "${action}" in
@@ -1407,6 +1655,16 @@ case "${action}" in
   # Unigine
   install_unigine)       install_unigine "${2:-}";;
   remove_unigine)        remove_unigine;;
+
+  # Blitter
+  install_blitter)       install_blitter "${2:-}";;
+  remove_blitter)        remove_blitter;;
+
+  # Amazon DCV
+  install_dcv_server)    install_dcv_server "${2:-}" "${3:-}";;
+  configure_dcv)         configure_dcv "${2:-}" "${3:-}" "${4:-}" "${5:-}";;
+  install_dcv_client)    install_dcv_client "${2:-}";;
+  remove_dcv)            remove_dcv;;
 
   # GNOME UI Extensions & Tweaks
   install_gnome_ui)      install_gnome_ui;;
@@ -1478,6 +1736,16 @@ Unreal Engine:
 Unigine:
   install_unigine <run>
   remove_unigine
+
+Blitter:
+  install_blitter <with-tray|no-tray>
+  remove_blitter
+
+Amazon DCV:
+  install_dcv_server <archive> <with-gl|no-gl>
+  configure_dcv <session-owner> <clipboard-enabled> <web-port> <license-value>
+  install_dcv_client <archive-or-rpm>
+  remove_dcv
 
 GNOME UI Extensions & Tweaks:
   install_gnome_ui

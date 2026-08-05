@@ -57,7 +57,7 @@ https://chat.almalinux.org/almalinux/channels/sig-media-entertainment
 
 ## 🚀 Quick Start (Recommended)
 
-AlmaLinux Creative Installer v2.0.4 is the current stable release, supporting AlmaLinux 9 (PyQt5) and AlmaLinux 10 (PyQt6). Install it in two commands via COPR.
+AlmaLinux Creative Installer v2.0.5 is the current stable release, supporting AlmaLinux 9 (PyQt5) and AlmaLinux 10 (PyQt6). Install it in two commands via COPR.
 
 ### 1️⃣ Enable the COPR Repository
 
@@ -96,10 +96,10 @@ Then install it from the directory where you downloaded it:
 
 ```bash
 # AlmaLinux 9
-sudo dnf install ./almalinux-creative-installer-2.0.4-1.el9.noarch.rpm
+sudo dnf install ./almalinux-creative-installer-2.0.5-1.el9.noarch.rpm
 
 # AlmaLinux 10
-sudo dnf install ./almalinux-creative-installer-2.0.4-1.el10.noarch.rpm
+sudo dnf install ./almalinux-creative-installer-2.0.5-1.el10.noarch.rpm
 ```
 
 > Note: with this method you will need to repeat the download and install manually for each future release. COPR is recommended.
@@ -207,9 +207,11 @@ Not every app is available on both EL versions. The installer shows a small **EL
 | FogPanther        | ✅  | ✅   | Via Flathub |
 | Gaffer            | ✅  | ✅   | Guided portable binary install (works on EL9 and EL10) |
 | Natron            | ✅  | ✅   | Via Flathub |
-| Open 3D Engine    | ✅  | ✅   | Via COPR (hellaenergy/o3de), BETA |
-| Unreal Engine 5.8 | ✅  | ✅   | Guided vendor install (Epic account), preview build |
+| Open 3D Engine    | ✅  | ✅   | Via COPR (hellaenergy/o3de) |
+| Unreal Engine 5.8 | ✅  | ✅   | Guided vendor install (Epic account) |
 | Unigine           | ✅  | ✅   | Guided vendor install (.run) |
+| Blitter           | ✅  | ❌   | Needs an X11 session; EL10 defaults to Wayland-only in this project, BETA |
+| Amazon DCV        | ✅  | ❌   | Needs an X11 session; EL10 defaults to Wayland-only in this project |
 
 > This table reflects current EPEL availability and will be updated as packages land in EL10.
 
@@ -261,12 +263,15 @@ post-production, and content creation environments:
   - OnlyOffice
   - AppImageLauncher *(EL10 only — glibc requirement)*
 
+- **Backup**
+  - Pika Backup *(Flatpak, bundles its own BorgBackup — no separate host install needed)*
+
 - **Game Engines**
   - Epic Asset Manager
   - Asset Manager Studio
   - Godots
-  - Open 3D Engine *(via COPR, EL9 and EL10, BETA)*
-  - Unreal Engine 5.8 *(guided vendor install, preview build)*
+  - Open 3D Engine *(via COPR, EL9 and EL10)*
+  - Unreal Engine 5.8 *(guided vendor install)*
   - Unigine *(guided vendor install)*
 
 - **Audio**
@@ -282,6 +287,10 @@ post-production, and content creation environments:
   - Discord
   - Mattermost
   - Slack
+
+- **Remote Desktop**
+  - Blitter *(EL9 only, BETA — GPU-accelerated remote desktop, requires an NVIDIA GPU and an X11 session)*
+  - Amazon DCV *(EL9 only — guided multi-step install: Server + optional GL/Client packages, dcv.conf setup, requires an X11 session)*
 
 > The in-app list is the source of truth. EL version badges in the UI always reflect current availability.
 
