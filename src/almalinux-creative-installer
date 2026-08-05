@@ -134,7 +134,7 @@ APPS = [
     {"id": "slack",             "name": "Slack",            "type": "flatpak", "appid": "com.slack.Slack",                              "category": "Communication"},
     # Remote Desktop
     {"id": "blitter",           "name": "Blitter",          "type": "blitter",                                                          "category": "Remote Desktop",      "beta": True,   "el": [9]},
-    {"id": "dcv",               "name": "Amazon DCV",       "type": "dcv",                                                              "category": "Remote Desktop",      "beta": True,   "el": [9]},
+    {"id": "dcv",               "name": "Amazon DCV",       "type": "dcv",                                                              "category": "Remote Desktop",                      "el": [9]},
     # Game Engines
     {"id": "assetmanagerstudio","name": "Asset Manager Studio","type": "flatpak","appid": "studio.assetmanager.ams",                    "category": "Game Engines"},
     {"id": "epicassetmanager",  "name": "Epic Asset Manager","type": "flatpak", "appid": "io.github.achetagames.epic_asset_manager",    "category": "Game Engines"},

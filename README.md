@@ -211,7 +211,7 @@ Not every app is available on both EL versions. The installer shows a small **EL
 | Unreal Engine 5.8 | ✅  | ✅   | Guided vendor install (Epic account), preview build |
 | Unigine           | ✅  | ✅   | Guided vendor install (.run) |
 | Blitter           | ✅  | ❌   | Needs an X11 session; EL10 defaults to Wayland-only in this project, BETA |
-| Amazon DCV        | ✅  | ❌   | Needs an X11 session; EL10 defaults to Wayland-only in this project, BETA |
+| Amazon DCV        | ✅  | ❌   | Needs an X11 session; EL10 defaults to Wayland-only in this project |
 
 > This table reflects current EPEL availability and will be updated as packages land in EL10.
 
@@ -290,7 +290,7 @@ post-production, and content creation environments:
 
 - **Remote Desktop**
   - Blitter *(EL9 only, BETA — GPU-accelerated remote desktop, requires an NVIDIA GPU and an X11 session)*
-  - Amazon DCV *(EL9 only, BETA — guided multi-step install: Server + optional GL/Client packages, dcv.conf setup, requires an X11 session)*
+  - Amazon DCV *(EL9 only — guided multi-step install: Server + optional GL/Client packages, dcv.conf setup, requires an X11 session)*
 
 > The in-app list is the source of truth. EL version badges in the UI always reflect current availability.
 
