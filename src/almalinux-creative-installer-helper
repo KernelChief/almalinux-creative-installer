@@ -730,7 +730,8 @@ fix_instamaterial_launcher() {
   # or the invoking user's) at run.sh, so the bundled libraries win over
   # the host's. Match by bundle path rather than a hardcoded filename since
   # the vendor's exact .desktop name isn't guaranteed.
-  local bundle_dir="$(dirname "${run_sh}")"
+  local bundle_dir
+  bundle_dir="$(dirname "${run_sh}")"
   local desktop_file
   while IFS= read -r desktop_file; do
     [[ -f "${desktop_file}" ]] || continue
