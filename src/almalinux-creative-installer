@@ -2685,16 +2685,18 @@ class AlmaCreativeInstaller(QMainWindow):
             subprocess.Popen(["xdg-open", INSTAMATERIAL_URL])
             self.append_log("Opened InstaMaterial download page.\n")
         self.append_log(
-            "Create a free account, download the Linux zip, then select it below.\n"
+            "Create a free account, download the Linux archive, then select it below. "
+            "The vendor has shipped this as a .zip or a .gz/.tar.gz depending on release — "
+            "either works.\n"
         )
         self.pick_instamaterial_zip()
 
     def pick_instamaterial_zip(self):
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "Select InstaMaterial Linux zip",
+            "Select InstaMaterial Linux archive",
             "",
-            "Zip archives (*.zip);;All files (*)",
+            "InstaMaterial archives (*.zip *.tar.gz *.tgz *.gz *.tar);;All files (*)",
         )
         self.raise_()
         self.activateWindow()
