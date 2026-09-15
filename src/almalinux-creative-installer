@@ -16,13 +16,11 @@ from pathlib import Path
 
 from qtcompat import (
     QApplication,
-    QCheckBox,
     QComboBox,
     QFileDialog,
     QFrame,
     QHBoxLayout,
     QIcon,
-    QInputDialog,
     QLabel,
     QLineEdit,
     QListWidget,
