@@ -85,6 +85,8 @@ APPS = [
     {"id": "libreoffice",       "name": "LibreOffice",      "type": "flatpak", "appid": "org.libreoffice.LibreOffice",                  "category": "Productivity"},
     {"id": "onlyoffice",        "name": "OnlyOffice",       "type": "flatpak", "appid": "org.onlyoffice.desktopeditors",                "category": "Productivity"},
     {"id": "scribus",           "name": "Scribus",          "type": "flatpak", "appid": "net.scribus.Scribus",                          "category": "Productivity"},
+    # Backup
+    {"id": "pikabackup",        "name": "Pika Backup",      "type": "flatpak", "appid": "org.gnome.World.PikaBackup",                   "category": "Backup"},
     # Image Processing
     {"id": "darktable",         "name": "darktable",        "type": "flatpak", "appid": "org.darktable.Darktable",                      "category": "Image Processing"},
     {"id": "digikam",           "name": "digiKam",          "type": "flatpak", "appid": "org.kde.digikam",                              "category": "Image Processing"},
@@ -131,9 +133,9 @@ APPS = [
     {"id": "assetmanagerstudio","name": "Asset Manager Studio","type": "flatpak","appid": "studio.assetmanager.ams",                    "category": "Game Engines"},
     {"id": "epicassetmanager",  "name": "Epic Asset Manager","type": "flatpak", "appid": "io.github.achetagames.epic_asset_manager",    "category": "Game Engines"},
     {"id": "godots",            "name": "Godots",           "type": "flatpak", "appid": "io.github.MakovWait.Godots",                   "category": "Game Engines"},
-    {"id": "o3de",              "name": "Open 3D Engine",   "type": "o3de",    "icon_appid": "org.o3de.O3DE",                           "category": "Game Engines",        "beta": True},
+    {"id": "o3de",              "name": "Open 3D Engine",   "type": "o3de",    "icon_appid": "org.o3de.O3DE",                           "category": "Game Engines"},
     {"id": "unigine",           "name": "Unigine",          "type": "unigine",                                                          "category": "Game Engines"},
-    {"id": "unreal",            "name": "Unreal Engine 5.8","type": "unreal",                                                           "category": "Game Engines",        "beta": True},
+    {"id": "unreal",            "name": "Unreal Engine 5.8","type": "unreal",                                                           "category": "Game Engines"},
 ]
 
 VERSION_SELECTABLE_APPS = {"gimp", "krita", "blender"}
@@ -141,6 +143,7 @@ VERSION_SELECTABLE_APPS = {"gimp", "krita", "blender"}
 CATEGORIES = [
     "All Apps",
     "Productivity",
+    "Backup",
     "Image Processing",
     "3D",
     "Animation & Video",
@@ -1457,6 +1460,8 @@ class AlmaCreativeInstaller(QMainWindow):
         sub_lbl.setStyleSheet("color: {}; font-size: 11px;".format(self._c["text2"]))
         left.addWidget(sub_lbl)
 
+        tray_checkbox = None
+
         progress = QProgressBar()
         progress.setRange(0, 100)
         progress.setValue(0)
@@ -1542,6 +1547,7 @@ class AlmaCreativeInstaller(QMainWindow):
             "remove": remove_btn,
             "version_combo": version_combo,
             "version_options": [],
+            "tray_checkbox": tray_checkbox,
             "busy": False,
         }
 
@@ -2619,6 +2625,10 @@ class AlmaCreativeInstaller(QMainWindow):
     # InstaMaterial flow
     # -------------------------------------------------------------------------
     def _instamaterial_installed(self):
+        # Portable-bundle archives are installed to /opt/instamat-studio with
+        # no RPM, so the package query below would never see them.
+        if Path("/opt/instamat-studio/InstaMAT Studio").is_file():
+            return True
         try:
             out = subprocess.run(
                 ["rpm", "-qa", "--qf", "%{NAME}\n"],
@@ -2636,16 +2646,18 @@ class AlmaCreativeInstaller(QMainWindow):
             subprocess.Popen(["xdg-open", INSTAMATERIAL_URL])
             self.append_log("Opened InstaMaterial download page.\n")
         self.append_log(
-            "Create a free account, download the Linux zip, then select it below.\n"
+            "Create a free account, download the Linux archive, then select it below. "
+            "The vendor has shipped this as a .zip or a .gz/.tar.gz depending on release — "
+            "either works.\n"
         )
         self.pick_instamaterial_zip()
 
     def pick_instamaterial_zip(self):
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "Select InstaMaterial Linux zip",
+            "Select InstaMaterial Linux archive",
             "",
-            "Zip archives (*.zip);;All files (*)",
+            "InstaMaterial archives (*.zip *.tar.gz *.tgz *.gz *.tar);;All files (*)",
         )
         self.raise_()
         self.activateWindow()
@@ -2967,7 +2979,6 @@ class AlmaCreativeInstaller(QMainWindow):
             app_id="unigine",
             progress_segment=(0.02, 0.98),
         )
-
 
 _THEME_COLORS = _DARK  # set by main() before window creation
 _ICON_CACHE   = {}     # app["id"] → QPixmap | None, populated on first build

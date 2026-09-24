@@ -640,34 +640,188 @@ EOF
 # InstaMaterial
 # -------------------------------------------------
 install_instamaterial() {
-  local zip_path="${1:-}"
+  local archive_path="${1:-}"
   local tmp_dir
 
-  [[ -n "${zip_path}" ]] || { echo "ERROR: missing zip path" >&2; exit 2; }
-  [[ -f "${zip_path}" ]] || { echo "ERROR: zip not found: ${zip_path}" >&2; exit 2; }
-
-  log "Ensuring unzip is available..."
-  command -v unzip >/dev/null 2>&1 || dnf -y install unzip
+  [[ -n "${archive_path}" ]] || { echo "ERROR: missing archive path" >&2; exit 2; }
+  [[ -f "${archive_path}" ]] || { echo "ERROR: archive not found: ${archive_path}" >&2; exit 2; }
 
   tmp_dir="$(mktemp -d /tmp/instamaterial-XXXXXX)"
   # shellcheck disable=SC2064
   trap "rm -rf '${tmp_dir}'" EXIT
 
-  log "Extracting InstaMaterial archive..."
-  unzip -q "${zip_path}" -d "${tmp_dir}"
+  # The vendor has changed archive formats between releases (was a plain
+  # .zip; is now a gzip stream carrying a ".gz" extension at the top level,
+  # whose payload is itself an extensionless tar). Sniff the real format
+  # from its magic bytes rather than trusting the filename/extension.
+  # "PK\x03\x04" (hex 504b) identifies a zip local file header; anything
+  # else is handed to tar, which auto-detects gzip/bzip2/xz compression
+  # from the stream's own magic bytes, so -xf transparently handles .gz,
+  # .tar.gz, .tgz, and plain .tar without needing to know which one this is.
+  local magic
+  magic="$(head -c 2 "${archive_path}" 2>/dev/null | od -An -tx1 | tr -d ' \n')"
+
+  if [[ "${magic}" == "504b" ]]; then
+    log "Detected zip archive; extracting with unzip..."
+    command -v unzip >/dev/null 2>&1 || dnf -y install unzip
+    unzip -q "${archive_path}" -d "${tmp_dir}"
+  else
+    log "Detected non-zip archive; extracting with tar..."
+    tar -xf "${archive_path}" -C "${tmp_dir}"
+  fi
   log "Extraction complete."
 
-  # Find install.sh (may be nested inside a subdirectory)
+  # Find install.sh (may be nested inside a subdirectory). Newer vendor
+  # archives drop the RPM installer entirely and ship a ready-to-run
+  # portable bundle instead (binary + run.sh launcher, no install.sh) —
+  # handle that layout separately.
   local install_sh
   install_sh="$(find "${tmp_dir}" -maxdepth 3 -name 'install.sh' -print -quit 2>/dev/null)"
-  [[ -n "${install_sh}" ]] || { echo "ERROR: install.sh not found in archive" >&2; exit 1; }
 
-  chmod +x "${install_sh}"
-  # Pipe 'y' so that the unsupported-distro prompt (e.g. AlmaLinux 10) proceeds automatically.
-  log "Running install.sh..."
-  (cd "$(dirname "${install_sh}")" && echo "y" | bash install.sh)
+  if [[ -n "${install_sh}" ]]; then
+    chmod +x "${install_sh}"
+    # Pipe 'y' so that the unsupported-distro prompt (e.g. AlmaLinux 10) proceeds automatically.
+    log "Running install.sh..."
+    (cd "$(dirname "${install_sh}")" && echo "y" | bash install.sh)
+    fix_instamaterial_launcher
+  else
+    log "No install.sh in archive; treating as portable bundle..."
+    install_instamaterial_portable "${tmp_dir}"
+  fi
 
   log "InstaMaterial installation complete."
+}
+
+# Handles the portable-bundle archive layout: the binary and its run.sh
+# launcher sitting directly in (or one level under) the extracted archive,
+# with no install.sh/RPM at all. Moves the bundle into /opt, wires up a
+# /usr/bin symlink and a desktop entry pointed at run.sh, mirroring how
+# fix_instamaterial_launcher re-points the RPM-based install.
+install_instamaterial_portable() {
+  local extract_dir="$1"
+  local install_base="/opt/instamat-studio"
+
+  local binary bundle_dir
+  binary="$(find "${extract_dir}" -maxdepth 4 -type f -name 'InstaMAT Studio' -print -quit 2>/dev/null)"
+  [[ -n "${binary}" ]] || { echo "ERROR: InstaMAT Studio binary not found in archive" >&2; exit 1; }
+  bundle_dir="$(dirname "${binary}")"
+
+  # The vendor's run.sh sets LD_LIBRARY_PATH to the bundle's lib/ and cd's
+  # there before exec'ing the binary, so qt.conf's "Prefix = ./" resolves
+  # ./plugins and the bundled libxcb-cursor.so.0 wins over any host copy.
+  local launcher
+  launcher="$(find "${bundle_dir}" -maxdepth 1 -type f -name 'run.sh' -print -quit 2>/dev/null)"
+  if [[ -z "${launcher}" ]]; then
+    launcher="$(grep -lF 'InstaMAT Studio' "${bundle_dir}"/*.sh 2>/dev/null | head -1 || true)"
+  fi
+
+  local user home
+  user="$(require_invoking_user)"
+  home="$(require_invoking_user_home)"
+
+  rm -rf "${install_base}"
+  mkdir -p "$(dirname "${install_base}")"
+  mv "${bundle_dir}" "${install_base}"
+  chown -R "${user}:${user}" "${install_base}"
+  chmod +x "${install_base}/InstaMAT Studio"
+
+  local run_sh
+  if [[ -n "${launcher}" ]]; then
+    run_sh="${install_base}/$(basename "${launcher}")"
+    chmod +x "${run_sh}"
+  else
+    # No launcher shipped in this archive; synthesize one so the bundled
+    # libraries still take precedence over host copies.
+    run_sh="${install_base}/run.sh"
+    cat > "${run_sh}" <<'EOF'
+#!/bin/bash
+HERE="$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")" && pwd)"
+export LD_LIBRARY_PATH="${HERE}/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+cd "${HERE}" || exit 1
+exec "${HERE}/InstaMAT Studio" "$@"
+EOF
+    chmod +x "${run_sh}"
+    chown "${user}:${user}" "${run_sh}"
+  fi
+
+  [[ -L /usr/bin/instamat-studio ]] && unlink /usr/bin/instamat-studio || true
+  ln -sf "${run_sh}" /usr/bin/instamat-studio
+  log "Created /usr/bin/instamat-studio"
+
+  local desktop_dir="${home}/.local/share/applications"
+  mkdir -p "${desktop_dir}"
+  chown "${user}:${user}" "${desktop_dir}"
+  # The vendor bundle ships no icon image (its own .desktop uses the theme
+  # name "InstaMATStudio", which nothing provides), so use a standard theme
+  # icon rather than leaving the launcher blank.
+  cat > "${desktop_dir}/instamat-studio.desktop" <<EOF
+[Desktop Entry]
+Name=InstaMAT Studio
+Comment=InstaMaterial InstaMAT Studio
+Exec=${run_sh}
+Icon=applications-graphics
+Type=Application
+Terminal=false
+Categories=Graphics;
+EOF
+  chown "${user}:${user}" "${desktop_dir}/instamat-studio.desktop"
+  log "InstaMAT Studio installed to ${install_base}"
+}
+
+# install.sh installs a vendor RPM whose postinstall wires up a desktop
+# launcher via register-uri-scheme.sh. That launcher points at a wrapper in
+# ~/.local/bin which calls the InstaMAT binary directly — that lets the
+# host's Qt/X11 libraries shadow the bundled ones (notably
+# libxcb-cursor.so.0) and can break startup. The bundle also ships a run.sh
+# that exports LD_LIBRARY_PATH="$HERE/lib:..." and cd's to the bundle root
+# so qt.conf's "Prefix = ./" resolves ./plugins correctly — that's the
+# entry point actually meant to be launched. Make sure register-uri-scheme.sh
+# runs as the real invoking user (not root, since we're under pkexec, or its
+# ~/.local files land in /root's home instead), then re-point whatever
+# desktop entry it produced at run.sh.
+fix_instamaterial_launcher() {
+  local pkg
+  pkg="$(rpm -qa --qf '%{NAME}\n' 2>/dev/null | grep -i instamat | head -1 || true)"
+  if [[ -z "${pkg}" ]]; then
+    echo "WARNING: InstaMaterial RPM not found after install.sh; skipping launcher fix-up." >&2
+    return 0
+  fi
+
+  local run_sh
+  run_sh="$(rpm -ql "${pkg}" 2>/dev/null | grep -E '/run\.sh$' | head -1 || true)"
+  if [[ -z "${run_sh}" ]]; then
+    log "run.sh not found in ${pkg} package; leaving launcher as installed."
+    return 0
+  fi
+  chmod +x "${run_sh}"
+
+  local user home
+  user="$(require_invoking_user)"
+  home="$(require_invoking_user_home)"
+
+  local uri_script
+  uri_script="$(rpm -ql "${pkg}" 2>/dev/null | grep -E '/register-uri-scheme\.sh$' | head -1 || true)"
+  if [[ -n "${uri_script}" ]]; then
+    chmod +x "${uri_script}"
+    log "Registering InstaMaterial desktop entry as ${user}..."
+    runuser -u "${user}" -- env HOME="${home}" bash "${uri_script}" || \
+      echo "WARNING: register-uri-scheme.sh failed; desktop entry may be incomplete." >&2
+  fi
+
+  # Re-point every .desktop entry that launches InstaMaterial (system-wide
+  # or the invoking user's) at run.sh, so the bundled libraries win over
+  # the host's. Match by bundle path rather than a hardcoded filename since
+  # the vendor's exact .desktop name isn't guaranteed.
+  local bundle_dir
+  bundle_dir="$(dirname "${run_sh}")"
+  local desktop_file
+  while IFS= read -r desktop_file; do
+    [[ -f "${desktop_file}" ]] || continue
+    grep -qF "${bundle_dir}" "${desktop_file}" 2>/dev/null || continue
+    sed -i -E "s#^Exec=[^ ]+#Exec=${run_sh}#" "${desktop_file}"
+    log "Updated launcher: ${desktop_file}"
+  done < <(find /usr/share/applications "${home}/.local/share/applications" \
+                -maxdepth 1 -name '*.desktop' 2>/dev/null)
 }
 
 remove_instamaterial() {
@@ -677,14 +831,47 @@ remove_instamaterial() {
   # The vendor RPM is named "instamat-studio" (not "instamaterial").
   pkg="$(rpm -qa --qf '%{NAME}\n' 2>/dev/null | grep -i instamat | head -1 || true)"
 
-  if [[ -z "${pkg}" ]]; then
-    echo "ERROR: No InstaMaterial RPM package found. Is it installed?" >&2
-    exit 3
+  if [[ -n "${pkg}" ]]; then
+    # register-uri-scheme.sh (run during install; see fix_instamaterial_launcher)
+    # writes its desktop entry under the invoking user's home. The RPM does
+    # not own that file, so dnf remove won't clean it up — find and remove it
+    # by matching against the package's bundle path before the RPM is gone.
+    local bundle_dir
+    bundle_dir="$(rpm -ql "${pkg}" 2>/dev/null | grep -E '/run\.sh$' | head -1 | xargs -r dirname || true)"
+    if [[ -n "${bundle_dir}" ]]; then
+      local home desktop_file
+      home="$(require_invoking_user_home)"
+      while IFS= read -r desktop_file; do
+        [[ -f "${desktop_file}" ]] || continue
+        grep -qF "${bundle_dir}" "${desktop_file}" 2>/dev/null || continue
+        rm -f "${desktop_file}"
+        log "Removed ${desktop_file}"
+      done < <(find /usr/share/applications "${home}/.local/share/applications" \
+                    -maxdepth 1 -name '*.desktop' 2>/dev/null)
+    fi
+
+    log "Removing RPM package: ${pkg}"
+    dnf -y remove "${pkg}"
+    log "InstaMaterial removed."
+    return 0
   fi
 
-  log "Removing RPM package: ${pkg}"
-  dnf -y remove "${pkg}"
-  log "InstaMaterial removed."
+  # No RPM installed — check for a portable-bundle install instead (see
+  # install_instamaterial_portable).
+  local install_base="/opt/instamat-studio"
+  if [[ -d "${install_base}" ]]; then
+    local home
+    home="$(require_invoking_user_home)"
+    rm -rf "${install_base}"
+    [[ -L /usr/bin/instamat-studio ]] && unlink /usr/bin/instamat-studio || true
+    rm -f "${home}/.local/share/applications/instamat-studio.desktop"
+    log "Removed ${install_base}"
+    log "InstaMaterial removed."
+    return 0
+  fi
+
+  echo "ERROR: No InstaMaterial installation found (RPM or portable bundle). Is it installed?" >&2
+  exit 3
 }
 
 # -------------------------------------------------
