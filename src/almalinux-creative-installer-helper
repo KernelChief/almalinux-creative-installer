@@ -751,11 +751,15 @@ EOF
   local desktop_dir="${home}/.local/share/applications"
   mkdir -p "${desktop_dir}"
   chown "${user}:${user}" "${desktop_dir}"
+  # The vendor bundle ships no icon image (its own .desktop uses the theme
+  # name "InstaMATStudio", which nothing provides), so use a standard theme
+  # icon rather than leaving the launcher blank.
   cat > "${desktop_dir}/instamat-studio.desktop" <<EOF
 [Desktop Entry]
 Name=InstaMAT Studio
 Comment=InstaMaterial InstaMAT Studio
 Exec=${run_sh}
+Icon=applications-graphics
 Type=Application
 Terminal=false
 Categories=Graphics;

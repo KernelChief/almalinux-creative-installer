@@ -2625,6 +2625,10 @@ class AlmaCreativeInstaller(QMainWindow):
     # InstaMaterial flow
     # -------------------------------------------------------------------------
     def _instamaterial_installed(self):
+        # Portable-bundle archives are installed to /opt/instamat-studio with
+        # no RPM, so the package query below would never see them.
+        if Path("/opt/instamat-studio/InstaMAT Studio").is_file():
+            return True
         try:
             out = subprocess.run(
                 ["rpm", "-qa", "--qf", "%{NAME}\n"],
