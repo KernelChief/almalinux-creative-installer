@@ -636,6 +636,21 @@ EOF
   log "3DCoat installation complete."
 }
 
+# 3DCoat ships 2026 and newer releases as a Flatpak bundle only; tarballs
+# remain for pre-2026 versions (install_3dcoat above).
+install_3dcoat_flatpak() {
+  local bundle_path="${1:-}"
+
+  [[ -n "${bundle_path}" ]] || { echo "ERROR: missing Flatpak bundle path" >&2; exit 2; }
+  [[ -f "${bundle_path}" ]] || { echo "ERROR: Flatpak bundle not found: ${bundle_path}" >&2; exit 2; }
+
+  ensure_flatpak_flathub
+
+  log "Installing 3DCoat Flatpak bundle..."
+  flatpak install -y --system "${bundle_path}"
+  log "3DCoat installation complete."
+}
+
 # -------------------------------------------------
 # InstaMaterial
 # -------------------------------------------------
@@ -1081,6 +1096,786 @@ EOF
 }
 
 # -------------------------------------------------
+# Meshroom (guided tarball install)
+# -------------------------------------------------
+install_meshroom() {
+  local tarball="${1:-}"
+  local install_dir="/opt/meshroom"
+  local tmp_dir
+
+  [[ -n "${tarball}" ]] || { echo "ERROR: missing tarball path" >&2; exit 2; }
+  [[ -f "${tarball}" ]] || { echo "ERROR: tarball not found: ${tarball}" >&2; exit 2; }
+
+  log "Ensuring tar is available..."
+  command -v tar >/dev/null 2>&1 || dnf -y install tar
+
+  local user home
+  user="$(require_invoking_user)"
+  home="$(require_invoking_user_home)"
+
+  tmp_dir="$(mktemp -d /tmp/meshroom-XXXXXX)"
+  # shellcheck disable=SC2064
+  trap "rm -rf '${tmp_dir}'" EXIT
+
+  log "Extracting Meshroom tarball (this may take a while, the package is large)..."
+  tar xf "${tarball}" -C "${tmp_dir}"
+
+  # The tarball extracts to a single top-level directory (e.g. Meshroom-2025.1.0)
+  local extracted_dir
+  extracted_dir="$(find "${tmp_dir}" -maxdepth 1 -mindepth 1 -type d | head -1)"
+  [[ -n "${extracted_dir}" ]] || { echo "ERROR: nothing extracted from tarball" >&2; exit 2; }
+
+  log "Installing to ${install_dir}..."
+  rm -rf "${install_dir}"
+  mv "${extracted_dir}" "${install_dir}"
+  chown -R "${user}:${user}" "${install_dir}"
+
+  [[ -f "${install_dir}/Meshroom" ]] || { echo "ERROR: Meshroom executable not found in ${install_dir}" >&2; exit 1; }
+  chmod +x "${install_dir}/Meshroom"
+
+  # Wrapper so Meshroom can find its own lib/resource directories
+  local wrapper="/opt/meshroom.sh"
+  printf '#!/bin/bash\ncd "%s" && ./Meshroom "$@"\n' "${install_dir}" > "${wrapper}"
+  chmod +x "${wrapper}"
+
+  # Symlink in /usr/bin
+  [[ -L /usr/bin/meshroom ]] && unlink /usr/bin/meshroom || true
+  ln -sf "${wrapper}" /usr/bin/meshroom
+  log "Created /usr/bin/meshroom"
+
+  # Desktop entry
+  local desktop_dir="${home}/.local/share/applications"
+  mkdir -p "${desktop_dir}"
+  chown "${user}:${user}" "${desktop_dir}"
+  cat > "${desktop_dir}/Meshroom.desktop" <<EOF
+[Desktop Entry]
+Name=Meshroom
+Comment=Photogrammetry and 3D reconstruction software
+Exec=${wrapper}
+Type=Application
+Terminal=false
+Categories=Graphics;3DGraphics;
+StartupWMClass=Meshroom
+EOF
+  chown "${user}:${user}" "${desktop_dir}/Meshroom.desktop"
+
+  log "Meshroom installation complete."
+}
+
+remove_meshroom() {
+  local user home
+  user="$(require_invoking_user)"
+  home="$(require_invoking_user_home)"
+
+  log "Removing Meshroom..."
+
+  if [[ -L /usr/bin/meshroom ]]; then
+    unlink /usr/bin/meshroom
+    log "Removed /usr/bin/meshroom symlink."
+  fi
+
+  rm -f /opt/meshroom.sh
+
+  if [[ -d /opt/meshroom ]]; then
+    rm -rf /opt/meshroom
+    log "Removed /opt/meshroom."
+  fi
+
+  local desktop="${home}/.local/share/applications/Meshroom.desktop"
+  if [[ -f "${desktop}" ]]; then
+    rm -f "${desktop}"
+    log "Removed desktop entry."
+  fi
+
+  log "Meshroom removed."
+}
+
+# -------------------------------------------------
+# Mocha Pro (guided local RPM install; see borisfx.com/downloads/?os=linux)
+# -------------------------------------------------
+# Install reuses install_local_file (above) for the .rpm the user downloads.
+# The exact package name isn't publicly documented, so removal matches it
+# dynamically instead of hardcoding a guess.
+remove_mochapro() {
+  log "Looking for installed Mocha Pro packages..."
+  local pkgs
+  mapfile -t pkgs < <(rpm -qa --qf '%{NAME}\n' 2>/dev/null | grep -i mocha || true)
+  if (( ${#pkgs[@]} == 0 )); then
+    log "No Mocha Pro packages found."
+    return 0
+  fi
+  log "Removing: ${pkgs[*]}"
+  dnf -y remove "${pkgs[@]}"
+  log "Mocha Pro removed."
+}
+
+# -------------------------------------------------
+# SynthEyes (guided tarball; runs the vendor's own install.sh)
+# -------------------------------------------------
+install_syntheyes() {
+  local archive="${1:-}"
+  local tmp_dir
+
+  [[ -n "${archive}" ]] || { echo "ERROR: missing archive path" >&2; exit 2; }
+  [[ -f "${archive}" ]] || { echo "ERROR: archive not found: ${archive}" >&2; exit 2; }
+
+  log "Ensuring tar is available..."
+  command -v tar >/dev/null 2>&1 || dnf -y install tar
+
+  tmp_dir="$(mktemp -d /tmp/syntheyes-XXXXXX)"
+  # shellcheck disable=SC2064
+  trap "rm -rf '${tmp_dir}'" EXIT
+
+  log "Extracting SynthEyes archive..."
+  tar xf "${archive}" -C "${tmp_dir}"
+
+  local extracted_dir
+  extracted_dir="$(find "${tmp_dir}" -maxdepth 1 -mindepth 1 -type d | head -1)"
+  [[ -n "${extracted_dir}" ]] || { echo "ERROR: nothing extracted from archive" >&2; exit 2; }
+  [[ -f "${extracted_dir}/install.sh" ]] || { echo "ERROR: install.sh not found in extracted archive" >&2; exit 2; }
+  chmod +x "${extracted_dir}/install.sh"
+
+  # install.sh installs system-wide to /opt/BorisFX/SynthEyesYYYY and
+  # registers its own menu entries/icons.
+  log "Running SynthEyes' own installer (installs to /opt/BorisFX)..."
+  (cd "${extracted_dir}" && ./install.sh)
+
+  log "SynthEyes installation complete."
+}
+
+remove_syntheyes() {
+  log "Looking for an installed SynthEyes directory..."
+  local install_dir
+  install_dir="$(find /opt/BorisFX -maxdepth 1 -mindepth 1 -type d -iname 'SynthEyes*' 2>/dev/null | head -1)"
+  if [[ -z "${install_dir}" ]]; then
+    log "No SynthEyes installation found under /opt/BorisFX."
+    return 0
+  fi
+
+  if [[ -f "${install_dir}/install.sh" ]]; then
+    log "Running SynthEyes' own uninstaller..."
+    (cd "${install_dir}" && ./install.sh uninstall) || true
+  fi
+
+  if [[ -d "${install_dir}" ]]; then
+    rm -rf "${install_dir}"
+    log "Removed ${install_dir}."
+  fi
+
+  log "SynthEyes removed. User preferences in ~/.config/BorisFX/SynthEyes were left in place."
+}
+
+# -------------------------------------------------
+# Silhouette (guided tarball; runs the vendor's own install_silhouette.sh)
+# -------------------------------------------------
+install_silhouette() {
+  local tarball="${1:-}"
+  local install_dir="/opt/silhouette"
+  local tmp_dir
+
+  [[ -n "${tarball}" ]] || { echo "ERROR: missing tarball path" >&2; exit 2; }
+  [[ -f "${tarball}" ]] || { echo "ERROR: tarball not found: ${tarball}" >&2; exit 2; }
+
+  log "Ensuring tar is available..."
+  command -v tar >/dev/null 2>&1 || dnf -y install tar
+
+  local user home
+  user="$(require_invoking_user)"
+  home="$(require_invoking_user_home)"
+
+  tmp_dir="$(mktemp -d /tmp/silhouette-XXXXXX)"
+  # shellcheck disable=SC2064
+  trap "rm -rf '${tmp_dir}'" EXIT
+
+  log "Extracting Silhouette tarball..."
+  tar xzf "${tarball}" -C "${tmp_dir}"
+
+  local extracted_dir
+  extracted_dir="$(find "${tmp_dir}" -maxdepth 1 -mindepth 1 -type d | head -1)"
+  [[ -n "${extracted_dir}" ]] || { echo "ERROR: nothing extracted from tarball" >&2; exit 2; }
+  [[ -f "${extracted_dir}/install_silhouette.sh" ]] || { echo "ERROR: install_silhouette.sh not found in extracted tarball" >&2; exit 2; }
+  chmod +x "${extracted_dir}/install_silhouette.sh"
+
+  log "Running Silhouette's own unpack script..."
+  (cd "${extracted_dir}" && ./install_silhouette.sh)
+
+  # install_silhouette.sh unpacks into a nested Silhouette-20XX folder
+  # alongside itself; relocate that payload to a stable, version-agnostic path.
+  local payload_dir
+  payload_dir="$(find "${extracted_dir}" -maxdepth 1 -mindepth 1 -type d -iname 'Silhouette-*' | head -1)"
+  [[ -n "${payload_dir}" ]] || { echo "ERROR: Silhouette payload directory not found after unpack" >&2; exit 1; }
+  [[ -f "${payload_dir}/silhouette" ]] || { echo "ERROR: silhouette executable not found in ${payload_dir}" >&2; exit 1; }
+
+  log "Installing to ${install_dir}..."
+  rm -rf "${install_dir}"
+  mv "${payload_dir}" "${install_dir}"
+  chown -R "${user}:${user}" "${install_dir}"
+  chmod +x "${install_dir}/silhouette"
+
+  # Wrapper so Silhouette can find its own lib/resource directories
+  local wrapper="/opt/silhouette.sh"
+  printf '#!/bin/bash\ncd "%s" && ./silhouette "$@"\n' "${install_dir}" > "${wrapper}"
+  chmod +x "${wrapper}"
+
+  # Symlink in /usr/bin
+  [[ -L /usr/bin/silhouette ]] && unlink /usr/bin/silhouette || true
+  ln -sf "${wrapper}" /usr/bin/silhouette
+  log "Created /usr/bin/silhouette"
+
+  # Desktop entry
+  local desktop_dir="${home}/.local/share/applications"
+  mkdir -p "${desktop_dir}"
+  chown "${user}:${user}" "${desktop_dir}"
+  cat > "${desktop_dir}/Silhouette.desktop" <<EOF
+[Desktop Entry]
+Name=Silhouette
+Comment=Rotoscoping, paint, and compositing software
+Exec=${wrapper}
+Type=Application
+Terminal=false
+Categories=Graphics;2DGraphics;
+StartupWMClass=silhouette
+EOF
+  chown "${user}:${user}" "${desktop_dir}/Silhouette.desktop"
+
+  log "Silhouette installation complete."
+}
+
+remove_silhouette() {
+  local user home
+  user="$(require_invoking_user)"
+  home="$(require_invoking_user_home)"
+
+  log "Removing Silhouette..."
+
+  if [[ -L /usr/bin/silhouette ]]; then
+    unlink /usr/bin/silhouette
+    log "Removed /usr/bin/silhouette symlink."
+  fi
+
+  rm -f /opt/silhouette.sh
+
+  if [[ -d /opt/silhouette ]]; then
+    rm -rf /opt/silhouette
+    log "Removed /opt/silhouette."
+  fi
+
+  local desktop="${home}/.local/share/applications/Silhouette.desktop"
+  if [[ -f "${desktop}" ]]; then
+    rm -f "${desktop}"
+    log "Removed desktop entry."
+  fi
+
+  log "Silhouette removed."
+}
+
+# -------------------------------------------------
+# F3D (guided tarball install)
+# -------------------------------------------------
+install_f3d() {
+  local tarball="${1:-}"
+  local install_dir="/opt/f3d"
+  local tmp_dir
+
+  [[ -n "${tarball}" ]] || { echo "ERROR: missing tarball path" >&2; exit 2; }
+  [[ -f "${tarball}" ]] || { echo "ERROR: tarball not found: ${tarball}" >&2; exit 2; }
+
+  log "Ensuring tar is available..."
+  command -v tar >/dev/null 2>&1 || dnf -y install tar
+
+  local user home
+  user="$(require_invoking_user)"
+  home="$(require_invoking_user_home)"
+
+  tmp_dir="$(mktemp -d /tmp/f3d-XXXXXX)"
+  # shellcheck disable=SC2064
+  trap "rm -rf '${tmp_dir}'" EXIT
+
+  log "Extracting F3D tarball..."
+  tar xf "${tarball}" -C "${tmp_dir}"
+
+  local extracted_dir
+  extracted_dir="$(find "${tmp_dir}" -maxdepth 1 -mindepth 1 -type d | head -1)"
+  [[ -n "${extracted_dir}" ]] || { echo "ERROR: nothing extracted from tarball" >&2; exit 2; }
+
+  log "Installing to ${install_dir}..."
+  rm -rf "${install_dir}"
+  mv "${extracted_dir}" "${install_dir}"
+  chown -R "${user}:${user}" "${install_dir}"
+
+  [[ -f "${install_dir}/bin/f3d" ]] || { echo "ERROR: f3d executable not found in ${install_dir}/bin" >&2; exit 1; }
+  chmod +x "${install_dir}/bin/f3d"
+
+  local wrapper="/opt/f3d.sh"
+  printf '#!/bin/bash\ncd "%s" && ./bin/f3d "$@"\n' "${install_dir}" > "${wrapper}"
+  chmod +x "${wrapper}"
+
+  [[ -L /usr/bin/f3d ]] && unlink /usr/bin/f3d || true
+  ln -sf "${wrapper}" /usr/bin/f3d
+  log "Created /usr/bin/f3d"
+
+  # F3D ships its own icon set; reference it directly (resolve-style) rather
+  # than installing into the system icon theme.
+  local icon_path="${install_dir}/share/icons/hicolor/256x256/apps/f3d.png"
+  [[ -f "${icon_path}" ]] || icon_path=""
+
+  local desktop_dir="${home}/.local/share/applications"
+  mkdir -p "${desktop_dir}"
+  chown "${user}:${user}" "${desktop_dir}"
+  {
+    echo "[Desktop Entry]"
+    echo "Name=F3D"
+    echo "Comment=A fast and minimalist 3D viewer"
+    echo "Exec=${wrapper} %F"
+    [[ -n "${icon_path}" ]] && echo "Icon=${icon_path}"
+    echo "Type=Application"
+    echo "Terminal=false"
+    echo "Categories=Graphics;3DGraphics;Viewer;"
+  } > "${desktop_dir}/F3D.desktop"
+  chown "${user}:${user}" "${desktop_dir}/F3D.desktop"
+
+  log "F3D installation complete."
+}
+
+remove_f3d() {
+  local user home
+  user="$(require_invoking_user)"
+  home="$(require_invoking_user_home)"
+
+  log "Removing F3D..."
+
+  if [[ -L /usr/bin/f3d ]]; then
+    unlink /usr/bin/f3d
+    log "Removed /usr/bin/f3d symlink."
+  fi
+
+  rm -f /opt/f3d.sh
+
+  if [[ -d /opt/f3d ]]; then
+    rm -rf /opt/f3d
+    log "Removed /opt/f3d."
+  fi
+
+  local desktop="${home}/.local/share/applications/F3D.desktop"
+  if [[ -f "${desktop}" ]]; then
+    rm -f "${desktop}"
+    log "Removed desktop entry."
+  fi
+
+  log "F3D removed."
+}
+
+# -------------------------------------------------
+# DJV (guided tarball install)
+# -------------------------------------------------
+install_djv() {
+  local tarball="${1:-}"
+  local install_dir="/opt/djv"
+  local tmp_dir
+
+  [[ -n "${tarball}" ]] || { echo "ERROR: missing tarball path" >&2; exit 2; }
+  [[ -f "${tarball}" ]] || { echo "ERROR: tarball not found: ${tarball}" >&2; exit 2; }
+
+  log "Ensuring tar is available..."
+  command -v tar >/dev/null 2>&1 || dnf -y install tar
+
+  local user home
+  user="$(require_invoking_user)"
+  home="$(require_invoking_user_home)"
+
+  tmp_dir="$(mktemp -d /tmp/djv-XXXXXX)"
+  # shellcheck disable=SC2064
+  trap "rm -rf '${tmp_dir}'" EXIT
+
+  log "Extracting DJV tarball..."
+  tar xf "${tarball}" -C "${tmp_dir}"
+
+  local extracted_dir
+  extracted_dir="$(find "${tmp_dir}" -maxdepth 1 -mindepth 1 -type d | head -1)"
+  [[ -n "${extracted_dir}" ]] || { echo "ERROR: nothing extracted from tarball" >&2; exit 2; }
+
+  log "Installing to ${install_dir}..."
+  rm -rf "${install_dir}"
+  mv "${extracted_dir}" "${install_dir}"
+  chown -R "${user}:${user}" "${install_dir}"
+
+  [[ -f "${install_dir}/bin/djv" ]] || { echo "ERROR: djv executable not found in ${install_dir}/bin" >&2; exit 1; }
+  chmod +x "${install_dir}/bin/djv"
+
+  local wrapper="/opt/djv.sh"
+  printf '#!/bin/bash\ncd "%s" && ./bin/djv "$@"\n' "${install_dir}" > "${wrapper}"
+  chmod +x "${wrapper}"
+
+  [[ -L /usr/bin/djv ]] && unlink /usr/bin/djv || true
+  ln -sf "${wrapper}" /usr/bin/djv
+  log "Created /usr/bin/djv"
+
+  # DJV ships its own icon set; reference it directly (resolve-style) rather
+  # than installing into the system icon theme.
+  local icon_path="${install_dir}/share/icons/hicolor/128x128/apps/djv.png"
+  [[ -f "${icon_path}" ]] || icon_path=""
+
+  local desktop_dir="${home}/.local/share/applications"
+  mkdir -p "${desktop_dir}"
+  chown "${user}:${user}" "${desktop_dir}"
+  {
+    echo "[Desktop Entry]"
+    echo "Name=DJV"
+    echo "Comment=Media playback and review software"
+    echo "Exec=${wrapper} %F"
+    [[ -n "${icon_path}" ]] && echo "Icon=${icon_path}"
+    echo "Type=Application"
+    echo "Terminal=false"
+    echo "Categories=Graphics;AudioVideo;Viewer;"
+  } > "${desktop_dir}/DJV.desktop"
+  chown "${user}:${user}" "${desktop_dir}/DJV.desktop"
+
+  log "DJV installation complete."
+}
+
+remove_djv() {
+  local user home
+  user="$(require_invoking_user)"
+  home="$(require_invoking_user_home)"
+
+  log "Removing DJV..."
+
+  if [[ -L /usr/bin/djv ]]; then
+    unlink /usr/bin/djv
+    log "Removed /usr/bin/djv symlink."
+  fi
+
+  rm -f /opt/djv.sh
+
+  if [[ -d /opt/djv ]]; then
+    rm -rf /opt/djv
+    log "Removed /opt/djv."
+  fi
+
+  local desktop="${home}/.local/share/applications/DJV.desktop"
+  if [[ -f "${desktop}" ]]; then
+    rm -f "${desktop}"
+    log "Removed desktop entry."
+  fi
+
+  log "DJV removed."
+}
+
+# -------------------------------------------------
+# RizomUV Virtual Spaces (guided standalone AppImage)
+# -------------------------------------------------
+install_rizomuv() {
+  local appimage="${1:-}"
+  local install_dir="/opt/rizomuv"
+
+  [[ -n "${appimage}" ]] || { echo "ERROR: missing AppImage path" >&2; exit 2; }
+  [[ -f "${appimage}" ]] || { echo "ERROR: AppImage not found: ${appimage}" >&2; exit 2; }
+
+  local user home
+  user="$(require_invoking_user)"
+  home="$(require_invoking_user_home)"
+
+  # AppImages mount themselves via FUSE at launch, regardless of whether
+  # AppImageLauncher is involved.
+  log "Ensuring FUSE runtime is present..."
+  dnf -y install fuse fuse-libs || dnf -y install fuse-libs || dnf -y install fuse || true
+
+  log "Installing to ${install_dir}..."
+  mkdir -p "${install_dir}"
+  cp "${appimage}" "${install_dir}/RizomUV.AppImage"
+  chown -R "${user}:${user}" "${install_dir}"
+  chmod +x "${install_dir}/RizomUV.AppImage"
+
+  [[ -L /usr/bin/rizomuv ]] && unlink /usr/bin/rizomuv || true
+  ln -sf "${install_dir}/RizomUV.AppImage" /usr/bin/rizomuv
+  log "Created /usr/bin/rizomuv"
+
+  local desktop_dir="${home}/.local/share/applications"
+  mkdir -p "${desktop_dir}"
+  chown "${user}:${user}" "${desktop_dir}"
+  cat > "${desktop_dir}/RizomUV.desktop" <<EOF
+[Desktop Entry]
+Name=RizomUV Virtual Spaces
+Comment=UV unwrapping software
+Exec=${install_dir}/RizomUV.AppImage
+Type=Application
+Terminal=false
+Categories=Graphics;3DGraphics;
+EOF
+  chown "${user}:${user}" "${desktop_dir}/RizomUV.desktop"
+
+  log "RizomUV installation complete."
+}
+
+remove_rizomuv() {
+  local user home
+  user="$(require_invoking_user)"
+  home="$(require_invoking_user_home)"
+
+  log "Removing RizomUV..."
+
+  if [[ -L /usr/bin/rizomuv ]]; then
+    unlink /usr/bin/rizomuv
+    log "Removed /usr/bin/rizomuv symlink."
+  fi
+
+  if [[ -d /opt/rizomuv ]]; then
+    rm -rf /opt/rizomuv
+    log "Removed /opt/rizomuv."
+  fi
+
+  local desktop="${home}/.local/share/applications/RizomUV.desktop"
+  if [[ -f "${desktop}" ]]; then
+    rm -f "${desktop}"
+    log "Removed desktop entry."
+  fi
+
+  log "RizomUV removed."
+}
+
+# -------------------------------------------------
+# Shared helper: locate a main executable in an extracted vendor archive
+# whose internal layout isn't documented upstream. Used by HDR Light Studio
+# and 3DEqualizer below, whose current Linux package contents could not be
+# verified ahead of time (no public sample download / login-walled).
+# -------------------------------------------------
+_find_main_executable() {
+  local dir="$1"
+  local name_hint="${2:-}"
+  local candidate
+
+  if [[ -n "${name_hint}" ]]; then
+    candidate="$(find "${dir}" -maxdepth 3 -type f -iname "${name_hint}" -perm -u+x -print -quit 2>/dev/null)"
+    if [[ -n "${candidate}" ]]; then echo "${candidate}"; return 0; fi
+    candidate="$(find "${dir}" -maxdepth 3 -type f -iname "${name_hint}*" -perm -u+x -print -quit 2>/dev/null)"
+    if [[ -n "${candidate}" ]]; then echo "${candidate}"; return 0; fi
+  fi
+
+  while IFS= read -r f; do
+    case "$(basename "${f}")" in
+      install*|setup*|uninstall*|*.sh|*.py) continue ;;
+    esac
+    if file "${f}" 2>/dev/null | grep -q 'ELF.*executable'; then
+      echo "${f}"
+      return 0
+    fi
+  done < <(find "${dir}" -maxdepth 3 -type f -perm -u+x 2>/dev/null)
+
+  return 1
+}
+
+# -------------------------------------------------
+# HDR Light Studio (guided tarball install; executable auto-detected)
+# -------------------------------------------------
+# Upstream's own Linux install guide is stale (dated example filename, tells
+# users to unpack into /usr/bin) and doesn't name the executable, so the
+# layout here is handled generically via _find_main_executable instead of
+# a hardcoded path.
+install_hdrlightstudio() {
+  local tarball="${1:-}"
+  local install_dir="/opt/hdrlightstudio"
+  local tmp_dir
+
+  [[ -n "${tarball}" ]] || { echo "ERROR: missing tarball path" >&2; exit 2; }
+  [[ -f "${tarball}" ]] || { echo "ERROR: tarball not found: ${tarball}" >&2; exit 2; }
+
+  log "Ensuring tar is available..."
+  command -v tar >/dev/null 2>&1 || dnf -y install tar
+
+  local user home
+  user="$(require_invoking_user)"
+  home="$(require_invoking_user_home)"
+
+  tmp_dir="$(mktemp -d /tmp/hdrlightstudio-XXXXXX)"
+  # shellcheck disable=SC2064
+  trap "rm -rf '${tmp_dir}'" EXIT
+
+  log "Extracting HDR Light Studio tarball..."
+  tar xf "${tarball}" -C "${tmp_dir}"
+
+  log "Installing to ${install_dir}..."
+  rm -rf "${install_dir}"
+  # Some vendor archives wrap everything in a single top-level folder;
+  # others don't. Either case lands as install_dir, dotfiles included.
+  local top_entries
+  mapfile -t top_entries < <(find "${tmp_dir}" -maxdepth 1 -mindepth 1)
+  if (( ${#top_entries[@]} == 1 )) && [[ -d "${top_entries[0]}" ]]; then
+    mv "${top_entries[0]}" "${install_dir}"
+  else
+    mv "${tmp_dir}" "${install_dir}"
+  fi
+  chown -R "${user}:${user}" "${install_dir}"
+
+  log "Looking for the main executable (layout isn't documented upstream)..."
+  local exe
+  exe="$(_find_main_executable "${install_dir}" "hdrlightstudio")" || {
+    echo "ERROR: could not auto-detect the HDR Light Studio executable." >&2
+    echo "Files were extracted to ${install_dir} - locate and run the binary manually." >&2
+    exit 1
+  }
+  chmod +x "${exe}"
+  log "Found executable: ${exe}"
+
+  local wrapper="/opt/hdrlightstudio.sh"
+  printf '#!/bin/bash\ncd "%s" && exec "%s" "$@"\n' "$(dirname "${exe}")" "${exe}" > "${wrapper}"
+  chmod +x "${wrapper}"
+
+  [[ -L /usr/bin/hdrlightstudio ]] && unlink /usr/bin/hdrlightstudio || true
+  ln -sf "${wrapper}" /usr/bin/hdrlightstudio
+  log "Created /usr/bin/hdrlightstudio"
+
+  local desktop_dir="${home}/.local/share/applications"
+  mkdir -p "${desktop_dir}"
+  chown "${user}:${user}" "${desktop_dir}"
+  cat > "${desktop_dir}/HDRLightStudio.desktop" <<EOF
+[Desktop Entry]
+Name=HDR Light Studio
+Comment=HDR lighting creation and editing software
+Exec=${wrapper}
+Type=Application
+Terminal=false
+Categories=Graphics;3DGraphics;
+EOF
+  chown "${user}:${user}" "${desktop_dir}/HDRLightStudio.desktop"
+
+  log "HDR Light Studio installation complete."
+}
+
+remove_hdrlightstudio() {
+  local user home
+  user="$(require_invoking_user)"
+  home="$(require_invoking_user_home)"
+
+  log "Removing HDR Light Studio..."
+
+  if [[ -L /usr/bin/hdrlightstudio ]]; then
+    unlink /usr/bin/hdrlightstudio
+    log "Removed /usr/bin/hdrlightstudio symlink."
+  fi
+
+  rm -f /opt/hdrlightstudio.sh
+
+  if [[ -d /opt/hdrlightstudio ]]; then
+    rm -rf /opt/hdrlightstudio
+    log "Removed /opt/hdrlightstudio."
+  fi
+
+  local desktop="${home}/.local/share/applications/HDRLightStudio.desktop"
+  if [[ -f "${desktop}" ]]; then
+    rm -f "${desktop}"
+    log "Removed desktop entry."
+  fi
+
+  log "HDR Light Studio removed."
+}
+
+# -------------------------------------------------
+# 3DEqualizer (guided tarball install; executable auto-detected)
+# -------------------------------------------------
+# 3dequalizer.com's downloads page requires accepting terms and doesn't name
+# a filename/layout, so the executable is located generically via
+# _find_main_executable. "3de4" is the product's documented short name
+# (TDE4_ROOT, PYTHON_CUSTOM_SCRIPTS_3DE4 env vars) and is tried first.
+install_3dequalizer() {
+  local tarball="${1:-}"
+  local install_dir="/opt/3dequalizer"
+  local tmp_dir
+
+  [[ -n "${tarball}" ]] || { echo "ERROR: missing tarball path" >&2; exit 2; }
+  [[ -f "${tarball}" ]] || { echo "ERROR: tarball not found: ${tarball}" >&2; exit 2; }
+
+  log "Ensuring tar is available..."
+  command -v tar >/dev/null 2>&1 || dnf -y install tar
+
+  local user home
+  user="$(require_invoking_user)"
+  home="$(require_invoking_user_home)"
+
+  tmp_dir="$(mktemp -d /tmp/3dequalizer-XXXXXX)"
+  # shellcheck disable=SC2064
+  trap "rm -rf '${tmp_dir}'" EXIT
+
+  log "Extracting 3DEqualizer tarball..."
+  tar xf "${tarball}" -C "${tmp_dir}"
+
+  log "Installing to ${install_dir}..."
+  rm -rf "${install_dir}"
+  # Some vendor archives wrap everything in a single top-level folder;
+  # others don't. Either case lands as install_dir, dotfiles included.
+  local top_entries
+  mapfile -t top_entries < <(find "${tmp_dir}" -maxdepth 1 -mindepth 1)
+  if (( ${#top_entries[@]} == 1 )) && [[ -d "${top_entries[0]}" ]]; then
+    mv "${top_entries[0]}" "${install_dir}"
+  else
+    mv "${tmp_dir}" "${install_dir}"
+  fi
+  chown -R "${user}:${user}" "${install_dir}"
+
+  log "Looking for the main executable (layout isn't documented upstream)..."
+  local exe
+  exe="$(_find_main_executable "${install_dir}" "3de4")" || \
+  exe="$(_find_main_executable "${install_dir}" "3dequalizer")" || {
+    echo "ERROR: could not auto-detect the 3DEqualizer executable." >&2
+    echo "Files were extracted to ${install_dir} - locate and run the binary manually." >&2
+    exit 1
+  }
+  chmod +x "${exe}"
+  log "Found executable: ${exe}"
+
+  local wrapper="/opt/3dequalizer.sh"
+  printf '#!/bin/bash\ncd "%s" && exec "%s" "$@"\n' "$(dirname "${exe}")" "${exe}" > "${wrapper}"
+  chmod +x "${wrapper}"
+
+  [[ -L /usr/bin/3dequalizer ]] && unlink /usr/bin/3dequalizer || true
+  ln -sf "${wrapper}" /usr/bin/3dequalizer
+  log "Created /usr/bin/3dequalizer"
+
+  local desktop_dir="${home}/.local/share/applications"
+  mkdir -p "${desktop_dir}"
+  chown "${user}:${user}" "${desktop_dir}"
+  cat > "${desktop_dir}/3DEqualizer.desktop" <<EOF
+[Desktop Entry]
+Name=3DEqualizer
+Comment=Camera tracking and 3D matchmove software
+Exec=${wrapper}
+Type=Application
+Terminal=false
+Categories=Graphics;3DGraphics;
+EOF
+  chown "${user}:${user}" "${desktop_dir}/3DEqualizer.desktop"
+
+  log "3DEqualizer installation complete."
+}
+
+remove_3dequalizer() {
+  local user home
+  user="$(require_invoking_user)"
+  home="$(require_invoking_user_home)"
+
+  log "Removing 3DEqualizer..."
+
+  if [[ -L /usr/bin/3dequalizer ]]; then
+    unlink /usr/bin/3dequalizer
+    log "Removed /usr/bin/3dequalizer symlink."
+  fi
+
+  rm -f /opt/3dequalizer.sh
+
+  if [[ -d /opt/3dequalizer ]]; then
+    rm -rf /opt/3dequalizer
+    log "Removed /opt/3dequalizer."
+  fi
+
+  local desktop="${home}/.local/share/applications/3DEqualizer.desktop"
+  if [[ -f "${desktop}" ]]; then
+    rm -f "${desktop}"
+    log "Removed desktop entry."
+  fi
+
+  log "3DEqualizer removed."
+}
+
+# -------------------------------------------------
 # GNOME UI Extensions & Tweaks (Windows-style taskbar look)
 # -------------------------------------------------
 install_gnome_ui() {
@@ -1191,6 +1986,17 @@ remove_3dcoat() {
 
   log "Removing 3DCoat..."
 
+  if command -v flatpak >/dev/null 2>&1; then
+    if flatpak info --system com.pilgway.coat >/dev/null 2>&1; then
+      flatpak uninstall -y --system com.pilgway.coat || true
+      log "Removed 3DCoat Flatpak (system)."
+    fi
+    if run_flatpak_user info com.pilgway.coat >/dev/null 2>&1; then
+      run_flatpak_user uninstall -y com.pilgway.coat || true
+      log "Removed 3DCoat Flatpak (user)."
+    fi
+  fi
+
   if [[ -L /usr/bin/3dcoat ]]; then
     unlink /usr/bin/3dcoat
     log "Removed /usr/bin/3dcoat symlink."
@@ -1262,6 +2068,41 @@ remove_o3de() {
   log "Disabling COPR ${O3DE_COPR}..."
   dnf -y copr remove "${O3DE_COPR}" || true
   log "Open 3D Engine removed."
+}
+
+# -------------------------------------------------
+# ArtCraft Launcher (signed third-party dnf repo)
+# -------------------------------------------------
+# Third-party software (Storyteller AI / Learning Machines LLC). This project
+# does not develop, maintain, or endorse ArtCraft; it only automates adding
+# their signed repo and installing the package (see getartcraft.com/linux).
+ARTCRAFT_REPO_FILE="/etc/yum.repos.d/artcraft.repo"
+
+install_artcraft_launcher() {
+  log "Importing ArtCraft repository signing key..."
+  rpm --import https://getartcraft.com/keys/artcraft.asc
+
+  log "Adding ArtCraft repository..."
+  cat > "${ARTCRAFT_REPO_FILE}" <<'EOF'
+[artcraft]
+name=ArtCraft Linux Packages
+baseurl=https://getartcraft.com/rpm
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=https://getartcraft.com/keys/artcraft.asc
+EOF
+
+  log "Installing ArtCraft Launcher..."
+  dnf -y install artcraft-launcher
+  log "ArtCraft Launcher installed."
+}
+
+remove_artcraft_launcher() {
+  log "Removing ArtCraft Launcher..."
+  dnf -y remove artcraft-launcher || true
+  rm -f "${ARTCRAFT_REPO_FILE}"
+  log "ArtCraft Launcher removed and repository disabled."
 }
 
 # -------------------------------------------------
@@ -1569,6 +2410,7 @@ case "${action}" in
 
   # 3DCoat
   install_3dcoat)        install_3dcoat "${2:-}";;
+  install_3dcoat_flatpak) install_3dcoat_flatpak "${2:-}";;
   remove_3dcoat)         remove_3dcoat;;
 
   # InstaMaterial
@@ -1583,9 +2425,48 @@ case "${action}" in
   install_gaffer)        install_gaffer "${2:-}";;
   remove_gaffer)         remove_gaffer;;
 
+  # Meshroom
+  install_meshroom)      install_meshroom "${2:-}";;
+  remove_meshroom)       remove_meshroom;;
+
+  # Mocha Pro
+  remove_mochapro)       remove_mochapro;;
+
+  # SynthEyes
+  install_syntheyes)     install_syntheyes "${2:-}";;
+  remove_syntheyes)      remove_syntheyes;;
+
+  # Silhouette
+  install_silhouette)    install_silhouette "${2:-}";;
+  remove_silhouette)     remove_silhouette;;
+
+  # F3D
+  install_f3d)           install_f3d "${2:-}";;
+  remove_f3d)            remove_f3d;;
+
+  # DJV
+  install_djv)           install_djv "${2:-}";;
+  remove_djv)            remove_djv;;
+
+  # RizomUV Virtual Spaces
+  install_rizomuv)       install_rizomuv "${2:-}";;
+  remove_rizomuv)        remove_rizomuv;;
+
+  # HDR Light Studio
+  install_hdrlightstudio) install_hdrlightstudio "${2:-}";;
+  remove_hdrlightstudio)  remove_hdrlightstudio;;
+
+  # 3DEqualizer
+  install_3dequalizer)   install_3dequalizer "${2:-}";;
+  remove_3dequalizer)    remove_3dequalizer;;
+
   # Open 3D Engine
   install_o3de)          install_o3de;;
   remove_o3de)           remove_o3de;;
+
+  # ArtCraft Launcher
+  install_artcraft_launcher) install_artcraft_launcher;;
+  remove_artcraft_launcher)  remove_artcraft_launcher;;
 
   # Unreal Engine
   install_unreal)        install_unreal "${2:-}";;
@@ -1639,7 +2520,8 @@ Local installers:
   install_local_file <path_to_.rpm_or_.run>
 
 3DCoat:
-  install_3dcoat <path_to_tarball>
+  install_3dcoat <path_to_tarball>              (pre-2026 versions)
+  install_3dcoat_flatpak <path_to_.flatpak>      (2026 and newer)
   remove_3dcoat
 
 InstaMaterial:
@@ -1654,9 +2536,48 @@ Gaffer:
   install_gaffer <path_to_tarball>
   remove_gaffer
 
+Meshroom:
+  install_meshroom <path_to_tarball>
+  remove_meshroom
+
+Mocha Pro (install via install_local_file <path_to_.rpm>):
+  remove_mochapro
+
+SynthEyes:
+  install_syntheyes <path_to_archive>
+  remove_syntheyes
+
+Silhouette:
+  install_silhouette <path_to_tarball>
+  remove_silhouette
+
+F3D:
+  install_f3d <path_to_tarball>
+  remove_f3d
+
+DJV:
+  install_djv <path_to_tarball>
+  remove_djv
+
+RizomUV Virtual Spaces:
+  install_rizomuv <path_to_appimage>
+  remove_rizomuv
+
+HDR Light Studio:
+  install_hdrlightstudio <path_to_tarball>
+  remove_hdrlightstudio
+
+3DEqualizer:
+  install_3dequalizer <path_to_tarball>
+  remove_3dequalizer
+
 Open 3D Engine:
   install_o3de
   remove_o3de
+
+ArtCraft Launcher (third-party, unendorsed; see getartcraft.com/linux):
+  install_artcraft_launcher
+  remove_artcraft_launcher
 
 Unreal Engine:
   install_unreal <zip>

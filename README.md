@@ -46,6 +46,7 @@ https://chat.almalinux.org/almalinux/channels/sig-media-entertainment
 - [🧩 Supported Platforms](#-supported-platforms)
 - [🎬 Target Applications](#-target-applications)
 - [🎞️ DaVinci Resolve Guided Flow](#-davinci-resolve-guided-install-flow)
+- [🧊 3DCoat Guided Flow](#-3dcoat-guided-flow)
 - [🔐 Privilege & Security Model](#-privilege--security-model)
 - [🧹 Uninstalling](#-uninstalling-the-application)
 - [❓ FAQ](#-faq)
@@ -148,7 +149,7 @@ The **System Requirements** panel lets you enable the following repositories wit
 
 Each repository row also has a **Remove** button once enabled, for undoing an
 enable. Removing uninstalls the release package (e.g. `epel-release`) or, for
-CRB/PowerTools, disables the repo — it does **not** uninstall packages you've
+CRB/PowerTools, disables the repo. It does **not** uninstall packages you've
 already installed from it, but those packages will stop receiving updates
 until the repo is re-enabled.
 
@@ -175,7 +176,7 @@ If you want to use an AppImage application, this is the easiest way:
 6. If prompted, choose **Execute**.
 7. AppImageLauncher will guide you through the rest.
 
-That’s it — after this, launching AppImages is much simpler for beginners.
+That’s it. After this, launching AppImages is much simpler for beginners.
 
 ---
 
@@ -210,6 +211,17 @@ Not every app is available on both EL versions. The installer shows a small **EL
 | Open 3D Engine    | ✅  | ✅   | Via COPR (hellaenergy/o3de) |
 | Unreal Engine 5.8 | ✅  | ✅   | Guided vendor install (Epic account) |
 | Unigine           | ✅  | ✅   | Guided vendor install (.run) |
+| SculptForge       | ✅  | ✅   | Direct RPM install (vendor's stable GitHub release URL) ([#102](https://github.com/KernelChief/almalinux-creative-installer/issues/102)) |
+| ArtCraft Launcher | ✅  | ✅   | Via signed vendor dnf repo (third-party, not endorsed by this project) ([#101](https://github.com/KernelChief/almalinux-creative-installer/issues/101)) |
+| Meshroom          | ✅  | ✅   | Guided portable tarball install (~14 GB download) ([#100](https://github.com/KernelChief/almalinux-creative-installer/issues/100)) |
+| Mocha Pro         | ✅  | ❌   | Guided vendor install (local RPM, login required) ([#97](https://github.com/KernelChief/almalinux-creative-installer/issues/97)) |
+| SynthEyes         | ✅  | ✅   | Guided vendor install (tarball + install.sh, login required) ([#98](https://github.com/KernelChief/almalinux-creative-installer/issues/98)) |
+| Silhouette        | ✅  | ❌   | Guided vendor install (tarball + install_silhouette.sh, login required) ([#96](https://github.com/KernelChief/almalinux-creative-installer/issues/96)) |
+| F3D               | ✅  | ✅   | Guided portable tarball install (GitHub releases) ([#91](https://github.com/KernelChief/almalinux-creative-installer/issues/91)) |
+| DJV               | ✅  | ✅   | Guided portable tarball install (GitHub releases) ([#92](https://github.com/KernelChief/almalinux-creative-installer/issues/92)) |
+| RizomUV Virtual Spaces | ✅ | ✅ | Guided standalone AppImage install ([#85](https://github.com/KernelChief/almalinux-creative-installer/issues/85)) |
+| HDR Light Studio  | ✅  | ✅   | Guided vendor install (tarball, executable auto-detected) ([#93](https://github.com/KernelChief/almalinux-creative-installer/issues/93)) |
+| 3DEqualizer       | ✅  | ✅   | Guided vendor install (tarball, login required, executable auto-detected) ([#88](https://github.com/KernelChief/almalinux-creative-installer/issues/88)) |
 
 > This table reflects current EPEL availability and will be updated as packages land in EL10.
 
@@ -221,7 +233,7 @@ This project focuses on real-world creative tools commonly used in studios,
 post-production, and content creation environments:
 
 - **Image Processing**
-  - GIMP *(EL9 only — not yet in EPEL 10)*
+  - GIMP *(EL9 only: not yet in EPEL 10)*
   - Krita
   - Inkscape
   - darktable
@@ -232,16 +244,21 @@ post-production, and content creation environments:
   - OpenColorIO
 
 - **3D**
-  - Blender *(EL9 only — EPEL 10 build currently broken upstream)*
+  - Blender *(EL9 only: EPEL 10 build currently broken upstream)*
   - MeshLab
   - PrusaSlicer
   - Material Maker
   - FreeCAD
   - 3DCoat
   - InstaMaterial *(guided vendor install)*
+  - SculptForge *(direct RPM install from the vendor's stable GitHub release URL)*
+  - Meshroom *(photogrammetry; guided portable tarball install, ~14 GB download)*
+  - F3D *(guided portable tarball install from GitHub releases)*
+  - RizomUV Virtual Spaces *(guided standalone AppImage install)*
+  - HDR Light Studio *(guided vendor install, tarball, executable auto-detected)*
 
 - **Animation & Video**
-  - Kdenlive *(EL9 only — not yet in EPEL 10)*
+  - Kdenlive *(EL9 only: not yet in EPEL 10)*
   - OpenToonz
   - VLC
   - OBS Studio
@@ -249,9 +266,16 @@ post-production, and content creation environments:
   - Shotcut
   - DaVinci Resolve
   - PopcornFX Editor
-  - JangaFX Elemental Suite *(guided portable binary install — EmberGen, GeoGen, IlluGen, LiquiGen)*
+  - JangaFX Elemental Suite *(guided portable binary install: EmberGen, GeoGen, IlluGen, LiquiGen)*
   - Gaffer *(guided portable binary install, works on EL9 and EL10)*
   - Natron
+  - DJV *(media review; guided portable tarball install from GitHub releases)*
+
+- **Compositing & VFX**
+  - Mocha Pro *(guided vendor install, local RPM, login required, EL9 only)*
+  - SynthEyes *(guided vendor install, tarball + install.sh, login required)*
+  - Silhouette *(guided vendor install, tarball + install_silhouette.sh, login required, EL9 only)*
+  - 3DEqualizer *(guided vendor install, tarball, login required, executable auto-detected)*
 
 - **Productivity**
   - Krusader
@@ -259,10 +283,11 @@ post-production, and content creation environments:
   - draw.io
   - LibreOffice
   - OnlyOffice
-  - AppImageLauncher *(EL10 only — glibc requirement)*
+  - AppImageLauncher *(EL10 only: glibc requirement)*
+  - ArtCraft Launcher *(via signed vendor dnf repo; third-party software, not developed, maintained, or endorsed by this project)*
 
 - **Backup**
-  - Pika Backup *(Flatpak, bundles its own BorgBackup — no separate host install needed)*
+  - Pika Backup *(Flatpak, bundles its own BorgBackup, no separate host install needed)*
 
 - **Game Engines**
   - Epic Asset Manager
@@ -306,6 +331,30 @@ DaVinci Resolve follows a guided workflow designed for AlmaLinux:
 
 Uninstalling Resolve runs the vendor uninstaller at `/opt/resolve/installer`
 and must also be run as a normal user.
+
+---
+
+## 🧊 3DCoat Guided Flow
+
+Starting with the 2026 release line, Pilgway ships 3DCoat for Linux as a
+Flatpak bundle only; versions before 2026 remain tarball-only ([#103](https://github.com/KernelChief/almalinux-creative-installer/issues/103)).
+The installer follows the same guided pattern as DaVinci Resolve so either
+format just works:
+
+1. Open the 3DCoat login/download page (requires a Pilgway account).
+2. Download the Linux build for your version:
+   - 2026 and newer: the `.flatpak` bundle (e.g. `3DCoat-2026.XX.flatpak`)
+   - Pre-2026: the Linux tarball (e.g. `3DCoat-2025.XX.tar.bz2`)
+3. Select the downloaded file in the picker.
+4. The installer detects the file type and installs accordingly:
+   - `.flatpak`: installed system-wide via `flatpak install` (app ID
+     `com.pilgway.coat`); Flatpak exports the desktop entry and icon
+     automatically.
+   - Tarball: extracted to `/opt/3DCoat`, with a launcher script, an
+     `/usr/bin/3dcoat` symlink, and a desktop entry created.
+
+Uninstalling removes whichever variant is installed: the Flatpak, or the
+`/opt/3DCoat` tarball install.
 
 ---
 
