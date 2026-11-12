@@ -58,7 +58,7 @@ https://chat.almalinux.org/almalinux/channels/sig-media-entertainment
 
 ## 🚀 Quick Start (Recommended)
 
-AlmaLinux Creative Installer v2.0.5 is the current stable release, supporting AlmaLinux 9 (PyQt5) and AlmaLinux 10 (PyQt6). Install it in two commands via COPR.
+AlmaLinux Creative Installer v2.0.6 is the current stable release, supporting AlmaLinux 9 (PyQt5) and AlmaLinux 10 (PyQt6). Install it in two commands via COPR.
 
 ### 1️⃣ Enable the COPR Repository
 
@@ -97,10 +97,10 @@ Then install it from the directory where you downloaded it:
 
 ```bash
 # AlmaLinux 9
-sudo dnf install ./almalinux-creative-installer-2.0.5-1.el9.noarch.rpm
+sudo dnf install ./almalinux-creative-installer-2.0.6-1.el9.noarch.rpm
 
 # AlmaLinux 10
-sudo dnf install ./almalinux-creative-installer-2.0.5-1.el10.noarch.rpm
+sudo dnf install ./almalinux-creative-installer-2.0.6-1.el10.noarch.rpm
 ```
 
 > Note: with this method you will need to repeat the download and install manually for each future release. COPR is recommended.
@@ -271,7 +271,7 @@ post-production, and content creation environments:
   - Natron
   - DJV *(media review; guided portable tarball install from GitHub releases)*
 
-- **Compositing & VFX**
+- **Compositing**
   - Mocha Pro *(guided vendor install, local RPM, login required, EL9 only)*
   - SynthEyes *(guided vendor install, tarball + install.sh, login required)*
   - Silhouette *(guided vendor install, tarball + install_silhouette.sh, login required, EL9 only)*

@@ -51,14 +51,12 @@
       --faint:     rgba(255,255,255,0.06);
       --border:    rgba(255,255,255,0.10);
       --r:         18px;
-      --announce-h: 40px;
       --nav-h:      64px;
     }
 
     html {
       scroll-behavior: smooth;
-      /* Ensures that scroll targets don't hide under the fixed announce bar + nav */
-      scroll-padding-top: calc(var(--announce-h) + var(--nav-h) + 16px);
+      scroll-padding-top: calc(var(--nav-h) + 16px);
     }
 
     body {
@@ -115,37 +113,10 @@
       padding: 0 36px;
     }
 
-    /* ── Announce bar ── */
-    .announce-bar {
-      position: fixed;
-      inset: 0 0 auto 0;
-      z-index: 101;
-      min-height: var(--announce-h);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      flex-wrap: wrap;
-      background: linear-gradient(90deg, var(--violet), var(--pink));
-      color: var(--white);
-      text-align: center;
-      font-size: 0.82rem;
-      font-weight: 600;
-      padding: 8px 44px;
-      letter-spacing: 0.01em;
-    }
-    .announce-bar a {
-      color: inherit;
-      text-decoration: underline;
-      text-underline-offset: 2px;
-    }
-    .announce-bar a:hover { opacity: 0.85; }
-    .announce-sep { opacity: 0.6; }
-
     /* ── Nav ── */
     nav {
       position: fixed;
-      inset: var(--announce-h) 0 auto 0;
+      inset: 0 0 auto 0;
       z-index: 100;
       backdrop-filter: blur(20px) saturate(1.8);
       -webkit-backdrop-filter: blur(20px) saturate(1.8);
@@ -233,7 +204,7 @@
 
     /* ── Hero ── */
     .hero {
-      padding: calc(160px + var(--announce-h)) 0 100px;
+      padding: 160px 0 100px;
       text-align: center;
     }
     .hero-badge {
@@ -778,13 +749,11 @@
 
     /* ── Mobile (≤ 720px) ── */
     @media (max-width: 720px) {
-      :root { --announce-h: 60px; }
-      .announce-bar { padding: 8px 16px; font-size: 0.76rem; }
       .nav-hamburger { display: flex; }
       .nav-links {
         display: none;
         position: fixed;
-        top: calc(var(--announce-h) + var(--nav-h)); left: 0; right: 0;
+        top: var(--nav-h); left: 0; right: 0;
         background: rgba(6,6,15,0.97);
         backdrop-filter: blur(24px) saturate(1.8);
         -webkit-backdrop-filter: blur(24px) saturate(1.8);
@@ -818,8 +787,6 @@
 
     /* ── Small mobile (≤ 480px) ── */
     @media (max-width: 480px) {
-      :root { --announce-h: 84px; }
-      .announce-bar { flex-direction: column; gap: 2px; padding: 8px 14px; }
       .wrap { padding: 0 16px; }
       .hero { padding: 100px 0 56px; }
       .v2-card { padding: 28px 18px; }
@@ -844,11 +811,6 @@
   <div class="orb orb-4"></div>
 </div>
 
-<!-- ── ANNOUNCE BAR ── -->
-<div class="announce-bar">
-  <span>🙏 Thank you to everyone who joined us at</span>
-  <a href="https://almalinux.org/almalinux-day-los-angeles-2026/" target="_blank" rel="noopener">AlmaLinux Day: Los Angeles 2026</a>
-</div>
 
 <!-- ── NAV ── -->
 <nav>
@@ -879,7 +841,7 @@
   <div class="wrap">
     <div class="hero-badge">
       <span class="dot"></span>
-      v2.0.5
+      v2.0.6
     </div>
     <h1>
       Creative tools.<br />
@@ -887,7 +849,7 @@
       Zero compromise.
     </h1>
     <p>
-      The one-click solution for independent creatives on AlmaLinux. Install Blender, DaVinci Resolve, GIMP, Krita and 40+ more apps without an IT team. Just your vision, powered by community expertise.
+      The one-click solution for independent creatives on AlmaLinux. Install Blender, DaVinci Resolve, GIMP, Krita and 60+ more apps without an IT team. Just your vision, powered by community expertise.
     </p>
     <div class="hero-ctas">
       <a href="#install" class="btn btn-primary">
@@ -920,26 +882,32 @@
   </div>
 </section>
 
-<!-- ── V2.0.5 ANNOUNCEMENT ── -->
+<!-- ── V2.0.6 ANNOUNCEMENT ── -->
 <section class="v2-section">
   <div class="wrap">
     <div class="v2-card reveal">
       <div>
-        <div class="v2-badge"><span class="flash"></span> Latest · v2.0.5</div>
-        <h2>New: <span class="grad-text">Backup</span></h2>
+        <div class="v2-badge"><span class="flash"></span> Latest · v2.0.6</div>
+        <h2>New: <span class="grad-text">Compositing</span></h2>
         <p>
-          v2.0.5 adds Pika Backup, a BorgBackup frontend, in a new "Backup" category.
+          v2.0.6 adds 11 new apps and a new "Compositing" category: Mocha Pro, SynthEyes,
+          Silhouette, and 3DEqualizer for tracking and compositing, plus SculptForge, Meshroom, F3D,
+          RizomUV Virtual Spaces, and HDR Light Studio in 3D, DJV in Animation &amp; Video, and ArtCraft
+          Launcher (third-party) in Productivity. 3DCoat also gains support for Pilgway's 2026 Flatpak-only
+          Linux release, alongside the existing tarball install.
         </p>
         <div class="v2-pills">
-          <span class="v2-pill">Pika Backup</span>
+          <span class="v2-pill">Compositing (new category)</span>
+          <span class="v2-pill">11 New Apps</span>
+          <span class="v2-pill">3DCoat Flatpak Support</span>
           <span class="v2-pill highlight">✅ Stable Release</span>
         </div>
       </div>
       <div class="v2-qt-badge">
         <div class="qt-ring">
-          <span class="qt-inner">+1</span>
+          <span class="qt-inner">+11</span>
         </div>
-        <div class="qt-sub">new app in v2.0.5</div>
+        <div class="qt-sub">new apps in v2.0.6</div>
       </div>
     </div>
   </div>
@@ -987,7 +955,7 @@
   <div class="wrap">
     <div class="reveal">
       <span class="section-label">The catalog</span>
-      <h2 class="section-title">40+ apps across every<br />creative discipline</h2>
+      <h2 class="section-title">60+ apps across every<br />creative discipline</h2>
       <p class="section-sub">Curated and supported by the community and the AlmaLinux M&E SIG. The tools you use, ready for production.</p>
     </div>
     <div class="apps-grid">
@@ -1038,7 +1006,7 @@
         <div class="app-cat-header">
           <div class="cat-icon" style="background:rgba(236,72,153,0.15);">🎞️</div>
           <div>
-            <h4>Compositing &amp; VFX</h4>
+            <h4>Compositing</h4>
             <div class="count">4 apps</div>
           </div>
         </div>
@@ -1112,7 +1080,7 @@
           <div class="cat-icon" style="background:rgba(245,158,11,0.15);">📋</div>
           <div>
             <h4>Productivity &amp; Comms</h4>
-            <div class="count">11 apps</div>
+            <div class="count">10 apps</div>
           </div>
         </div>
         <div class="app-tags">
@@ -1126,7 +1094,6 @@
           <span class="app-tag">OnlyOffice</span>
           <span class="app-tag">Scribus</span>
           <span class="app-tag">Slack</span>
-          <span class="app-tag">Spotify</span>
         </div>
       </div>
       <div class="app-cat reveal reveal-delay-1">
@@ -1192,7 +1159,7 @@
               <pre id="rpm-cmd"><span class="comment"># 1. Download the RPM from GitHub Releases</span>
 <span class="comment"># 2. Install with DNF (it handles the rest)</span>
 <span class="prompt">$ </span><span class="cmd">sudo dnf install \
-  ./almalinux-creative-installer-2.0.5-1.el9.noarch.rpm</span>
+  ./almalinux-creative-installer-2.0.6-1.el9.noarch.rpm</span>
 
 <span class="comment"># 3. Launch and start creating!</span>
 <span class="prompt">$ </span><span class="cmd">almalinux-creative-installer</span></pre>
@@ -1206,7 +1173,7 @@
 
         <div class="copr-note">
           <span class="icon">✅</span>
-          <span>COPR is live with <strong>v2.0.5</strong> as the current stable release. Future stable releases update automatically via <code>sudo dnf upgrade</code>.</span>
+          <span>COPR is live with <strong>v2.0.6</strong> as the current stable release. Future stable releases update automatically via <code>sudo dnf upgrade</code>.</span>
         </div>
       </div>
 

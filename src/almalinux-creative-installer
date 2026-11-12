@@ -142,11 +142,11 @@ APPS = [
     {"id": "popcornfx",         "name": "PopcornFX Editor", "type": "flatpak", "appid": "com.popcornfx.PopcornFXEditor",                "category": "Animation & Video"},
     {"id": "shotcut",           "name": "Shotcut",          "type": "flatpak", "appid": "org.shotcut.Shotcut",                          "category": "Animation & Video"},
     {"id": "vlc",               "name": "VLC",              "type": "flatpak", "appid": "org.videolan.VLC",                             "category": "Animation & Video"},
-    # Compositing & VFX
-    {"id": "3dequalizer",       "name": "3DEqualizer",      "type": "threedequalizer",                                                  "category": "Compositing & VFX"},
-    {"id": "mochapro",          "name": "Mocha Pro",        "type": "mochapro",                                                         "category": "Compositing & VFX",   "el": [9]},
-    {"id": "silhouette",        "name": "Silhouette",       "type": "silhouette",                                                       "category": "Compositing & VFX",   "el": [9]},
-    {"id": "syntheyes",         "name": "SynthEyes",        "type": "syntheyes",                                                        "category": "Compositing & VFX"},
+    # Compositing
+    {"id": "3dequalizer",       "name": "3DEqualizer",      "type": "threedequalizer",                                                  "category": "Compositing"},
+    {"id": "mochapro",          "name": "Mocha Pro",        "type": "mochapro",                                                         "category": "Compositing",   "el": [9]},
+    {"id": "silhouette",        "name": "Silhouette",       "type": "silhouette",                                                       "category": "Compositing",   "el": [9]},
+    {"id": "syntheyes",         "name": "SynthEyes",        "type": "syntheyes",                                                        "category": "Compositing"},
     # Audio
     {"id": "ardour",            "name": "Ardour",           "type": "flatpak", "appid": "org.ardour.Ardour",                            "category": "Audio"},
     {"id": "audacity",          "name": "Audacity",         "type": "flatpak", "appid": "org.audacityteam.Audacity",                    "category": "Audio"},
@@ -177,7 +177,7 @@ CATEGORIES = [
     "Image Processing",
     "3D",
     "Animation & Video",
-    "Compositing & VFX",
+    "Compositing",
     "Audio",
     "Communication",
     "Game Engines",
