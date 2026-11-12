@@ -6,6 +6,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'share', 'almalinux-creative-installer'))
 
+import glob
 import importlib.metadata
 import re
 import shutil
@@ -49,6 +50,13 @@ THREEDC_URL = "https://3dcoat.com/#auth"
 INSTAMATERIAL_URL = "https://instamaterial.com/"
 JANGAFX_URL = "https://jangafx.com/software/elemental-suite/try"
 GAFFER_URL  = "https://github.com/GafferHQ/gaffer/releases"
+MESHROOM_URL = "https://meshroom.org/download/"
+BORISFX_URL = "https://borisfx.com/downloads/?os=linux"
+F3D_URL = "https://github.com/f3d-app/f3d/releases"
+DJV_URL = "https://github.com/grizzlypeak3d/DJV/releases"
+RIZOMUV_URL = "https://www.rizomuv.com/virtual-spaces/"
+HDRLIGHTSTUDIO_URL = "https://www.lightmap.co.uk/try/"
+THREEDEQUALIZER_URL = "https://www.3dequalizer.com/index.php?site=downloads"
 UNREAL_URL  = "https://www.unrealengine.com/linux"
 UNIGINE_URL = "https://developer.unigine.com/en/downloads"
 UNIGINE_EULA_URL = "https://developer.unigine.com/en/eula"
@@ -57,6 +65,14 @@ APPIMAGELAUNCHER_RPM_URL = (
     "https://github.com/TheAssassin/AppImageLauncher/releases/download/"
     "v3.0.0-beta-3/"
     f"appimagelauncher_{APPIMAGELAUNCHER_VERSION}_x86_64.rpm"
+)
+SCULPTFORGE_RPM_URL = "https://github.com/islandmed/SculptForge/releases/latest/download/sculptforge.x86_64.rpm"
+ARTCRAFT_DISCLAIMER = (
+    "ArtCraft Launcher is third-party software published by Storyteller AI / "
+    "Learning Machines LLC, installed from its own signed package repository "
+    "(getartcraft.com). This installer only automates adding that repository "
+    "and installing the package. The AlmaLinux Creative Installer project does "
+    "not develop, maintain, support, or endorse ArtCraft."
 )
 
 # -----------------------------------------------------------------------------
@@ -80,6 +96,8 @@ APPS = [
     # Productivity
     {"id": "appimagelauncher",  "name": "AppImageLauncher", "type": "dnf", "pkg": "appimagelauncher",
      "install_target": APPIMAGELAUNCHER_RPM_URL,                                                                                        "category": "Productivity",        "el": [10]},
+    {"id": "artcraft",          "name": "ArtCraft Launcher", "type": "artcraft", "icon_appid": "ai.storyteller.artcraft-launcher",
+     "disclaimer": ARTCRAFT_DISCLAIMER,                                                                                                  "category": "Productivity"},
     {"id": "drawio",            "name": "draw.io",          "type": "flatpak", "appid": "com.jgraph.drawio.desktop",                    "category": "Productivity"},
     {"id": "krusader",          "name": "Krusader",         "type": "dnf",     "pkg": "krusader",                                       "category": "Productivity"},
     {"id": "libreoffice",       "name": "LibreOffice",      "type": "flatpak", "appid": "org.libreoffice.LibreOffice",                  "category": "Productivity"},
@@ -100,12 +118,19 @@ APPS = [
     # 3D
     {"id": "3dcoat",            "name": "3DCoat",           "type": "3dcoat",                                                           "category": "3D"},
     {"id": "blender",           "name": "Blender",          "type": "dnf",     "pkg": "blender",  "icon_appid": "org.blender.Blender",  "category": "3D",                          "el": [9]},
+    {"id": "f3d",               "name": "F3D",              "type": "f3d",                                                               "category": "3D"},
     {"id": "freecad",           "name": "FreeCAD",          "type": "flatpak", "appid": "org.freecad.FreeCAD",                          "category": "3D"},
+    {"id": "hdrlightstudio",    "name": "HDR Light Studio", "type": "hdrlightstudio",                                                    "category": "3D"},
     {"id": "instamaterial",     "name": "InstaMaterial",    "type": "instamaterial",                                                    "category": "3D"},
     {"id": "materialmaker",     "name": "Material Maker",   "type": "flatpak", "appid": "io.github.RodZill4.Material-Maker",            "category": "3D"},
     {"id": "meshlab",           "name": "MeshLab",          "type": "flatpak", "appid": "net.meshlab.MeshLab",                          "category": "3D"},
+    {"id": "meshroom",          "name": "Meshroom",         "type": "meshroom",                                                         "category": "3D"},
     {"id": "prusaslicer",       "name": "PrusaSlicer",      "type": "flatpak", "appid": "com.prusa3d.PrusaSlicer",                      "category": "3D"},
+    {"id": "rizomuv",           "name": "RizomUV Virtual Spaces", "type": "rizomuv",                                                     "category": "3D"},
+    {"id": "sculptforge",       "name": "SculptForge",      "type": "dnf",     "pkg": "sculptforge", "icon_appid": "org.sculptforge.SculptForge",
+     "install_target": SCULPTFORGE_RPM_URL,                                                          "category": "3D"},
     # Animation & Video
+    {"id": "djv",               "name": "DJV",              "type": "djv",                                                               "category": "Animation & Video"},
     {"id": "resolve",           "name": "DaVinci Resolve",  "type": "resolve",                                                          "category": "Animation & Video"},
     {"id": "gaffer",            "name": "Gaffer",                  "type": "gaffer",                                                    "category": "Animation & Video"},
     {"id": "handbrake",         "name": "HandBrake",        "type": "flatpak", "appid": "fr.handbrake.ghb",                             "category": "Animation & Video"},
@@ -117,6 +142,11 @@ APPS = [
     {"id": "popcornfx",         "name": "PopcornFX Editor", "type": "flatpak", "appid": "com.popcornfx.PopcornFXEditor",                "category": "Animation & Video"},
     {"id": "shotcut",           "name": "Shotcut",          "type": "flatpak", "appid": "org.shotcut.Shotcut",                          "category": "Animation & Video"},
     {"id": "vlc",               "name": "VLC",              "type": "flatpak", "appid": "org.videolan.VLC",                             "category": "Animation & Video"},
+    # Compositing
+    {"id": "3dequalizer",       "name": "3DEqualizer",      "type": "threedequalizer",                                                  "category": "Compositing"},
+    {"id": "mochapro",          "name": "Mocha Pro",        "type": "mochapro",                                                         "category": "Compositing",   "el": [9]},
+    {"id": "silhouette",        "name": "Silhouette",       "type": "silhouette",                                                       "category": "Compositing",   "el": [9]},
+    {"id": "syntheyes",         "name": "SynthEyes",        "type": "syntheyes",                                                        "category": "Compositing"},
     # Audio
     {"id": "ardour",            "name": "Ardour",           "type": "flatpak", "appid": "org.ardour.Ardour",                            "category": "Audio"},
     {"id": "audacity",          "name": "Audacity",         "type": "flatpak", "appid": "org.audacityteam.Audacity",                    "category": "Audio"},
@@ -147,6 +177,7 @@ CATEGORIES = [
     "Image Processing",
     "3D",
     "Animation & Video",
+    "Compositing",
     "Audio",
     "Communication",
     "Game Engines",
@@ -1452,6 +1483,15 @@ class AlmaCreativeInstaller(QMainWindow):
             )
             beta_chip.setToolTip("Pre-release / experimental build")
             name_row.addWidget(beta_chip)
+        if app.get("disclaimer"):
+            disclaimer_chip = QLabel("3RD-PARTY")
+            disclaimer_chip.setStyleSheet(
+                "background: rgba(220,80,80,0.18); color: #e06c75;"
+                " border-radius: 4px; padding: 1px 5px;"
+                " font-size: 10px; font-weight: 600;"
+            )
+            disclaimer_chip.setToolTip(app["disclaimer"])
+            name_row.addWidget(disclaimer_chip)
         name_row.addStretch()
         left.addLayout(name_row)
 
@@ -1518,9 +1558,39 @@ class AlmaCreativeInstaller(QMainWindow):
         elif app["type"] == "gaffer":
             install_btn.clicked.connect(lambda: self.install_gaffer_flow())
             remove_btn.clicked.connect(lambda: self.remove_gaffer_flow())
+        elif app["type"] == "meshroom":
+            install_btn.clicked.connect(lambda: self.install_meshroom_flow())
+            remove_btn.clicked.connect(lambda: self.remove_meshroom_flow())
+        elif app["type"] == "mochapro":
+            install_btn.clicked.connect(lambda: self.install_mochapro_flow())
+            remove_btn.clicked.connect(lambda: self.remove_mochapro_flow())
+        elif app["type"] == "syntheyes":
+            install_btn.clicked.connect(lambda: self.install_syntheyes_flow())
+            remove_btn.clicked.connect(lambda: self.remove_syntheyes_flow())
+        elif app["type"] == "silhouette":
+            install_btn.clicked.connect(lambda: self.install_silhouette_flow())
+            remove_btn.clicked.connect(lambda: self.remove_silhouette_flow())
+        elif app["type"] == "f3d":
+            install_btn.clicked.connect(lambda: self.install_f3d_flow())
+            remove_btn.clicked.connect(lambda: self.remove_f3d_flow())
+        elif app["type"] == "djv":
+            install_btn.clicked.connect(lambda: self.install_djv_flow())
+            remove_btn.clicked.connect(lambda: self.remove_djv_flow())
+        elif app["type"] == "rizomuv":
+            install_btn.clicked.connect(lambda: self.install_rizomuv_flow())
+            remove_btn.clicked.connect(lambda: self.remove_rizomuv_flow())
+        elif app["type"] == "hdrlightstudio":
+            install_btn.clicked.connect(lambda: self.install_hdrlightstudio_flow())
+            remove_btn.clicked.connect(lambda: self.remove_hdrlightstudio_flow())
+        elif app["type"] == "threedequalizer":
+            install_btn.clicked.connect(lambda: self.install_threedequalizer_flow())
+            remove_btn.clicked.connect(lambda: self.remove_threedequalizer_flow())
         elif app["type"] == "o3de":
             install_btn.clicked.connect(lambda: self.install_o3de_flow())
             remove_btn.clicked.connect(lambda: self.remove_o3de_flow())
+        elif app["type"] == "artcraft":
+            install_btn.clicked.connect(lambda: self.install_artcraft_flow())
+            remove_btn.clicked.connect(lambda: self.remove_artcraft_flow())
         elif app["type"] == "unreal":
             install_btn.clicked.connect(lambda: self.install_unreal_flow())
             remove_btn.clicked.connect(lambda: self.remove_unreal_flow())
@@ -1575,15 +1645,35 @@ class AlmaCreativeInstaller(QMainWindow):
         if app["type"] == "resolve":
             return "Guided install: deps → open download page → pick .run/.rpm"
         if app["type"] == "3dcoat":
-            return "Guided install: log in → download Linux tarball → pick .tar archive"
+            return "Guided install: log in → download Linux build (Flatpak bundle for 2026+, tarball for earlier) → pick file"
         if app["type"] == "instamaterial":
             return "Guided install: create account → download zip → run install.sh"
         if app["type"] == "jangafx":
             return "Guided install: download suite zip → extracts EmberGen, GeoGen, IlluGen, LiquiGen to /opt/jangafx"
         if app["type"] == "gaffer":
             return "Guided install: download Linux tarball from GitHub → extracts to /opt/gaffer (EL9 and EL10)"
+        if app["type"] == "meshroom":
+            return "Guided install: download Linux tarball (~14 GB) → extracts to /opt/meshroom"
+        if app["type"] == "mochapro":
+            return "Guided install: log in → download Linux RPM → dnf install"
+        if app["type"] == "syntheyes":
+            return "Guided install: log in → download Linux archive → runs vendor install.sh to /opt/BorisFX"
+        if app["type"] == "silhouette":
+            return "Guided install: log in → download Linux tarball → extracts to /opt/silhouette"
+        if app["type"] == "f3d":
+            return "Guided install: download Linux tarball from GitHub → extracts to /opt/f3d"
+        if app["type"] == "djv":
+            return "Guided install: download Linux tarball from GitHub → extracts to /opt/djv"
+        if app["type"] == "rizomuv":
+            return "Guided install: download Linux AppImage → placed in /opt/rizomuv"
+        if app["type"] == "hdrlightstudio":
+            return "Guided install: download Linux tarball → extracts to /opt/hdrlightstudio (executable auto-detected)"
+        if app["type"] == "threedequalizer":
+            return "Guided install: log in / accept terms → download Linux tarball → extracts to /opt/3dequalizer (executable auto-detected)"
         if app["type"] == "o3de":
             return "Installed via COPR (hellaenergy/o3de), latest release line"
+        if app["type"] == "artcraft":
+            return "Installed via signed dnf repo (getartcraft.com); third-party, not endorsed by this project"
         if app["type"] == "unreal":
             return "Guided install: log in to Epic → download Linux zip → extracts to /opt/unreal-engine (EL9 and EL10)"
         if app["type"] == "unigine":
@@ -1820,8 +1910,88 @@ class AlmaCreativeInstaller(QMainWindow):
             w["remove"].setEnabled(installed)
             return
 
+        if app["type"] == "meshroom":
+            installed = self._meshroom_installed()
+            self._set_status_badge(w["status"], "Installed" if installed else "Guided install",
+                                   "installed" if installed else "available")
+            w["install"].setEnabled(not installed)
+            w["remove"].setEnabled(installed)
+            return
+
+        if app["type"] == "mochapro":
+            installed = self._mochapro_installed()
+            self._set_status_badge(w["status"], "Installed" if installed else "Guided install",
+                                   "installed" if installed else "available")
+            w["install"].setEnabled(not installed)
+            w["remove"].setEnabled(installed)
+            return
+
+        if app["type"] == "syntheyes":
+            installed = self._syntheyes_installed()
+            self._set_status_badge(w["status"], "Installed" if installed else "Guided install",
+                                   "installed" if installed else "available")
+            w["install"].setEnabled(not installed)
+            w["remove"].setEnabled(installed)
+            return
+
+        if app["type"] == "silhouette":
+            installed = self._silhouette_installed()
+            self._set_status_badge(w["status"], "Installed" if installed else "Guided install",
+                                   "installed" if installed else "available")
+            w["install"].setEnabled(not installed)
+            w["remove"].setEnabled(installed)
+            return
+
+        if app["type"] == "f3d":
+            installed = self._f3d_installed()
+            self._set_status_badge(w["status"], "Installed" if installed else "Guided install",
+                                   "installed" if installed else "available")
+            w["install"].setEnabled(not installed)
+            w["remove"].setEnabled(installed)
+            return
+
+        if app["type"] == "djv":
+            installed = self._djv_installed()
+            self._set_status_badge(w["status"], "Installed" if installed else "Guided install",
+                                   "installed" if installed else "available")
+            w["install"].setEnabled(not installed)
+            w["remove"].setEnabled(installed)
+            return
+
+        if app["type"] == "rizomuv":
+            installed = self._rizomuv_installed()
+            self._set_status_badge(w["status"], "Installed" if installed else "Guided install",
+                                   "installed" if installed else "available")
+            w["install"].setEnabled(not installed)
+            w["remove"].setEnabled(installed)
+            return
+
+        if app["type"] == "hdrlightstudio":
+            installed = self._hdrlightstudio_installed()
+            self._set_status_badge(w["status"], "Installed" if installed else "Guided install",
+                                   "installed" if installed else "available")
+            w["install"].setEnabled(not installed)
+            w["remove"].setEnabled(installed)
+            return
+
+        if app["type"] == "threedequalizer":
+            installed = self._threedequalizer_installed()
+            self._set_status_badge(w["status"], "Installed" if installed else "Guided install",
+                                   "installed" if installed else "available")
+            w["install"].setEnabled(not installed)
+            w["remove"].setEnabled(installed)
+            return
+
         if app["type"] == "o3de":
             installed = self._o3de_installed()
+            self._set_status_badge(w["status"], "Installed" if installed else "Not installed",
+                                   "installed" if installed else "missing")
+            w["install"].setEnabled(not installed)
+            w["remove"].setEnabled(installed)
+            return
+
+        if app["type"] == "artcraft":
+            installed = self._artcraft_installed()
             self._set_status_badge(w["status"], "Installed" if installed else "Not installed",
                                    "installed" if installed else "missing")
             w["install"].setEnabled(not installed)
@@ -2569,7 +2739,9 @@ class AlmaCreativeInstaller(QMainWindow):
         opt_dir = Path("/opt/3DCoat")
         if opt_dir.is_dir() and any(opt_dir.iterdir()):
             return True
-        return shutil.which("3dcoat") is not None
+        if shutil.which("3dcoat") is not None:
+            return True
+        return self._flatpak_install_scope("com.pilgway.coat") is not None
 
     def install_3dcoat_flow(self):
         self.set_app_busy("3dcoat", True, "Waiting for file…")
@@ -2577,15 +2749,20 @@ class AlmaCreativeInstaller(QMainWindow):
         if shutil.which("xdg-open"):
             subprocess.Popen(["xdg-open", THREEDC_URL])
             self.append_log("Opened 3DCoat download page.\n")
-        self.append_log("Log in, download the Linux tarball, then select it below to continue.\n")
+        self.append_log(
+            "Log in, download the Linux build (Flatpak bundle for 2026 and newer, "
+            "tarball for earlier versions), then select it below to continue.\n"
+        )
         self.pick_3dcoat_installer()
 
     def pick_3dcoat_installer(self):
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "Select 3DCoat Linux tarball",
+            "Select 3DCoat Linux Flatpak bundle or tarball",
             "",
-            "Tarballs (*.tar *.tar.bz2 *.tar.gz *.tar.xz *.tar.zst *.tgz);;All files (*)",
+            "3DCoat installers (*.flatpak *.tar *.tar.bz2 *.tar.gz *.tar.xz *.tar.zst *.tgz);;"
+            "Flatpak bundles (*.flatpak);;Tarballs (*.tar *.tar.bz2 *.tar.gz *.tar.xz *.tar.zst *.tgz);;"
+            "All files (*)",
         )
         self.raise_()
         self.activateWindow()
@@ -2593,8 +2770,9 @@ class AlmaCreativeInstaller(QMainWindow):
             self._finish_app_action("3dcoat")
             return
         self._set_app_progress_fraction("3dcoat", 0.05)
+        helper_cmd = "install_3dcoat_flatpak" if path.lower().endswith(".flatpak") else "install_3dcoat"
         self.run_helper_with_callback(
-            ["install_3dcoat", path],
+            [helper_cmd, path],
             on_success=lambda: self._finish_app_action("3dcoat"),
             app_id="3dcoat",
             progress_segment=(0.05, 0.98),
@@ -2607,7 +2785,8 @@ class AlmaCreativeInstaller(QMainWindow):
             return
         reply = QMessageBox.question(
             self, "Uninstall 3DCoat?",
-            "This will remove /opt/3DCoat, the /usr/bin/3dcoat symlink, and the desktop entry.",
+            "This will remove the 3DCoat Flatpak (if installed), /opt/3DCoat, "
+            "the /usr/bin/3dcoat symlink, and the desktop entry.",
             QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
         )
         if reply != QMessageBox.StandardButton.Ok:
@@ -2811,6 +2990,533 @@ class AlmaCreativeInstaller(QMainWindow):
             progress_segment=(0.02, 0.98),
         )
 
+    def _meshroom_installed(self):
+        return Path("/opt/meshroom/Meshroom").is_file() or shutil.which("meshroom") is not None
+
+    def install_meshroom_flow(self):
+        self.set_app_busy("meshroom", True, "Waiting for file…")
+        self._set_app_progress_fraction("meshroom", 0.02)
+        if shutil.which("xdg-open"):
+            subprocess.Popen(["xdg-open", MESHROOM_URL])
+            self.append_log("Opened Meshroom download page.\n")
+        self.append_log(
+            "Download the Linux tarball (e.g. Meshroom-2025.1.0-Linux.tar.gz, ~14 GB), "
+            "then select it below.\n"
+        )
+        self.pick_meshroom_tarball()
+
+    def pick_meshroom_tarball(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select Meshroom Linux tarball",
+            "",
+            "Tarballs (*.tar.gz *.tgz);;All files (*)",
+        )
+        self.raise_()
+        self.activateWindow()
+        if not path:
+            self._finish_app_action("meshroom")
+            return
+        self._set_app_progress_fraction("meshroom", 0.05)
+        self.run_helper_with_callback(
+            ["install_meshroom", path],
+            on_success=lambda: self._finish_app_action("meshroom"),
+            app_id="meshroom",
+            progress_segment=(0.05, 0.98),
+        )
+
+    def remove_meshroom_flow(self):
+        if not self._meshroom_installed():
+            self.append_log("ℹ️ Meshroom does not appear to be installed.\n")
+            self.refresh_app_state("meshroom")
+            return
+        reply = QMessageBox.question(
+            self, "Uninstall Meshroom?",
+            "This will remove /opt/meshroom, the /usr/bin/meshroom symlink, and the desktop entry.",
+            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
+        )
+        if reply != QMessageBox.StandardButton.Ok:
+            return
+        self.set_app_busy("meshroom", True, "Removing…")
+        self._set_app_progress_fraction("meshroom", 0.02)
+        self.run_helper_with_callback(
+            ["remove_meshroom"],
+            on_success=lambda: self._finish_app_action("meshroom"),
+            app_id="meshroom",
+            progress_segment=(0.02, 0.98),
+        )
+
+    # -------------------------------------------------------------------------
+    # Mocha Pro (guided local RPM install)
+    # -------------------------------------------------------------------------
+    def _mochapro_installed(self):
+        out = subprocess.run(
+            ["rpm", "-qa", "--qf", "%{NAME}\n"],
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, check=False,
+        ).stdout
+        return any("mocha" in line.lower() for line in out.splitlines())
+
+    def install_mochapro_flow(self):
+        self.set_app_busy("mochapro", True, "Waiting for file…")
+        self._set_app_progress_fraction("mochapro", 0.02)
+        if shutil.which("xdg-open"):
+            subprocess.Popen(["xdg-open", BORISFX_URL])
+            self.append_log("Opened Boris FX downloads page.\n")
+        self.append_log(
+            "Log in, download the Mocha Pro Linux RPM, then select it below to continue.\n"
+        )
+        self.pick_mochapro_installer()
+
+    def pick_mochapro_installer(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select Mocha Pro Linux RPM",
+            "",
+            "RPM packages (*.rpm);;All files (*)",
+        )
+        self.raise_()
+        self.activateWindow()
+        if not path:
+            self._finish_app_action("mochapro")
+            return
+        self._set_app_progress_fraction("mochapro", 0.05)
+        self.run_helper_with_callback(
+            ["install_local_file", path],
+            on_success=lambda: self._finish_app_action("mochapro"),
+            app_id="mochapro",
+            progress_segment=(0.05, 0.98),
+        )
+
+    def remove_mochapro_flow(self):
+        if not self._mochapro_installed():
+            self.append_log("ℹ️ Mocha Pro does not appear to be installed.\n")
+            self.refresh_app_state("mochapro")
+            return
+        reply = QMessageBox.question(
+            self, "Uninstall Mocha Pro?",
+            "This will remove the installed Mocha Pro rpm package(s).",
+            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
+        )
+        if reply != QMessageBox.StandardButton.Ok:
+            return
+        self.set_app_busy("mochapro", True, "Removing…")
+        self._set_app_progress_fraction("mochapro", 0.02)
+        self.run_helper_with_callback(
+            ["remove_mochapro"],
+            on_success=lambda: self._finish_app_action("mochapro"),
+            app_id="mochapro",
+            progress_segment=(0.02, 0.98),
+        )
+
+    # -------------------------------------------------------------------------
+    # SynthEyes (guided tarball + vendor install.sh)
+    # -------------------------------------------------------------------------
+    def _syntheyes_installed(self):
+        return bool(glob.glob("/opt/BorisFX/SynthEyes*")) or shutil.which("SynthEyes") is not None
+
+    def install_syntheyes_flow(self):
+        self.set_app_busy("syntheyes", True, "Waiting for file…")
+        self._set_app_progress_fraction("syntheyes", 0.02)
+        if shutil.which("xdg-open"):
+            subprocess.Popen(["xdg-open", BORISFX_URL])
+            self.append_log("Opened Boris FX downloads page.\n")
+        self.append_log(
+            "Log in, download the SynthEyes Linux archive (.tar.xz), then select it below to continue.\n"
+        )
+        self.pick_syntheyes_tarball()
+
+    def pick_syntheyes_tarball(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select SynthEyes Linux archive",
+            "",
+            "Archives (*.tar.xz *.txz *.tar.gz *.tgz *.xz);;All files (*)",
+        )
+        self.raise_()
+        self.activateWindow()
+        if not path:
+            self._finish_app_action("syntheyes")
+            return
+        self._set_app_progress_fraction("syntheyes", 0.05)
+        self.run_helper_with_callback(
+            ["install_syntheyes", path],
+            on_success=lambda: self._finish_app_action("syntheyes"),
+            app_id="syntheyes",
+            progress_segment=(0.05, 0.98),
+        )
+
+    def remove_syntheyes_flow(self):
+        if not self._syntheyes_installed():
+            self.append_log("ℹ️ SynthEyes does not appear to be installed.\n")
+            self.refresh_app_state("syntheyes")
+            return
+        reply = QMessageBox.question(
+            self, "Uninstall SynthEyes?",
+            "This will run SynthEyes' own uninstaller (install.sh uninstall) and remove /opt/BorisFX/SynthEyes*.\n\n"
+            "User preferences in ~/.config/BorisFX/SynthEyes are left in place.",
+            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
+        )
+        if reply != QMessageBox.StandardButton.Ok:
+            return
+        self.set_app_busy("syntheyes", True, "Removing…")
+        self._set_app_progress_fraction("syntheyes", 0.02)
+        self.run_helper_with_callback(
+            ["remove_syntheyes"],
+            on_success=lambda: self._finish_app_action("syntheyes"),
+            app_id="syntheyes",
+            progress_segment=(0.02, 0.98),
+        )
+
+    # -------------------------------------------------------------------------
+    # Silhouette (guided tarball + vendor install_silhouette.sh)
+    # -------------------------------------------------------------------------
+    def _silhouette_installed(self):
+        return Path("/opt/silhouette/silhouette").is_file() or shutil.which("silhouette") is not None
+
+    def install_silhouette_flow(self):
+        self.set_app_busy("silhouette", True, "Waiting for file…")
+        self._set_app_progress_fraction("silhouette", 0.02)
+        if shutil.which("xdg-open"):
+            subprocess.Popen(["xdg-open", BORISFX_URL])
+            self.append_log("Opened Boris FX downloads page.\n")
+        self.append_log(
+            "Log in, download the Silhouette Linux tarball, then select it below to continue.\n"
+        )
+        self.pick_silhouette_tarball()
+
+    def pick_silhouette_tarball(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select Silhouette Linux tarball",
+            "",
+            "Tarballs (*.tar.gz *.tgz);;All files (*)",
+        )
+        self.raise_()
+        self.activateWindow()
+        if not path:
+            self._finish_app_action("silhouette")
+            return
+        self._set_app_progress_fraction("silhouette", 0.05)
+        self.run_helper_with_callback(
+            ["install_silhouette", path],
+            on_success=lambda: self._finish_app_action("silhouette"),
+            app_id="silhouette",
+            progress_segment=(0.05, 0.98),
+        )
+
+    def remove_silhouette_flow(self):
+        if not self._silhouette_installed():
+            self.append_log("ℹ️ Silhouette does not appear to be installed.\n")
+            self.refresh_app_state("silhouette")
+            return
+        reply = QMessageBox.question(
+            self, "Uninstall Silhouette?",
+            "This will remove /opt/silhouette, the /usr/bin/silhouette symlink, and the desktop entry.",
+            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
+        )
+        if reply != QMessageBox.StandardButton.Ok:
+            return
+        self.set_app_busy("silhouette", True, "Removing…")
+        self._set_app_progress_fraction("silhouette", 0.02)
+        self.run_helper_with_callback(
+            ["remove_silhouette"],
+            on_success=lambda: self._finish_app_action("silhouette"),
+            app_id="silhouette",
+            progress_segment=(0.02, 0.98),
+        )
+
+    # -------------------------------------------------------------------------
+    # F3D (guided tarball install)
+    # -------------------------------------------------------------------------
+    def _f3d_installed(self):
+        return Path("/opt/f3d/bin/f3d").is_file() or shutil.which("f3d") is not None
+
+    def install_f3d_flow(self):
+        self.set_app_busy("f3d", True, "Waiting for file…")
+        self._set_app_progress_fraction("f3d", 0.02)
+        if shutil.which("xdg-open"):
+            subprocess.Popen(["xdg-open", F3D_URL])
+            self.append_log("Opened F3D releases page.\n")
+        self.append_log(
+            "Download the Linux tarball (e.g. F3D-X.X.X-Linux-x86_64.tar.gz), then select it below.\n"
+        )
+        self.pick_f3d_tarball()
+
+    def pick_f3d_tarball(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select F3D Linux tarball",
+            "",
+            "Tarballs (*.tar.gz *.tar.xz *.tgz);;All files (*)",
+        )
+        self.raise_()
+        self.activateWindow()
+        if not path:
+            self._finish_app_action("f3d")
+            return
+        self._set_app_progress_fraction("f3d", 0.05)
+        self.run_helper_with_callback(
+            ["install_f3d", path],
+            on_success=lambda: self._finish_app_action("f3d"),
+            app_id="f3d",
+            progress_segment=(0.05, 0.98),
+        )
+
+    def remove_f3d_flow(self):
+        if not self._f3d_installed():
+            self.append_log("ℹ️ F3D does not appear to be installed.\n")
+            self.refresh_app_state("f3d")
+            return
+        reply = QMessageBox.question(
+            self, "Uninstall F3D?",
+            "This will remove /opt/f3d, the /usr/bin/f3d symlink, and the desktop entry.",
+            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
+        )
+        if reply != QMessageBox.StandardButton.Ok:
+            return
+        self.set_app_busy("f3d", True, "Removing…")
+        self._set_app_progress_fraction("f3d", 0.02)
+        self.run_helper_with_callback(
+            ["remove_f3d"],
+            on_success=lambda: self._finish_app_action("f3d"),
+            app_id="f3d",
+            progress_segment=(0.02, 0.98),
+        )
+
+    # -------------------------------------------------------------------------
+    # DJV (guided tarball install)
+    # -------------------------------------------------------------------------
+    def _djv_installed(self):
+        return Path("/opt/djv/bin/djv").is_file() or shutil.which("djv") is not None
+
+    def install_djv_flow(self):
+        self.set_app_busy("djv", True, "Waiting for file…")
+        self._set_app_progress_fraction("djv", 0.02)
+        if shutil.which("xdg-open"):
+            subprocess.Popen(["xdg-open", DJV_URL])
+            self.append_log("Opened DJV releases page.\n")
+        self.append_log(
+            "Download the Linux tarball (e.g. djv-X.X.X-linux-x86_64.tar.gz), then select it below.\n"
+        )
+        self.pick_djv_tarball()
+
+    def pick_djv_tarball(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select DJV Linux tarball",
+            "",
+            "Tarballs (*.tar.gz *.tar.xz *.tgz);;All files (*)",
+        )
+        self.raise_()
+        self.activateWindow()
+        if not path:
+            self._finish_app_action("djv")
+            return
+        self._set_app_progress_fraction("djv", 0.05)
+        self.run_helper_with_callback(
+            ["install_djv", path],
+            on_success=lambda: self._finish_app_action("djv"),
+            app_id="djv",
+            progress_segment=(0.05, 0.98),
+        )
+
+    def remove_djv_flow(self):
+        if not self._djv_installed():
+            self.append_log("ℹ️ DJV does not appear to be installed.\n")
+            self.refresh_app_state("djv")
+            return
+        reply = QMessageBox.question(
+            self, "Uninstall DJV?",
+            "This will remove /opt/djv, the /usr/bin/djv symlink, and the desktop entry.",
+            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
+        )
+        if reply != QMessageBox.StandardButton.Ok:
+            return
+        self.set_app_busy("djv", True, "Removing…")
+        self._set_app_progress_fraction("djv", 0.02)
+        self.run_helper_with_callback(
+            ["remove_djv"],
+            on_success=lambda: self._finish_app_action("djv"),
+            app_id="djv",
+            progress_segment=(0.02, 0.98),
+        )
+
+    # -------------------------------------------------------------------------
+    # RizomUV Virtual Spaces (guided standalone AppImage)
+    # -------------------------------------------------------------------------
+    def _rizomuv_installed(self):
+        return Path("/opt/rizomuv/RizomUV.AppImage").is_file() or shutil.which("rizomuv") is not None
+
+    def install_rizomuv_flow(self):
+        self.set_app_busy("rizomuv", True, "Waiting for file…")
+        self._set_app_progress_fraction("rizomuv", 0.02)
+        if shutil.which("xdg-open"):
+            subprocess.Popen(["xdg-open", RIZOMUV_URL])
+            self.append_log("Opened RizomUV download page.\n")
+        self.append_log(
+            "Download the RizomUV Virtual Spaces Linux AppImage, then select it below.\n"
+        )
+        self.pick_rizomuv_appimage()
+
+    def pick_rizomuv_appimage(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select RizomUV Virtual Spaces AppImage",
+            "",
+            "AppImages (*.AppImage *.appimage);;All files (*)",
+        )
+        self.raise_()
+        self.activateWindow()
+        if not path:
+            self._finish_app_action("rizomuv")
+            return
+        self._set_app_progress_fraction("rizomuv", 0.05)
+        self.run_helper_with_callback(
+            ["install_rizomuv", path],
+            on_success=lambda: self._finish_app_action("rizomuv"),
+            app_id="rizomuv",
+            progress_segment=(0.05, 0.98),
+        )
+
+    def remove_rizomuv_flow(self):
+        if not self._rizomuv_installed():
+            self.append_log("ℹ️ RizomUV does not appear to be installed.\n")
+            self.refresh_app_state("rizomuv")
+            return
+        reply = QMessageBox.question(
+            self, "Uninstall RizomUV?",
+            "This will remove /opt/rizomuv, the /usr/bin/rizomuv symlink, and the desktop entry.",
+            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
+        )
+        if reply != QMessageBox.StandardButton.Ok:
+            return
+        self.set_app_busy("rizomuv", True, "Removing…")
+        self._set_app_progress_fraction("rizomuv", 0.02)
+        self.run_helper_with_callback(
+            ["remove_rizomuv"],
+            on_success=lambda: self._finish_app_action("rizomuv"),
+            app_id="rizomuv",
+            progress_segment=(0.02, 0.98),
+        )
+
+    # -------------------------------------------------------------------------
+    # HDR Light Studio (guided tarball install; executable auto-detected)
+    # -------------------------------------------------------------------------
+    def _hdrlightstudio_installed(self):
+        return Path("/opt/hdrlightstudio").is_dir() and any(Path("/opt/hdrlightstudio").iterdir()) \
+            or shutil.which("hdrlightstudio") is not None
+
+    def install_hdrlightstudio_flow(self):
+        self.set_app_busy("hdrlightstudio", True, "Waiting for file…")
+        self._set_app_progress_fraction("hdrlightstudio", 0.02)
+        if shutil.which("xdg-open"):
+            subprocess.Popen(["xdg-open", HDRLIGHTSTUDIO_URL])
+            self.append_log("Opened HDR Light Studio download page.\n")
+        self.append_log(
+            "Download the Linux tarball, then select it below to continue.\n"
+        )
+        self.pick_hdrlightstudio_tarball()
+
+    def pick_hdrlightstudio_tarball(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select HDR Light Studio Linux tarball",
+            "",
+            "Tarballs (*.tar.gz *.tar *.tgz);;All files (*)",
+        )
+        self.raise_()
+        self.activateWindow()
+        if not path:
+            self._finish_app_action("hdrlightstudio")
+            return
+        self._set_app_progress_fraction("hdrlightstudio", 0.05)
+        self.run_helper_with_callback(
+            ["install_hdrlightstudio", path],
+            on_success=lambda: self._finish_app_action("hdrlightstudio"),
+            app_id="hdrlightstudio",
+            progress_segment=(0.05, 0.98),
+        )
+
+    def remove_hdrlightstudio_flow(self):
+        if not self._hdrlightstudio_installed():
+            self.append_log("ℹ️ HDR Light Studio does not appear to be installed.\n")
+            self.refresh_app_state("hdrlightstudio")
+            return
+        reply = QMessageBox.question(
+            self, "Uninstall HDR Light Studio?",
+            "This will remove /opt/hdrlightstudio, the /usr/bin/hdrlightstudio symlink, and the desktop entry.",
+            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
+        )
+        if reply != QMessageBox.StandardButton.Ok:
+            return
+        self.set_app_busy("hdrlightstudio", True, "Removing…")
+        self._set_app_progress_fraction("hdrlightstudio", 0.02)
+        self.run_helper_with_callback(
+            ["remove_hdrlightstudio"],
+            on_success=lambda: self._finish_app_action("hdrlightstudio"),
+            app_id="hdrlightstudio",
+            progress_segment=(0.02, 0.98),
+        )
+
+    # -------------------------------------------------------------------------
+    # 3DEqualizer (guided tarball install; executable auto-detected)
+    # -------------------------------------------------------------------------
+    def _threedequalizer_installed(self):
+        return Path("/opt/3dequalizer").is_dir() and any(Path("/opt/3dequalizer").iterdir()) \
+            or shutil.which("3dequalizer") is not None
+
+    def install_threedequalizer_flow(self):
+        self.set_app_busy("3dequalizer", True, "Waiting for file…")
+        self._set_app_progress_fraction("3dequalizer", 0.02)
+        if shutil.which("xdg-open"):
+            subprocess.Popen(["xdg-open", THREEDEQUALIZER_URL])
+            self.append_log("Opened 3DEqualizer download page.\n")
+        self.append_log(
+            "Log in / accept the terms, download the Linux tarball, then select it below to continue.\n"
+        )
+        self.pick_threedequalizer_tarball()
+
+    def pick_threedequalizer_tarball(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select 3DEqualizer Linux tarball",
+            "",
+            "Tarballs (*.tar.gz *.tar *.tgz);;All files (*)",
+        )
+        self.raise_()
+        self.activateWindow()
+        if not path:
+            self._finish_app_action("3dequalizer")
+            return
+        self._set_app_progress_fraction("3dequalizer", 0.05)
+        self.run_helper_with_callback(
+            ["install_3dequalizer", path],
+            on_success=lambda: self._finish_app_action("3dequalizer"),
+            app_id="3dequalizer",
+            progress_segment=(0.05, 0.98),
+        )
+
+    def remove_threedequalizer_flow(self):
+        if not self._threedequalizer_installed():
+            self.append_log("ℹ️ 3DEqualizer does not appear to be installed.\n")
+            self.refresh_app_state("3dequalizer")
+            return
+        reply = QMessageBox.question(
+            self, "Uninstall 3DEqualizer?",
+            "This will remove /opt/3dequalizer, the /usr/bin/3dequalizer symlink, and the desktop entry.",
+            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
+        )
+        if reply != QMessageBox.StandardButton.Ok:
+            return
+        self.set_app_busy("3dequalizer", True, "Removing…")
+        self._set_app_progress_fraction("3dequalizer", 0.02)
+        self.run_helper_with_callback(
+            ["remove_3dequalizer"],
+            on_success=lambda: self._finish_app_action("3dequalizer"),
+            app_id="3dequalizer",
+            progress_segment=(0.02, 0.98),
+        )
+
     def _o3de_installed(self):
         out = subprocess.run(
             ["rpm", "-qa", "--qf", "%{NAME}\n", "o3de*"],
@@ -2846,6 +3552,53 @@ class AlmaCreativeInstaller(QMainWindow):
             ["remove_o3de"],
             on_success=lambda: self._finish_app_action("o3de"),
             app_id="o3de",
+            progress_segment=(0.02, 0.98),
+        )
+
+    # -------------------------------------------------------------------------
+    # ArtCraft Launcher (signed dnf repo)
+    # -------------------------------------------------------------------------
+    def _artcraft_installed(self):
+        return subprocess.run(
+            ["rpm", "-q", "artcraft-launcher"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False,
+        ).returncode == 0
+
+    def install_artcraft_flow(self):
+        reply = QMessageBox.warning(
+            self, "Install ArtCraft Launcher?",
+            ARTCRAFT_DISCLAIMER + "\n\nContinue with the install?",
+            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
+        )
+        if reply != QMessageBox.StandardButton.Ok:
+            return
+        self.set_app_busy("artcraft", True, "Installing…")
+        self._set_app_progress_fraction("artcraft", 0.02)
+        self.run_helper_with_callback(
+            ["install_artcraft_launcher"],
+            on_success=lambda: self._finish_app_action("artcraft"),
+            app_id="artcraft",
+            progress_segment=(0.02, 0.98),
+        )
+
+    def remove_artcraft_flow(self):
+        if not self._artcraft_installed():
+            self.append_log("ℹ️ ArtCraft Launcher does not appear to be installed.\n")
+            self.refresh_app_state("artcraft")
+            return
+        reply = QMessageBox.question(
+            self, "Uninstall ArtCraft Launcher?",
+            "This will remove the artcraft-launcher package and disable the ArtCraft repository.",
+            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
+        )
+        if reply != QMessageBox.StandardButton.Ok:
+            return
+        self.set_app_busy("artcraft", True, "Removing…")
+        self._set_app_progress_fraction("artcraft", 0.02)
+        self.run_helper_with_callback(
+            ["remove_artcraft_launcher"],
+            on_success=lambda: self._finish_app_action("artcraft"),
+            app_id="artcraft",
             progress_segment=(0.02, 0.98),
         )
 
